@@ -16,3 +16,109 @@
 .school-id-success code{font-size:14px;letter-spacing:.8px}
 .school-identity-logo img{width:100%;height:100%;object-fit:contain;border-radius:7px}
 .auth-submit:disabled,.verify-button:disabled{opacity:.65;cursor:wait;transform:none}
+
+
+/* ACADAMIX brand palette: #CC5803 · #E2711D · #FF9505 · #FFB627 · #FFC971 */
+:root{
+  --brand-900:#CC5803;
+  --brand-800:#E2711D;
+  --brand-600:#FF9505;
+  --brand-400:#FFB627;
+  --brand-200:#FFC971;
+  --green:var(--brand-900);
+  --dark:#71320d;
+  --muted:#927b68;
+  --line:#f0dfc9;
+  --surface:#fffdf9;
+  color-scheme:light;
+}
+body,.app-shell{background:#fffbf5;color:#4b2d19}
+.sidebar,.topbar,.stat-card,.panel,.auth-card{background:#fffdf9;border-color:#f0e2d0}
+.brand-mark,.auth-brand-mark,.splash-mark{background:#CC5803;color:#fff}
+.brand-name,.auth-brand-name,.splash-title{color:#4b2d19}
+.brand-name span,.auth-brand-name span,.splash-title span{color:#CC5803}
+.brand-powered b,.auth-brand-powered b,.splash-powered b{color:#E2711D}
+.school-switcher,.help-card,.profile-pop button:hover{background:#fff7e9;border-color:#f3e1c5}
+.school-avatar,.help-icon{background:#ffedcf;color:#a64b08}
+.nav-item{color:#806c5b}
+.nav-item:hover,.icon-button:hover{background:#fff2df;color:#a94705}
+.nav-item.active{background:#fff0d9;color:#a64000}
+.nav-ai,.nav-ai.active{color:#a94705}
+.nav-ai.active{background:#fff0d9}
+.new-pill{background:#ffe2b0;color:#984000}
+.main-area{background:#fffbf5}
+.breadcrumb b,.welcome-row h1,.panel-header h3,.stat-bottom strong,.attendance-summary strong{color:#4b2d19}
+.live-dot,.footer-status i,.notification-dot{background:#E2711D}
+.wave{color:#FF9505}
+.date-button,.round-arrow{border-color:#f0dfc9;color:#76583f}
+.hero-banner{background:linear-gradient(105deg,#9e4100 0%,#CC5803 55%,#E2711D 100%)}
+.hero-label{color:#ffe0b1}
+.hero-copy h2 em{color:#FFC971}
+.hero-cta{background:#FFC971;color:#71320d}
+.hero-glow{background:radial-gradient(circle,#ffb627 0%,#e2711d 60%,#cc5803 100%);color:#fff8e9}
+.float-check{background:#fff0d9;color:#CC5803}
+.mini-bars i{background:#FFB627}
+.stat-icon.mint,.stat-icon.lavender,.stat-icon.blue,.stat-icon.peach{background:#fff0d9;color:#CC5803}
+.stat-change,.positive-note,.more-button,.all-events{color:#b34a00}
+.legend-present{background:#E2711D}
+.legend-absent{background:#FFC971}
+.bar-stack{background:#FFC971}
+.bar-present{background:#E2711D}
+.bar-absent{background:#FFC971}
+.event-date.green,.event-date.purple,.event-date.orange{background:#fff0d9;color:#a94705}
+.activity-avatar.coral,.activity-avatar.blue,.activity-avatar.violet,.activity-avatar.green{background:#fff0d9;color:#a94705}
+.ai-card{background:#fff2dc;border-color:#f3d8ad}
+.ai-card-top,.ai-live{color:#9d4808}
+.ai-live{background:#ffe2b0}
+.ai-spark{background:#ffe4b7;color:#a94705}
+.ai-card h3{color:#66340f}
+.ai-card h3 em{color:#CC5803}
+.ai-card p{color:#8c6948}
+.ai-card>button{background:#CC5803;color:#fff}
+.ai-card>button:hover{background:#a94705}
+.ai-decoration{color:#cc580310}
+.notification-pop,.profile-pop{border-color:#f0dfc9}
+.notification-dot{background:#E2711D}
+.blue-dot,.orange-dot{background:#FFB627}
+.modal-head,.ai-input-row{border-color:#f0e2d0}
+.assistant-bubble{background:#fff4e3;border-color:#f4e0c1;color:#a94705}
+.assistant-bubble b{color:#71320d}
+.assistant-bubble p{color:#8c6948}
+.prompt-chips button{border-color:#f0dfc9;color:#a94705}
+.ai-input-row input:focus{border-color:#E2711D}
+.ai-input-row button{background:#CC5803}
+.toast,.auth-notice{background:#71320d}
+.splash-screen,.auth-page{background:#fffbf5;color:#4b2d19}
+.auth-topline{border-color:#f0e2d0}
+.auth-top-note{color:#927b68}
+.auth-secure-dot,.auth-intro-kicker span{background:#E2711D;box-shadow:0 0 0 4px #E2711d18}
+.auth-intro-kicker{color:#9a5a2b}
+.auth-intro h1{color:#4b2d19}
+.auth-intro h1 em{color:#CC5803}
+.auth-orbit{border-color:#f1dfc7}
+.auth-orbit-b{border-color:#f6e9d5}
+.auth-illustration-core{background:linear-gradient(145deg,#fff0d9,#ffda9b);color:#a94705;box-shadow:0 22px 55px #cc58031c}
+.auth-float>span{background:#fff0d9;color:#a94705}
+.auth-float{border-color:#f2e5d3}
+.auth-card{border-color:#f0e2d0;box-shadow:0 18px 60px #7d3b1010}
+.auth-card-icon{background:#fff0d9;color:#a94705}
+.auth-mode-switch{background:#fff5e8}
+.auth-mode-switch button.selected{color:#a94705}
+.auth-label{color:#6d4b31}
+.auth-input,.auth-input-with-action,.auth-select-wrap{border-color:#eddfce}
+.auth-input:focus-within,.auth-input-with-action:focus-within{border-color:#E2711D;box-shadow:0 0 0 3px #ff95051a}
+.verify-button{background:#fff0d9;color:#a94705}
+.school-identity{background:#fffaf2;border-color:#f0dfc9}
+.school-identity-logo{background:#fff0d9;color:#a94705}
+.school-identity-pending{border-color:#f0d5a8;background:#fff8e9;color:#a94705}
+.school-identity-pending .school-identity-logo{background:#ffe9c5;color:#a94705}
+.auth-submit{background:#CC5803;box-shadow:0 8px 17px #cc58031f}
+.auth-submit:hover{background:#a94705}
+.auth-register-prompt button{color:#b34a00}
+.role-hint{background:#fff8ed;border-left-color:#FF9505}
+.school-id-info,.school-id-success{background:#fff4df;border-color:#f3ddb7;color:#9b4a0b}
+.school-id-info b,.school-id-success b{color:#8e3c00}
+.school-id-info code{color:#a94705}
+.auth-notice>svg{color:#FFC971}
+.school-id-success{background:#fff2d9;border-color:#f0d4a4}
+@media(hover:hover){.nav-item.active:hover{background:#ffe8c4}}
