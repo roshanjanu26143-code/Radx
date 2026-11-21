@@ -78,8 +78,8 @@ export function Dashboard() {
       <nav className="nav-list">
         {navGroups.map(group => <div className="nav-group" key={group.label}>
           <div className="nav-heading">{group.label}</div>
-          {group.items.map(item => { const Icon = item.icon; return <button key={item.name} className={`nav-item ${active === item.name ? 'active' : ''} ${item.special ? 'nav-ai' : ''}`} onClick={() => { setActive(item.name); setMobileOpen(false); if (item.name === 'AI Insights') setShowAi(true) }}>
-            <Icon size={18} strokeWidth={1.9}/><span>{item.name}</span>{'count' in item && <small>{item.count}</small>}{item.special && <span className="new-pill">AI</span>}
+          {group.items.map(item => { const Icon = item.icon; return <button key={item.name} className={`nav-item ${active === item.name ? 'active' : ''} ${('special' in item && item.special) ? 'nav-ai' : ''}`} onClick={() => { setActive(item.name); setMobileOpen(false); if (item.name === 'AI Insights') setShowAi(true) }}>
+            <Icon size={18} strokeWidth={1.9}/><span>{item.name}</span>{'count' in item && <small>{item.count}</small>}{'special' in item && item.special && <span className="new-pill">AI</span>}
           </button> })}
         </div>)}
       </nav>
