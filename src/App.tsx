@@ -141,7 +141,7 @@ function AuthScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [schoolStatus, setSchoolStatus] = useState<'idle' | 'checking' | 'unavailable'>('idle')
+  const [schoolStatus, setSchoolStatus] = useState<'idle' | 'checking' | 'verified' | 'unavailable'>('idle')
   const [notice, setNotice] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const [adminEmail, setAdminEmail] = useState('')
@@ -159,9 +159,9 @@ function AuthScreen() {
       setNotice('Enter your School ID to continue.')
       return
     }
-    // School registry lookup is intentionally not simulated. It will be wired to the registered-school table.
+    // Do not treat an ID as verified until it is checked against the registered-school database.
     setSchoolStatus('unavailable')
-    setNotice('School ID verification will work after the school registry is connected.')
+    setNotice('School ID verification is unavailable because the school registry is not connected yet.')
   }
 
   const submitLogin = (event: FormEvent<HTMLFormElement>) => {
@@ -208,25 +208,45 @@ function AuthScreen() {
             <div className="auth-mode-switch"><button className={mode === 'login' ? 'selected' : ''} onClick={() => {setMode('login');setNotice('')}} type="button">Log in</button><button className={mode === 'register' ? 'selected' : ''} onClick={() => {setMode('register');setNotice('')}} type="button">Register</button></div>
           </div>
           {mode === 'login' ? <>
-            <h2>Welcome back</h2>
-            <p className="auth-subtitle">Log in to your school's management workspace.</p>
-            <form onSubmit={submitLogin}>
-              <label className="auth-label" htmlFor="school-id">School ID</label>
-              <div className="auth-input-with-action"><div className="auth-input-icon"><Building2 size={17}/></div><input id="school-id" value={schoolId} onChange={e => {setSchoolId(e.target.value);setSchoolStatus('idle')}} placeholder="Enter your School ID" autoComplete="organization"/><button type="button" className="verify-button" onClick={verifySchool}>Verify ID</button></div>
-              <div className={`school-identity ${schoolStatus === 'unavailable' ? 'school-identity-pending' : ''}`}>
+            {schoolStatus !== 'verified' ? <>
+              <h2>Enter your School ID</h2>
+              <p className="auth-subtitle">Verify your registered school before opening the login form.</p>
+              <form onSubmit={event => { event.preventDefault(); verifySchool() }}>
+                <label className="auth-label" htmlFor="school-id">School ID</label>
+                <div className="auth-input-with-action">
+                  <div className="auth-input-icon"><Building2 size={17}/></div>
+                  <input id="school-id" value={schoolId} onChange={e => {setSchoolId(e.target.value);setSchoolStatus('idle')}} placeholder="Enter your School ID" autoComplete="organization" required/>
+                  <button type="submit" className="verify-button">Verify ID</button>
+                </div>
+                <div className={`school-identity ${schoolStatus === 'unavailable' ? 'school-identity-pending' : ''}`}>
+                  <div className="school-identity-logo"><Building2 size={19}/></div>
+                  <div>
+                    <b>{schoolStatus === 'unavailable' ? 'Verification unavailable' : 'School details will appear here'}</b>
+                    <span>{schoolStatus === 'unavailable' ? 'The school registry must be connected before this ID can be verified.' : 'Enter your School ID and select Verify ID to continue.'}</span>
+                  </div>
+                  {schoolStatus === 'unavailable' && <CircleAlert size={17}/>}
+                </div>
+              </form>
+            </> : <>
+              <h2>Welcome back</h2>
+              <p className="auth-subtitle">Log in to {schoolName || 'your school'}'s management workspace.</p>
+              <div className="school-identity">
                 <div className="school-identity-logo"><Building2 size={19}/></div>
-                <div><b>{schoolStatus === 'unavailable' ? 'School verification pending' : 'Your school name & logo will appear here'}</b><span>{schoolStatus === 'unavailable' ? 'Connect the school registry to verify this ID.' : 'Verify your registered School ID to continue.'}</span></div>
-                {schoolStatus === 'unavailable' && <CircleAlert size={17}/>}
+                <div><b>{schoolName || schoolId}</b><span>Verified School ID · {schoolId}</span></div>
+                <BadgeCheck size={17}/>
               </div>
-              <label className="auth-label" htmlFor="access-role">Choose your role</label>
-              <div className="auth-select-wrap"><select id="access-role" value={role} onChange={e => setRole(e.target.value)}>{accessRoles.map(item => <option key={item} value={item}>{item}</option>)}</select><span>⌄</span></div>
-              <label className="auth-label" htmlFor="login-email">Email ID</label>
-              <div className="auth-input"><Mail size={17}/><input id="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your registered email" autoComplete="username" required/></div>
-              <div className="auth-password-label"><label className="auth-label" htmlFor="login-password">Password</label><span>{role === 'Admin' ? 'Admin account' : 'Account created by your Admin'}</span></div>
-              <div className="auth-input"><LockKeyhole size={17}/><input id="login-password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" autoComplete="current-password" required/><button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div>
-              {role === 'Admin' ? <p className="role-hint">Admin can log in using the email ID and password registered for the school.</p> : <p className="role-hint">Use the email ID given to you by your Admin. Your Admin created your password. If you don't know it, ask your Admin.</p>}
-              <button className="auth-submit" type="submit">Log in to ACADAMIX <ArrowRight size={17}/></button>
-            </form>
+              <button type="button" className="verify-button" onClick={() => {setSchoolStatus('idle');setEmail('');setPassword('')}}>Change School ID</button>
+              <form onSubmit={submitLogin}>
+                <label className="auth-label" htmlFor="access-role">Choose your role</label>
+                <div className="auth-select-wrap"><select id="access-role" value={role} onChange={e => setRole(e.target.value)}>{accessRoles.map(item => <option key={item} value={item}>{item}</option>)}</select><span>⌄</span></div>
+                <label className="auth-label" htmlFor="login-email">Email ID</label>
+                <div className="auth-input"><Mail size={17}/><input id="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your registered email" autoComplete="username" required/></div>
+                <div className="auth-password-label"><label className="auth-label" htmlFor="login-password">Password</label><span>{role === 'Admin' ? 'Admin account' : 'Account created by your Admin'}</span></div>
+                <div className="auth-input"><LockKeyhole size={17}/><input id="login-password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" autoComplete="current-password" required/><button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div>
+                {role === 'Admin' ? <p className="role-hint">Admin can log in using the email ID and password registered for the school.</p> : <p className="role-hint">Use the email ID given to you by your Admin. Your Admin created your password. If you don't know it, ask your Admin.</p>}
+                <button className="auth-submit" type="submit">Log in to ACADAMIX <ArrowRight size={17}/></button>
+              </form>
+            </>}
             <div className="auth-register-prompt">New to ACADAMIX? <button type="button" onClick={() => {setMode('register');setNotice('')}}>Register a school account <ArrowRight size={14}/></button></div>
           </> : <>
             <h2>Register your school</h2>
