@@ -145,6 +145,7 @@ function AuthScreen() {
   const [schoolStatus, setSchoolStatus] = useState<'idle' | 'checking' | 'verified' | 'unavailable'>('idle')
   const [notice, setNotice] = useState('')
   const [schoolName, setSchoolName] = useState('')
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState('')
   const [adminEmail, setAdminEmail] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -168,15 +169,25 @@ function AuthScreen() {
     return () => window.clearTimeout(timer)
   }, [notice])
 
-  const verifySchool = () => {
+  const verifySchool = async () => {
     if (!schoolId.trim()) {
       setSchoolStatus('idle')
       setNotice('Enter your School ID to continue.')
       return
     }
-    // Do not treat an ID as verified until it is checked against the registered-school database.
-    setSchoolStatus('unavailable')
-    setNotice('School ID verification is unavailable because the school registry is not connected yet.')
+    setSchoolStatus('checking')
+    setNotice('')
+    const { data, error } = await supabase.functions.invoke('verify-school', {
+      body: { school_id: schoolId.trim().toUpperCase() },
+    })
+    if (error || !data?.school) {
+      setSchoolStatus('unavailable')
+      setNotice(data?.error || error?.message || 'No registered school was found for this School ID.')
+      return
+    }
+    setSchoolName(data.school.school_name)
+    setSchoolLogoUrl(data.school.school_logo_url || '')
+    setSchoolStatus('verified')
   }
 
   const submitLogin = (event: FormEvent<HTMLFormElement>) => {
@@ -300,13 +311,13 @@ function AuthScreen() {
                 <div className="auth-input-with-action">
                   <div className="auth-input-icon"><Building2 size={17}/></div>
                   <input id="school-id" value={schoolId} onChange={e => {setSchoolId(e.target.value);setSchoolStatus('idle')}} placeholder="Enter your School ID" autoComplete="organization" required/>
-                  <button type="submit" className="verify-button">Verify ID</button>
+                  <button type="submit" className="verify-button" disabled={schoolStatus === 'checking'}>{schoolStatus === 'checking' ? 'Checking…' : 'Verify ID'}</button>
                 </div>
                 <div className={`school-identity ${schoolStatus === 'unavailable' ? 'school-identity-pending' : ''}`}>
-                  <div className="school-identity-logo"><Building2 size={19}/></div>
+                  <div className="school-identity-logo">{schoolLogoUrl ? <img src={schoolLogoUrl} alt="" /> : <Building2 size={19}/>}</div>
                   <div>
-                    <b>{schoolStatus === 'unavailable' ? 'Verification unavailable' : 'School details will appear here'}</b>
-                    <span>{schoolStatus === 'unavailable' ? 'The school registry must be connected before this ID can be verified.' : 'Enter your School ID and select Verify ID to continue.'}</span>
+                    <b>{schoolStatus === 'unavailable' ? 'School ID not verified' : schoolStatus === 'checking' ? 'Checking School ID…' : 'School details will appear here'}</b>
+                    <span>{schoolStatus === 'unavailable' ? 'Check the ID and try again.' : schoolStatus === 'checking' ? 'Looking up your registered school.' : 'Enter your School ID and select Verify ID to continue.'}</span>
                   </div>
                   {schoolStatus === 'unavailable' && <CircleAlert size={17}/>}
                 </div>
@@ -315,7 +326,7 @@ function AuthScreen() {
               <h2>Welcome back</h2>
               <p className="auth-subtitle">Log in to {schoolName || 'your school'}'s management workspace.</p>
               <div className="school-identity">
-                <div className="school-identity-logo"><Building2 size={19}/></div>
+                <div className="school-identity-logo">{schoolLogoUrl ? <img src={schoolLogoUrl} alt="" /> : <Building2 size={19}/>}</div>
                 <div><b>{schoolName || schoolId}</b><span>Verified School ID · {schoolId}</span></div>
                 <BadgeCheck size={17}/>
               </div>
