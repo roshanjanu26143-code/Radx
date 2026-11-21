@@ -10,3 +10,9 @@
 @media(max-width:950px){.auth-page{padding:0 4vw 25px}.auth-layout{grid-template-columns:minmax(0,.8fr) minmax(400px,1fr);gap:4vw}.auth-intro h1{font-size:48px}.auth-illustration{transform:scale(.88);transform-origin:left center}.auth-card{padding:27px 26px 22px}}
 @media(max-width:720px){.auth-topline{height:72px}.auth-top-note{font-size:7px;letter-spacing:.7px}.auth-layout{display:flex;flex-direction:column;gap:20px;padding:26px 0}.auth-intro{min-height:0;width:100%;padding:10px 0 0}.auth-intro h1{font-size:36px;letter-spacing:-1.6px;margin:15px 0 8px}.auth-intro>p{font-size:11px;max-width:480px}.auth-illustration,.auth-intro-foot{display:none}.auth-card-wrap{max-width:500px;width:100%;justify-self:auto}.auth-card{padding:24px 22px 20px}.auth-card h2{font-size:22px}}
 @media(max-width:420px){.auth-page{padding:0 15px 20px}.auth-brand-name{font-size:14px}.auth-top-note{font-size:6px}.auth-card{padding:21px 17px 18px}.auth-mode-switch button{padding:8px 12px}.auth-card-footer{font-size:7px}}
+
+.school-id-success{background:#f0f7f1;border-style:solid;border-color:#dcebdd;color:#4a8a60}
+.school-id-success b{color:#2f7045}
+.school-id-success code{font-size:14px;letter-spacing:.8px}
+.school-identity-logo img{width:100%;height:100%;object-fit:contain;border-radius:7px}
+.auth-submit:disabled,.verify-button:disabled{opacity:.65;cursor:wait;transform:none}
