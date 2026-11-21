@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { supabase } from './lib/supabase'
 import {
   Activity, AlarmClock, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpen,
   Bus, CalendarDays, ChartNoAxesCombined, Check, ChevronDown, ChevronLeft,
@@ -147,6 +148,20 @@ function AuthScreen() {
   const [adminEmail, setAdminEmail] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [registrationPending, setRegistrationPending] = useState<{
+    userId: string
+    email: string
+    schoolName: string
+    token: string
+    needsEmailConfirmation: boolean
+  } | null>(null)
+  const [registrationResult, setRegistrationResult] = useState<{
+    schoolId: string
+    schoolName: string
+    adminEmail: string
+    needsEmailConfirmation: boolean
+  } | null>(null)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setNotice(''), 4200)
@@ -169,13 +184,82 @@ function AuthScreen() {
     setNotice('Login authentication is not connected yet. Your entered details have not been submitted.')
   }
 
-  const submitRegister = (event: FormEvent<HTMLFormElement>) => {
+  const finishSchoolRegistration = async (pending: NonNullable<typeof registrationPending>) => {
+    setIsRegistering(true)
+    setNotice('')
+    try {
+      const { data, error } = await supabase.functions.invoke('register-school', {
+        body: {
+          user_id: pending.userId,
+          email: pending.email,
+          school_name: pending.schoolName,
+          registration_token: pending.token,
+        },
+      })
+      if (error) throw error
+      if (!data?.school?.school_id) throw new Error('The School ID was not returned. Please retry.')
+      setRegistrationResult({
+        schoolId: data.school.school_id,
+        schoolName: data.school.school_name,
+        adminEmail: data.school.admin_email,
+        needsEmailConfirmation: pending.needsEmailConfirmation,
+      })
+      setRegistrationPending(null)
+      setAdminPassword('')
+      setConfirmPassword('')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'School registration could not be completed. Please retry.')
+    } finally {
+      setIsRegistering(false)
+    }
+  }
+
+  const submitRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (adminPassword !== confirmPassword) {
       setNotice('Passwords do not match.')
       return
     }
-    setNotice('Registration and queue-based School ID generation will be enabled when the school registry is connected.')
+    if (!schoolName.trim() || !adminEmail.trim()) {
+      setNotice('Enter the school name and Admin email ID.')
+      return
+    }
+
+    setIsRegistering(true)
+    setNotice('')
+    const registrationToken = crypto.randomUUID()
+    const cleanSchoolName = schoolName.trim()
+    const cleanEmail = adminEmail.trim().toLowerCase()
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password: adminPassword,
+      options: {
+        data: {
+          school_name: cleanSchoolName,
+          registration_token: registrationToken,
+        },
+      },
+    })
+    setIsRegistering(false)
+
+    if (error) {
+      setNotice(error.message)
+      return
+    }
+    if (!data.user) {
+      setNotice('Admin account could not be created. Please try again.')
+      return
+    }
+
+    const pending = {
+      userId: data.user.id,
+      email: cleanEmail,
+      schoolName: cleanSchoolName,
+      token: registrationToken,
+      needsEmailConfirmation: !data.session,
+    }
+    setRegistrationPending(pending)
+    await finishSchoolRegistration(pending)
   }
 
   return <main className="auth-page">
@@ -249,21 +333,56 @@ function AuthScreen() {
             </>}
             <div className="auth-register-prompt">New to ACADAMIX? <button type="button" onClick={() => {setMode('register');setNotice('')}}>Register a school account <ArrowRight size={14}/></button></div>
           </> : <>
-            <h2>Register your school</h2>
-            <p className="auth-subtitle">Create your school account to get started with ACADAMIX.</p>
-            <form onSubmit={submitRegister}>
-              <label className="auth-label" htmlFor="school-name">School name</label>
-              <div className="auth-input"><Building2 size={17}/><input id="school-name" value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="Enter your school's name" required/></div>
-              <label className="auth-label" htmlFor="admin-email">Admin email ID</label>
-              <div className="auth-input"><Mail size={17}/><input id="admin-email" type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="Enter admin email ID" autoComplete="email" required/></div>
-              <label className="auth-label" htmlFor="admin-password">Create password</label>
-              <div className="auth-input"><LockKeyhole size={17}/><input id="admin-password" type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Create a password" autoComplete="new-password" required/></div>
-              <label className="auth-label" htmlFor="confirm-password">Confirm password</label>
-              <div className="auth-input"><LockKeyhole size={17}/><input id="confirm-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter your password" autoComplete="new-password" required/></div>
-              <div className="school-id-info"><BadgeCheck size={17}/><div><b>Your School ID is generated automatically</b><span>Assigned in registration queue order · Format: YEARRADXIDQUEUE</span><code>2026RADXID000001</code></div></div>
-              <button className="auth-submit" type="submit">Register school account <ArrowRight size={17}/></button>
-            </form>
-            <div className="auth-register-prompt">Already registered? <button type="button" onClick={() => {setMode('login');setNotice('')}}>Back to log in <ArrowRight size={14}/></button></div>
+            {registrationResult ? <>
+              <h2>School registered successfully</h2>
+              <p className="auth-subtitle">Your school account has been created. This School ID belongs to your Admin account.</p>
+              <div className="school-id-info school-id-success">
+                <BadgeCheck size={19}/>
+                <div>
+                  <b>{registrationResult.schoolName}</b>
+                  <span>Your automatically generated School ID</span>
+                  <code>{registrationResult.schoolId}</code>
+                  <span>Admin: {registrationResult.adminEmail}</span>
+                </div>
+              </div>
+              {registrationResult.needsEmailConfirmation && <p className="role-hint">Check your Admin email and confirm your account before logging in.</p>}
+              <button className="auth-submit" type="button" onClick={() => {
+                setSchoolId(registrationResult.schoolId)
+                setSchoolName(registrationResult.schoolName)
+                setEmail(registrationResult.adminEmail)
+                setRegistrationResult(null)
+                setMode('login')
+                setSchoolStatus('idle')
+              }}>Continue to log in <ArrowRight size={17}/></button>
+            </> : registrationPending ? <>
+              <h2>Finishing registration</h2>
+              <p className="auth-subtitle">Your Admin account exists. Generate your School ID to complete registration.</p>
+              <div className="school-id-info">
+                <CircleAlert size={18}/>
+                <div><b>School ID generation is pending</b><span>Your registration details are saved. Retry to finish this step.</span></div>
+              </div>
+              <button className="auth-submit" type="button" onClick={() => finishSchoolRegistration(registrationPending)} disabled={isRegistering}>
+                {isRegistering ? 'Generating School ID…' : 'Retry School ID generation'} <ArrowRight size={17}/>
+              </button>
+            </> : <>
+              <h2>Register your school</h2>
+              <p className="auth-subtitle">Create your school account to get started with ACADAMIX.</p>
+              <form onSubmit={submitRegister}>
+                <label className="auth-label" htmlFor="school-name">School name</label>
+                <div className="auth-input"><Building2 size={17}/><input id="school-name" value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="Enter your school's name" required/></div>
+                <label className="auth-label" htmlFor="admin-email">Admin email ID</label>
+                <div className="auth-input"><Mail size={17}/><input id="admin-email" type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="Enter admin email ID" autoComplete="email" required/></div>
+                <label className="auth-label" htmlFor="admin-password">Create password</label>
+                <div className="auth-input"><LockKeyhole size={17}/><input id="admin-password" type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Create a password" autoComplete="new-password" required/></div>
+                <label className="auth-label" htmlFor="confirm-password">Confirm password</label>
+                <div className="auth-input"><LockKeyhole size={17}/><input id="confirm-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter your password" autoComplete="new-password" required/></div>
+                <div className="school-id-info"><BadgeCheck size={17}/><div><b>School ID generated after successful registration</b><span>RADX assigns the next queue number automatically and displays the ID to the Admin.</span></div></div>
+                <button className="auth-submit" type="submit" disabled={isRegistering}>
+                  {isRegistering ? 'Registering school…' : 'Register school account'} <ArrowRight size={17}/>
+                </button>
+              </form>
+              <div className="auth-register-prompt">Already registered? <button type="button" onClick={() => {setMode('login');setNotice('')}}>Back to log in <ArrowRight size={14}/></button></div>
+            </>}
           </>}
         </div>
         <div className="auth-card-footer"><span><ShieldCheck size={14}/> Secure school access</span><span>© 2026 RADX</span></div>
