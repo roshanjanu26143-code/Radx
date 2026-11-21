@@ -162,7 +162,14 @@ function AuthScreen() {
     schoolName: string
     adminEmail: string
     needsEmailConfirmation: boolean
+    userId: string
+    registrationToken: string
   } | null>(null)
+  const [setupStep, setSetupStep] = useState<'details' | 'plans'>('details')
+  const [setupComplete, setSetupComplete] = useState<{ plan: string; trialEndsAt: string | null; status: string } | null>(null)
+  const [setupSaving, setSetupSaving] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState('BASIC')
+  const [schoolDetails, setSchoolDetails] = useState({ address_line_1: '', address_line_2: '', pincode: '', city_town: '', state: '', school_started_year: '', student_strength: '', bus_count: '', staff_count: '', teacher_count: '' })
 
   useEffect(() => {
     const timer = window.setTimeout(() => setNotice(''), 4200)
@@ -219,6 +226,8 @@ function AuthScreen() {
         schoolName: data.school.school_name,
         adminEmail: data.school.admin_email,
         needsEmailConfirmation: pending.needsEmailConfirmation,
+        userId: pending.userId,
+        registrationToken: pending.token,
       })
       setRegistrationPending(null)
       setAdminPassword('')
@@ -227,6 +236,42 @@ function AuthScreen() {
       setNotice(error instanceof Error ? error.message : 'School registration could not be completed. Please retry.')
     } finally {
       setIsRegistering(false)
+    }
+  }
+
+  const saveSchoolSetup = async () => {
+    if (!registrationResult) return
+    setSetupSaving(true)
+    setNotice('')
+    try {
+      const { data, error } = await supabase.functions.invoke('complete-school-setup', {
+        body: {
+          user_id: registrationResult.userId,
+          email: registrationResult.adminEmail,
+          registration_token: registrationResult.registrationToken,
+          school_id: registrationResult.schoolId,
+          details: {
+            address_line_1: schoolDetails.address_line_1.trim(),
+            address_line_2: schoolDetails.address_line_2.trim() || null,
+            pincode: schoolDetails.pincode.trim(),
+            city_town: schoolDetails.city_town.trim(),
+            state: schoolDetails.state.trim(),
+            school_started_year: Number(schoolDetails.school_started_year),
+            student_strength: Number(schoolDetails.student_strength),
+            bus_count: Number(schoolDetails.bus_count),
+            staff_count: Number(schoolDetails.staff_count),
+            teacher_count: Number(schoolDetails.teacher_count),
+          },
+          plan_code: selectedPlan,
+        },
+      })
+      if (error) throw error
+      if (!data?.success) throw new Error(data?.error || 'School setup could not be saved.')
+      setSetupComplete({ plan: selectedPlan, trialEndsAt: data.trial_ends_at || null, status: data.plan_status })
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'School setup could not be saved. Please retry.')
+    } finally {
+      setSetupSaving(false)
     }
   }
 
@@ -354,26 +399,35 @@ function AuthScreen() {
             <div className="auth-register-prompt">New to ACADAMIX? <button type="button" onClick={() => {setMode('register');setNotice('')}}>Register a school account <ArrowRight size={14}/></button></div>
           </> : <>
             {registrationResult ? <>
-              <h2>School registered successfully</h2>
-              <p className="auth-subtitle">Your school account has been created. This School ID belongs to your Admin account.</p>
-              <div className="school-id-info school-id-success">
-                <BadgeCheck size={19}/>
-                <div>
-                  <b>{registrationResult.schoolName}</b>
-                  <span>Your automatically generated School ID</span>
-                  <code>{registrationResult.schoolId}</code>
-                  <span>Admin: {registrationResult.adminEmail}</span>
+              {setupComplete ? <>
+                <h2>School setup completed</h2>
+                <p className="auth-subtitle">Your school details and plan selection have been saved.</p>
+                <div className="school-id-info school-id-success"><BadgeCheck size={19}/><div><b>{registrationResult.schoolName}</b><span>School ID · {registrationResult.schoolId}</span><code>{setupComplete.plan} PLAN</code>{setupComplete.plan === 'BASIC' && setupComplete.trialEndsAt ? <span>14-day free trial ends on {new Date(setupComplete.trialEndsAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}.</span> : <span>Payment is not connected yet. You can complete payment when billing is enabled.</span>}</div></div>
+                {registrationResult.needsEmailConfirmation && <p className="role-hint">Check your Admin email and confirm your account before logging in.</p>}
+                <button className="auth-submit" type="button" onClick={() => { setSchoolId(registrationResult.schoolId); setSchoolName(registrationResult.schoolName); setEmail(registrationResult.adminEmail); setRegistrationResult(null); setSetupComplete(null); setSetupStep('details'); setMode('login'); setSchoolStatus('idle') }}>Continue to log in <ArrowRight size={17}/></button>
+              </> : setupStep === 'details' ? <>
+                <h2>Complete school details</h2>
+                <p className="auth-subtitle">School ID <b>{registrationResult.schoolId}</b> is ready. Add your school information to view the plans.</p>
+                <form className="school-setup-form" onSubmit={event => { event.preventDefault(); setSetupStep('plans') }}>
+                  <label className="auth-label" htmlFor="setup-address1">Address line 1</label><div className="auth-input"><Building2 size={17}/><input id="setup-address1" value={schoolDetails.address_line_1} onChange={e => setSchoolDetails(v => ({...v,address_line_1:e.target.value}))} placeholder="Door no., street and area" required /></div>
+                  <label className="auth-label" htmlFor="setup-address2">Address line 2 <span className="optional-label">(optional)</span></label><div className="auth-input"><Building2 size={17}/><input id="setup-address2" value={schoolDetails.address_line_2} onChange={e => setSchoolDetails(v => ({...v,address_line_2:e.target.value}))} placeholder="Landmark or locality" /></div>
+                  <div className="school-form-grid"><div><label className="auth-label" htmlFor="setup-pincode">Pincode</label><input className="school-plain-input" id="setup-pincode" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={schoolDetails.pincode} onChange={e => setSchoolDetails(v => ({...v,pincode:e.target.value.replace(/\D/g,'').slice(0,6)}))} placeholder="6-digit pincode" required /></div><div><label className="auth-label" htmlFor="setup-city">City / Town</label><input className="school-plain-input" id="setup-city" value={schoolDetails.city_town} onChange={e => setSchoolDetails(v => ({...v,city_town:e.target.value}))} placeholder="City or town" required /></div></div>
+                  <label className="auth-label" htmlFor="setup-state">State</label><div className="auth-input"><input id="setup-state" value={schoolDetails.state} onChange={e => setSchoolDetails(v => ({...v,state:e.target.value}))} placeholder="State" required /></div>
+                  <div className="school-form-grid"><div><label className="auth-label" htmlFor="setup-started">School started year</label><input className="school-plain-input" id="setup-started" type="number" min="1800" max={new Date().getFullYear()} value={schoolDetails.school_started_year} onChange={e => setSchoolDetails(v => ({...v,school_started_year:e.target.value}))} placeholder="e.g. 2005" required /></div><div><label className="auth-label" htmlFor="setup-students">Current students</label><input className="school-plain-input" id="setup-students" type="number" min="0" value={schoolDetails.student_strength} onChange={e => setSchoolDetails(v => ({...v,student_strength:e.target.value}))} placeholder="Student count" required /></div></div>
+                  <div className="school-form-grid school-count-grid"><div><label className="auth-label" htmlFor="setup-buses">Buses</label><input className="school-plain-input" id="setup-buses" type="number" min="0" value={schoolDetails.bus_count} onChange={e => setSchoolDetails(v => ({...v,bus_count:e.target.value}))} placeholder="0" required /></div><div><label className="auth-label" htmlFor="setup-staff">Staff</label><input className="school-plain-input" id="setup-staff" type="number" min="0" value={schoolDetails.staff_count} onChange={e => setSchoolDetails(v => ({...v,staff_count:e.target.value}))} placeholder="0" required /></div><div><label className="auth-label" htmlFor="setup-teachers">Teachers</label><input className="school-plain-input" id="setup-teachers" type="number" min="0" value={schoolDetails.teacher_count} onChange={e => setSchoolDetails(v => ({...v,teacher_count:e.target.value}))} placeholder="0" required /></div></div>
+                  <button className="auth-submit" type="submit">Continue to plans <ArrowRight size={17}/></button>
+                </form>
+              </> : <>
+                <h2>Choose your school plan</h2><p className="auth-subtitle">Compare the available plans. BASIC includes a 14-day free trial. Payment is not required now.</p>
+                <div className="plan-selection-grid">
+                  <button type="button" className={`plan-option basic-plan ${selectedPlan === 'BASIC' ? 'chosen' : ''}`} onClick={() => setSelectedPlan('BASIC')}><span className="plan-tag">14 DAYS FREE</span><b>BASIC</b><strong>Free trial</strong><span>Full BASIC access for 14 days.</span><i>{selectedPlan === 'BASIC' ? 'Selected' : 'Choose BASIC'}</i></button>
+                  <button type="button" className={`plan-option ${selectedPlan === 'PRO' ? 'chosen' : ''}`} onClick={() => setSelectedPlan('PRO')}><span className="plan-tag muted-plan-tag">DETAILS LATER</span><b>PRO</b><strong>Coming soon</strong><span>PRO plan details will be announced later.</span><i>{selectedPlan === 'PRO' ? 'Selected' : 'Choose PRO'}</i></button>
+                  <button type="button" className={`plan-option ${selectedPlan === 'PREMIUM' ? 'chosen' : ''}`} onClick={() => setSelectedPlan('PREMIUM')}><span className="plan-tag">PAID PLAN</span><b>PREMIUM</b><strong>Premium plan</strong><span>For schools that need a larger plan.</span><i>{selectedPlan === 'PREMIUM' ? 'Selected' : 'Choose PREMIUM'}</i></button>
+                  <button type="button" className={`plan-option ${selectedPlan === 'CUSTOM' ? 'chosen' : ''}`} onClick={() => setSelectedPlan('CUSTOM')}><span className="plan-tag">FLEXIBLE</span><b>CUSTOM</b><strong>Custom plan</strong><span>Plan configuration for your school.</span><i>{selectedPlan === 'CUSTOM' ? 'Selected' : 'Choose CUSTOM'}</i></button>
                 </div>
-              </div>
-              {registrationResult.needsEmailConfirmation && <p className="role-hint">Check your Admin email and confirm your account before logging in.</p>}
-              <button className="auth-submit" type="button" onClick={() => {
-                setSchoolId(registrationResult.schoolId)
-                setSchoolName(registrationResult.schoolName)
-                setEmail(registrationResult.adminEmail)
-                setRegistrationResult(null)
-                setMode('login')
-                setSchoolStatus('idle')
-              }}>Continue to log in <ArrowRight size={17}/></button>
+                <p className="plan-payment-note">No payment gateway is connected. If you select a paid plan, it will be saved as pending payment. You can complete payment later.</p>
+                <div className="plan-actions"><button type="button" className="plan-back-button" onClick={() => setSetupStep('details')}>Back to details</button><button className="auth-submit" type="button" onClick={saveSchoolSetup} disabled={setupSaving}>{setupSaving ? 'Saving plan…' : selectedPlan === 'BASIC' ? 'Start 14-day free trial' : 'Save plan for later'} <ArrowRight size={17}/></button></div>
+              </>}
             </> : registrationPending ? <>
               <h2>Finishing registration</h2>
               <p className="auth-subtitle">Your Admin account exists. Generate your School ID to complete registration.</p>
