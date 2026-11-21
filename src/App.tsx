@@ -145,6 +145,8 @@ function AuthScreen() {
   const [schoolStatus, setSchoolStatus] = useState<'idle' | 'checking' | 'verified' | 'unavailable'>('idle')
   const [authenticated, setAuthenticated] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false)
+  const [isResendingConfirmation, setIsResendingConfirmation] = useState(false)
   const [notice, setNotice] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const [schoolLogoUrl, setSchoolLogoUrl] = useState('')
@@ -218,7 +220,11 @@ function AuthScreen() {
         email: cleanEmail,
         password,
       })
-      if (authError || !authData.user) throw new Error(authError?.message || 'Login failed. Check your email and password.')
+      if (authError || !authData.user) {
+        if (authError?.message.toLowerCase().includes('email not confirmed')) setShowResendConfirmation(true)
+        throw new Error(authError?.message || 'Login failed. Check your email and password.')
+      }
+      setShowResendConfirmation(false)
 
       const { data: school, error: schoolError } = await supabase
         .from('school_tenants')
@@ -239,6 +245,25 @@ function AuthScreen() {
       setNotice(error instanceof Error ? error.message : 'Login failed. Please try again.')
     } finally {
       setIsLoggingIn(false)
+    }
+  }
+
+  const resendConfirmationEmail = async () => {
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail) {
+      setNotice('Enter your registered email ID first.')
+      return
+    }
+    setIsResendingConfirmation(true)
+    setNotice('')
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: cleanEmail })
+      if (error) throw error
+      setNotice('A new confirmation email has been sent. Open the latest email and click Confirm your email before logging in.')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not resend the confirmation email. Please try again.')
+    } finally {
+      setIsResendingConfirmation(false)
     }
   }
 
@@ -467,6 +492,7 @@ function AuthScreen() {
                 <div className="auth-password-label"><label className="auth-label" htmlFor="login-password">Password</label><span>{role === 'Admin' ? 'Admin account' : 'Account created by your Admin'}</span></div>
                 <div className="auth-input"><LockKeyhole size={17}/><input id="login-password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" autoComplete="current-password" required/><button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div>
                 {role === 'Admin' ? <p className="role-hint">Admin can log in using the email ID and password registered for the school.</p> : <p className="role-hint">Use the email ID given to you by your Admin. Your Admin created your password. If you don't know it, ask your Admin.</p>}
+                {showResendConfirmation && role === 'Admin' && <button type="button" className="verify-button" onClick={resendConfirmationEmail} disabled={isResendingConfirmation}>{isResendingConfirmation ? 'Sending confirmation email…' : 'Resend confirmation email'}</button>}
                 <button className="auth-submit" type="submit" disabled={isLoggingIn}>{isLoggingIn ? 'Signing in…' : 'Log in to ACADAMIX'} <ArrowRight size={17}/></button>
               </form>
             </>}
