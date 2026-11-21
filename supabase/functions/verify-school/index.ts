@@ -26,7 +26,7 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const secretKeysRaw = Deno.env.get("SUPABASE_SECRET_KEYS");
     const legacyServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const serviceKey = secretKeysRaw ? JSON.parse(secretKeysRaw).default : legacyServiceKey;
+    const serviceKey = legacyServiceKey || (secretKeysRaw ? JSON.parse(secretKeysRaw).default : undefined);
     if (!supabaseUrl || !serviceKey) {
       console.error("Supabase server credentials are unavailable.");
       return json({ error: "School verification service is not configured." }, 500);
