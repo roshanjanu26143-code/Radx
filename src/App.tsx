@@ -177,17 +177,22 @@ function AuthScreen() {
     }
     setSchoolStatus('checking')
     setNotice('')
-    const { data, error } = await supabase.functions.invoke('verify-school', {
-      body: { school_id: schoolId.trim().toUpperCase() },
-    })
-    if (error || !data?.school) {
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-school', {
+        body: { school_id: schoolId.trim().toUpperCase() },
+      })
+      if (error || !data?.school) {
+        setSchoolStatus('unavailable')
+        setNotice(data?.error || error?.message || 'No registered school was found for this School ID.')
+        return
+      }
+      setSchoolName(data.school.school_name)
+      setSchoolLogoUrl(data.school.school_logo_url || '')
+      setSchoolStatus('verified')
+    } catch {
       setSchoolStatus('unavailable')
-      setNotice(data?.error || error?.message || 'No registered school was found for this School ID.')
-      return
+      setNotice('School ID verification failed. Check your connection and retry.')
     }
-    setSchoolName(data.school.school_name)
-    setSchoolLogoUrl(data.school.school_logo_url || '')
-    setSchoolStatus('verified')
   }
 
   const submitLogin = (event: FormEvent<HTMLFormElement>) => {
@@ -241,36 +246,40 @@ function AuthScreen() {
     const registrationToken = crypto.randomUUID()
     const cleanSchoolName = schoolName.trim()
     const cleanEmail = adminEmail.trim().toLowerCase()
-    const { data, error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password: adminPassword,
-      options: {
-        data: {
-          school_name: cleanSchoolName,
-          registration_token: registrationToken,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: adminPassword,
+        options: {
+          data: {
+            school_name: cleanSchoolName,
+            registration_token: registrationToken,
+          },
         },
-      },
-    })
-    setIsRegistering(false)
+      })
+      if (error) {
+        setNotice(error.message)
+        return
+      }
+      if (!data.user) {
+        setNotice('Admin account could not be created. Please try again.')
+        return
+      }
 
-    if (error) {
-      setNotice(error.message)
-      return
+      const pending = {
+        userId: data.user.id,
+        email: cleanEmail,
+        schoolName: cleanSchoolName,
+        token: registrationToken,
+        needsEmailConfirmation: !data.session,
+      }
+      setRegistrationPending(pending)
+      await finishSchoolRegistration(pending)
+    } catch {
+      setNotice('Registration could not be completed. Check your connection and retry.')
+    } finally {
+      setIsRegistering(false)
     }
-    if (!data.user) {
-      setNotice('Admin account could not be created. Please try again.')
-      return
-    }
-
-    const pending = {
-      userId: data.user.id,
-      email: cleanEmail,
-      schoolName: cleanSchoolName,
-      token: registrationToken,
-      needsEmailConfirmation: !data.session,
-    }
-    setRegistrationPending(pending)
-    await finishSchoolRegistration(pending)
   }
 
   return <main className="auth-page">
