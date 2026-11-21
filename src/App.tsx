@@ -311,12 +311,41 @@ function AuthScreen() {
         return
       }
 
+      let adminUser = data.user
+      let needsEmailConfirmation = !data.session
+
+      // Supabase deliberately returns a placeholder user ID when this email
+      // already has an account. Sign in to obtain the real authenticated user.
+      if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: adminPassword,
+        })
+        if (signInError || !signInData.user) {
+          setNotice('This Admin email already has an account. Enter the password previously used for this account to finish school registration.')
+          return
+        }
+        adminUser = signInData.user
+        needsEmailConfirmation = false
+
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: {
+            school_name: cleanSchoolName,
+            registration_token: registrationToken,
+          },
+        })
+        if (metadataError) {
+          setNotice('Your account was verified, but school registration could not be prepared. Please retry.')
+          return
+        }
+      }
+
       const pending = {
-        userId: data.user.id,
+        userId: adminUser.id,
         email: cleanEmail,
         schoolName: cleanSchoolName,
         token: registrationToken,
-        needsEmailConfirmation: !data.session,
+        needsEmailConfirmation,
       }
       setRegistrationPending(pending)
       await finishSchoolRegistration(pending)
