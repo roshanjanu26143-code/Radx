@@ -52,7 +52,7 @@ const events = [
   { day: '28', month: 'NOV', title: 'Annual Sports Practice', sub: 'School ground · 08:00 AM', color: 'orange' },
 ]
 
-export function Dashboard() {
+export function Dashboard({ onSignOut }: { onSignOut: () => void }) {
   const [active, setActive] = useState('Dashboard')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -87,7 +87,7 @@ export function Dashboard() {
       <div className="sidebar-bottom">
         <div className="help-card"><div className="help-icon"><CircleHelp size={17}/></div><div><b>Need a hand?</b><span>Visit our help centre</span></div><ArrowUpRight size={15}/></div>
         <div className="sidebar-user"><div className="user-avatar">RS</div><div className="user-copy"><b>Roshan S</b><span>School administrator</span></div><button className="icon-button" onClick={() => setShowProfile(!showProfile)}><MoreDots/></button></div>
-        {showProfile && <div className="profile-pop"><button onClick={() => notify('Profile settings are coming soon.')}>My profile</button><button onClick={() => notify('Sign out will be enabled after authentication setup.')}>Sign out</button></div>}
+        {showProfile && <div className="profile-pop"><button onClick={() => notify('Profile settings are coming soon.')}>My profile</button><button onClick={onSignOut}>Sign out</button></div>}
       </div>
     </aside>
 
@@ -143,6 +143,8 @@ function AuthScreen() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [schoolStatus, setSchoolStatus] = useState<'idle' | 'checking' | 'verified' | 'unavailable'>('idle')
+  const [authenticated, setAuthenticated] = useState(false)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [notice, setNotice] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const [schoolLogoUrl, setSchoolLogoUrl] = useState('')
@@ -202,9 +204,42 @@ function AuthScreen() {
     }
   }
 
-  const submitLogin = (event: FormEvent<HTMLFormElement>) => {
+  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setNotice('Login authentication is not connected yet. Your entered details have not been submitted.')
+    if (role !== 'Admin') {
+      setNotice('Staff role accounts are not configured yet. Please use the Admin account until staff account setup is available.')
+      return
+    }
+    setIsLoggingIn(true)
+    setNotice('')
+    const cleanEmail = email.trim().toLowerCase()
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      })
+      if (authError || !authData.user) throw new Error(authError?.message || 'Login failed. Check your email and password.')
+
+      const { data: school, error: schoolError } = await supabase
+        .from('school_tenants')
+        .select('admin_user_id, admin_email, school_id, school_name')
+        .eq('school_id', schoolId.trim().toUpperCase())
+        .maybeSingle()
+
+      if (schoolError) throw schoolError
+      if (!school || school.admin_user_id !== authData.user.id || school.admin_email?.toLowerCase() !== cleanEmail) {
+        await supabase.auth.signOut()
+        throw new Error('This email is not the Admin account registered for the verified School ID.')
+      }
+
+      setSchoolName(school.school_name)
+      setSchoolId(school.school_id)
+      setAuthenticated(true)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Login failed. Please try again.')
+    } finally {
+      setIsLoggingIn(false)
+    }
   }
 
   const finishSchoolRegistration = async (pending: NonNullable<typeof registrationPending>) => {
@@ -356,6 +391,16 @@ function AuthScreen() {
     }
   }
 
+  if (authenticated) {
+    return <Dashboard onSignOut={async () => {
+      await supabase.auth.signOut()
+      setAuthenticated(false)
+      setPassword('')
+      setSchoolStatus('idle')
+      setNotice('You have been signed out.')
+    }} />
+  }
+
   return <main className="auth-page">
     <div className="auth-topline">
       <div className="auth-brand">
@@ -422,7 +467,7 @@ function AuthScreen() {
                 <div className="auth-password-label"><label className="auth-label" htmlFor="login-password">Password</label><span>{role === 'Admin' ? 'Admin account' : 'Account created by your Admin'}</span></div>
                 <div className="auth-input"><LockKeyhole size={17}/><input id="login-password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" autoComplete="current-password" required/><button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div>
                 {role === 'Admin' ? <p className="role-hint">Admin can log in using the email ID and password registered for the school.</p> : <p className="role-hint">Use the email ID given to you by your Admin. Your Admin created your password. If you don't know it, ask your Admin.</p>}
-                <button className="auth-submit" type="submit">Log in to ACADAMIX <ArrowRight size={17}/></button>
+                <button className="auth-submit" type="submit" disabled={isLoggingIn}>{isLoggingIn ? 'Signing in…' : 'Log in to ACADAMIX'} <ArrowRight size={17}/></button>
               </form>
             </>}
             <div className="auth-register-prompt">New to ACADAMIX? <button type="button" onClick={() => {setMode('register');setNotice('')}}>Register a school account <ArrowRight size={14}/></button></div>
