@@ -49,7 +49,6 @@ export default function MobileQRAttendance({ standards: appStandards, notify }: 
   const streamRef = useRef<MediaStream|null>(null)
   const [geofence] = useState({lat:11.0168,lng:76.9558,radius_meters:250})
   const [scheduleRows] = useState(schedule)
-  const [submittedKeys,setSubmittedKeys] = useState<string[]>([])
   const [activeSession,setActiveSession] = useState<Session>('MORNING')
   const [nowTick,setNowTick] = useState(Date.now())
 
@@ -83,13 +82,12 @@ export default function MobileQRAttendance({ standards: appStandards, notify }: 
   },[cameraOn])
   const trueTime = new Date(nowTick + clockOffset)
   const timeString = trueTime.toTimeString().slice(0,5)
-  const currentWindow = scheduleRows.find(s=>s.is_active && s.session_name===activeSession && timeString>=s.start_time && timeString<=s.end_time)
   const total=studentsForSection().length
   const students = studentsForSection()
   const present=students.filter(s=>(marks[s.id]||'PRESENT')==='PRESENT').length
   const absent=total-present
   const section=standards.flatMap(s=>s.sections).find(s=>s.id===sectionId)
-  const alreadySubmitted = !!(scanned && sectionId && submittedKeys.includes([today(),activeSession,scanned.id,sectionId].join('|')))
+  const alreadySubmitted = !!(scanned && sectionId && queue.some(item => { const payload=item.payload; return payload.date===today() && payload.session===activeSession && payload.standard_id===scanned.id && payload.section_id===sectionId }))
   function studentsForSection(){return seedStudents.filter(s=>s.is_active&&s.standard_id===scanned?.id&&s.section_id===sectionId).sort((a,b)=>a.roll_no.localeCompare(b.roll_no,undefined,{numeric:true}))}
   const distanceMeters=(lat1:number,lon1:number,lat2:number,lon2:number)=>{const rad=(v:number)=>v*Math.PI/180;const dLat=rad(lat2-lat1),dLon=rad(lon2-lon1);const a=Math.sin(dLat/2)**2+Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLon/2)**2;return 6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}
   const validateGate=async()=>{
@@ -123,7 +121,7 @@ export default function MobileQRAttendance({ standards: appStandards, notify }: 
     if(!scanned||!teacher||!sectionId||!gps)return
     const payload={date:today(),session:activeSession,standard_id:scanned.id,section_id:sectionId,marked_by_emp_id:teacher.emp_id,submitted_at:new Date(Date.now()+clockOffset).toISOString(),gps_coordinates:{lat:gps.lat,lng:gps.lng},attendance:students.map(s=>({student_id:s.id,status:marks[s.id]||'PRESENT'}))}
     const item:QueueItem={id:crypto.randomUUID(),payload,status:'PENDING',created_at:new Date().toISOString()}
-    setQueue(items=>[item,...items]);setSubmittedKeys(keys=>[...keys,[today(),activeSession,scanned.id,sectionId].join('|')]);setPreview(false);setStep(4)
+    setQueue(items=>[item,...items]);setPreview(false);setStep(4)
     notify?.(online?'Attendance saved in frontend preview. Backend sync will be connected later.':'Saved Offline')
   }
   const pending=queue.filter(q=>q.status==='PENDING').length
@@ -140,8 +138,8 @@ export default function MobileQRAttendance({ standards: appStandards, notify }: 
         <label className="qr-field">QR token<input value={token} onChange={e=>setToken(e.target.value)} placeholder="Scan or enter QR token"/></label>
         <div className="qr-demo-hint">Demo QR token: <button onClick={()=>setToken('qr-grade-10-permanent-uuid')}>Grade 10</button> <button onClick={()=>setToken('qr-grade-9-permanent-uuid')}>Grade 9</button></div>
         <button className="qr-primary" onClick={validateGate} disabled={!token.trim()}>Validate QR & campus <ChevronRight size={17}/></button>
-        <div className="qr-security-row"><span><MapPin size={14}/> Campus geofence {geofence.radius_meters}m</span><span><Clock3 size={14}/> Schedule validation</span></div>
-        {gpsStatus==='passed'&&<div className="qr-success-line"><Check size={15}/> Campus verified · {Math.round(gps?.distance||0)}m from school gate</div>}
+        <div className="qr-security-row"><span><MapPin size={14}/> Demo campus radius {geofence.radius_meters}m</span><span><Clock3 size={14}/> Demo schedule validation</span></div>
+        {gpsStatus==='passed'&&<div className="qr-success-line"><Check size={15}/> Demo campus check passed · {Math.round(gps?.distance||0)}m from configured point</div>}
       </>}
       {step===2&&scanned&&<><div className="qr-step-title"><div className="qr-step-icon"><ShieldCheck/></div><div><span>STEP 02 · TEACHER VERIFICATION</span><h3>Verify your identity</h3><p>Enter your employee ID. Only allotted teachers can mark this class.</p></div></div><div className="qr-class-chip"><QrCode size={16}/>{scanned.name}<span>{activeSession}</span></div><label className="qr-field">Teacher employee ID<input value={empId} onChange={e=>setEmpId(e.target.value)} placeholder="e.g. TCH-001" autoCapitalize="characters"/></label><button className="qr-primary" onClick={verifyTeacher}>Verify teacher <ChevronRight size={17}/></button><div className="qr-demo-hint">Demo IDs: <button onClick={()=>setEmpId('TCH-001')}>TCH-001</button><button onClick={()=>setEmpId('TCH-014')}>TCH-014</button></div></>}
       {step===3&&teacher&&scanned&&<><div className="qr-step-title"><div className="qr-step-icon"><Users/></div><div><span>STEP 03 · ATTENDANCE REGISTER</span><h3>Mark student attendance</h3><p>Students default to Present. Tap a student to mark Absent.</p></div></div>
@@ -155,7 +153,7 @@ export default function MobileQRAttendance({ standards: appStandards, notify }: 
       {step===4&&<div className="qr-complete"><div className="qr-complete-icon"><Check size={32}/></div><span>ATTENDANCE SAVED</span><h3>{online?'Saved · backend sync pending':'Saved Offline'}</h3><p>Your attendance has been stored on this device. Backend submission and parent alerts will be enabled when the backend is connected.</p><div className="qr-queue-status"><span>{online?'Ready for sync':'Waiting for connection'}</span><b>{pending} pending</b></div><button className="qr-primary" onClick={reset}>Start next attendance <ChevronRight size={16}/></button></div>}
     </div>
     {scanError&&<div className="qr-error"><X size={15}/>{scanError}</div>}{cameraError&&<div className="qr-error">{cameraError}</div>}
-    <div className="qr-bottom-grid"><div className="qr-info-card"><div><Smartphone size={17}/><b>Offline-first register</b></div><p>Local queue stores lightweight attendance JSON on this device. Backend sync will be connected later.</p><span><Clock3 size={13}/> Clock offset: {Math.round(clockOffset/1000)}s · True time {timeString}</span></div><div className="qr-info-card"><div><Download size={17}/><b>Sync queue</b><span className="qr-pending-count">{pending} pending</span></div><p>{queue.length} local submissions · {queue.filter(q=>q.status==='SYNCED').length} synced.</p><span>{online?'Connection available':'Waiting for network'}</span></div></div>
+    <div className="qr-bottom-grid"><div className="qr-info-card"><div><Smartphone size={17}/><b>Offline-first register</b></div><p>Local queue stores lightweight attendance JSON on this device. Backend sync will be connected later.</p><span><Clock3 size={13}/> Demo clock offset: {Math.round(clockOffset/1000)}s · Local preview time {timeString}</span></div><div className="qr-info-card"><div><Download size={17}/><b>Sync queue</b><span className="qr-pending-count">{pending} pending</span></div><p>{queue.length} local submissions · {queue.filter(q=>q.status==='SYNCED').length} synced.</p><span>{online?'Connection available':'Waiting for network'}</span></div></div>
     {preview&&scanned&&teacher&&<div className="qr-modal-backdrop" role="presentation"><section className="qr-preview-modal" role="dialog" aria-modal="true" aria-labelledby="qr-preview-title"><header><div><span>STEP 04 · FINAL VERIFICATION</span><h3 id="qr-preview-title">Preview attendance</h3></div><button onClick={()=>setPreview(false)} aria-label="Close preview"><X size={18}/></button></header><div className="qr-preview-details"><span><small>DATE</small><b>{new Date().toLocaleDateString('en-IN')}</b></span><span><small>SESSION</small><b>{activeSession}</b></span><span><small>STANDARD / SECTION</small><b>{scanned.name} · {section?.name}</b></span><span><small>TEACHER ID</small><b>{teacher.emp_id}</b></span></div><div className="qr-preview-counts"><span>Total <b>{total}</b></span><span>Present <b className="green-count">{present}</b></span><span>Absent <b className="red-count">{absent}</b></span></div><div className="qr-preview-list">{[...students].sort((a,b)=>((marks[a.id]||'PRESENT')==='ABSENT'?0:1)-((marks[b.id]||'PRESENT')==='ABSENT'?0:1)).map(s=><div className={'qr-preview-student '+((marks[s.id]||'PRESENT')==='ABSENT'?'absent':'present')} key={s.id}><span>{s.roll_no} · {s.full_name}</span><b>{marks[s.id]||'PRESENT'}</b></div>)}</div><footer><button className="qr-secondary" onClick={()=>setPreview(false}>Back to list</button><button className="qr-primary" onClick={confirmSubmit}>Confirm & Submit <Check size={16}/></button></footer></section></div>}
   </div>
 }
