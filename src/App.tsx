@@ -55,7 +55,7 @@ const events = [
 type NavItem = { label: string; icon: typeof LayoutDashboard; children: string[] }
 const schoolNavigation: NavItem[] = [
  {label:'Overview',icon:LayoutDashboard,children:['Dashboard']},
- {label:'Admission',icon:GraduationCap,children:['Create Student','Students Data']},
+ {label:'Admission',icon:GraduationCap,children:['Create Student','Create Teacher','Create Staff','Create Driver & Cleaner','Students Data']},
  {label:'Academic',icon:BookOpen,children:['Standard','Attendance','Exam Schedules','Student Results','Performance']},
  {label:'Transport',icon:Bus,children:['Routes','Buses','Allotment']},
  {label:'Peoples',icon:Users,children:['Teachers','Staff','Driver & Cleaner','Parent Book']},
@@ -66,6 +66,8 @@ const schoolNavigation: NavItem[] = [
 type StandardRow={name:string;sections:string[]}
 type RouteRow={name:string;start:string;stops:string[];end:string}
 type RoleUserRow={role:string;email:string;pages:string[]}
+type PeopleRecord={id:string;type:string;name:string;details:Record<string,string>}
+type PeopleIdSettings={studentPrefix:string;teacherPrefix:string;staffPrefix:string;driverPrefix:string;studentNext:number;teacherNext:number;staffNext:number;driverNext:number}
 const rolePageDefaults:Record<string,string[]> = {
  'Cashier-Staff':['Finance','Fees','Fees Structure','Students Data','Pending Fees'],
  'Academic Director':['Exam Schedules','Attendance','Student Results','Performance'],
@@ -86,6 +88,13 @@ export function Dashboard({onSignOut,schoolName,schoolId}:{onSignOut:()=>void;sc
  const [roleUserRole,setRoleUserRole]=useState('Cashier-Staff'),[roleUserEmail,setRoleUserEmail]=useState(''),[roleUserPassword,setRoleUserPassword]=useState('')
  const [roleUserPages,setRoleUserPages]=useState<string[]>(rolePageDefaults['Cashier-Staff'])
  const [roleUsers,setRoleUsers]=useState<RoleUserRow[]>([])
+ const [peopleRecords,setPeopleRecords]=useState<PeopleRecord[]>([])
+ const [peopleIdSettings,setPeopleIdSettings]=useState<PeopleIdSettings>({studentPrefix:'ADM',teacherPrefix:'TCH',staffPrefix:'STF',driverPrefix:'DRV',studentNext:1,teacherNext:1,staffNext:1,driverNext:1})
+ const [studentManualAdmission,setStudentManualAdmission]=useState(false)
+ const [manualAdmissionNumber,setManualAdmissionNumber]=useState('')
+ const academicYear=(()=>{const now=new Date();const start=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;return start+'-'+String(start+1).slice(-2)})()
+ const nextPersonId=(type:'Student'|'Teacher'|'Staff'|'Driver & Cleaner')=>{const key=type==='Student'?'student':type==='Teacher'?'teacher':type==='Staff'?'staff':'driver';const prefix=peopleIdSettings[(key+'Prefix') as keyof PeopleIdSettings] as string;const seq=peopleIdSettings[(key+'Next') as keyof PeopleIdSettings] as number;return prefix+'-'+String(seq).padStart(5,'0')}
+ const addPerson=(event:FormEvent<HTMLFormElement>,type:'Student'|'Teacher'|'Staff'|'Driver & Cleaner')=>{event.preventDefault();const form=event.currentTarget;const data=Object.fromEntries(new FormData(form).entries()) as Record<string,string>;const name=(data.name||'').trim();if(!name){notify('Enter the name to continue.');return}if(type==='Student'&&!data.mother_phone?.trim()&&!data.father_phone?.trim()&&!data.guardian_phone?.trim()){notify('Enter a mobile number for the mother, father or guardian.');return}if(type==='Student'&&data.guardian_name?.trim()&&!data.guardian_relationship?.trim()){notify('Enter the guardian relationship.');return}const generated=type==='Student'&&studentManualAdmission?manualAdmissionNumber.trim():nextPersonId(type);if(!generated){notify('Enter the manual admission number.');return}if(peopleRecords.some(person=>person.id.toLowerCase()===generated.toLowerCase())){notify('This ID / admission number already exists.');return}const details={...data};if(type==='Student')details.academic_year=academicYear;if(type==='Teacher')details.joining_year=String(new Date().getFullYear());setPeopleRecords(items=>[{id:generated,type,name,details},...items]);setPeopleIdSettings(current=>{const key=type==='Student'?'student':type==='Teacher'?'teacher':type==='Staff'?'staff':'driver';const counter=(key+'Next') as keyof PeopleIdSettings;return type==='Student'&&studentManualAdmission?current:{...current,[counter]:(current[counter] as number)+1}});setManualAdmissionNumber('');form.reset();notify(type+' created. ID: '+generated)}
  const notify=(message:string)=>{setToast(message);window.setTimeout(()=>setToast(''),2800)}
  const currentParent=schoolNavigation.find(item=>item.label===activeParent)||schoolNavigation[0]
  const selectParent=(item:NavItem)=>{setActiveParent(item.label);setActiveChild(item.children[0]);setMobileOpen(false)}
