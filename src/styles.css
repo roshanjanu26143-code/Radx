@@ -141,3 +141,38 @@ body,.app-shell{background:#fffbf5;color:#4b2d19}
 .sidebar-signout:hover{background:#ffede7;border-color:#e9c5b9;}
 
 .session-setting-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0;border-top:1px solid #edf1ed}.session-setting-row>div{min-width:0}.session-setting-row b{display:block;color:#34483b;font-size:12px}.session-setting-row p{margin:5px 0 0;color:#829087;font-size:10px;line-height:1.5}.session-setting-row select{min-width:150px;height:38px;border:1px solid #e3eae4;border-radius:8px;background:#fff;padding:0 10px;color:#34463a;font-size:11px}.session-toggle{display:flex;align-items:center;gap:8px;color:#1c7654;font-size:11px;font-weight:700;white-space:nowrap}.session-toggle input{accent-color:#1c7654;width:16px;height:16px}.session-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.session-force-button{min-height:39px;padding:0 13px;border:1px solid #e5b8b2;border-radius:8px;background:#fff8f7;color:#a43d32;font-size:10px;font-weight:750}.session-footnote{margin:14px 0 0;color:#8a958d;font-size:10px;line-height:1.6}@media(max-width:600px){.session-setting-row{align-items:flex-start;flex-direction:column}.session-setting-row select{width:100%}.session-actions>*{width:100%}}
+
+
+/* Role Users and page permission controls */
+.role-user-form{display:flex;flex-direction:column;gap:18px}
+.role-user-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.role-user-fields label{display:flex;flex-direction:column;gap:7px;color:#526158;font-size:10px;font-weight:750}
+.role-user-fields input,.role-user-fields select{width:100%;height:40px;border:1px solid #e3eae4;border-radius:8px;background:#fff;padding:0 11px;color:#34463a;font-size:11px;outline:none}
+.role-user-fields input:focus,.role-user-fields select:focus{border-color:#70a88b;box-shadow:0 0 0 3px #1c765410}
+.permission-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:17px;border-top:1px solid #edf1ed}
+.permission-heading>div{display:flex;flex-direction:column;gap:5px}
+.permission-heading b{font-size:12px;color:#34483b}
+.permission-heading span{font-size:9px;color:#829087;line-height:1.5}
+.permission-heading>span:last-child{padding:6px 9px;background:#eaf4ed;border-radius:20px;color:#1c7654;font-weight:800;white-space:nowrap}
+.permission-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.permission-option{min-width:0;display:flex;align-items:center;gap:9px;padding:11px;border:1px solid #e7ece7;border-radius:9px;background:#fff;cursor:pointer}
+.permission-option.permission-enabled{border-color:#b9d7c2;background:#f3faf4}
+.permission-option input{width:15px;height:15px;flex:0 0 auto;accent-color:#1c7654}
+.permission-option>span:nth-child(2){display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.permission-option b{font-size:10px;color:#415247;overflow-wrap:anywhere}
+.permission-option small{font-size:8px;color:#8a978e}
+.permission-option i{font-style:normal;font-size:8px;font-weight:750;color:#9aa49d;white-space:nowrap}
+.permission-enabled i{color:#1c7654}
+.permission-locked{background:#f7f8f7;border-style:dashed;cursor:not-allowed}
+.permission-locked .permission-lock{width:24px;height:24px;display:grid;place-items:center;color:#9a6b3c}
+.permission-locked i{color:#a35a1d}
+.role-user-note{margin:0;color:#89958d;font-size:9px;line-height:1.6}
+.role-user-list{display:flex;flex-direction:column;gap:9px;margin-top:23px}
+.role-user-row{display:flex;align-items:center;gap:11px;padding:12px;border:1px solid #e9eee9;border-radius:10px}
+.role-user-avatar{width:34px;height:34px;display:grid;place-items:center;flex:0 0 auto;border-radius:10px;background:#eaf4ed;color:#1c7654;font-weight:800}
+.role-user-summary{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.role-user-summary b{font-size:10px;color:#34483b;overflow-wrap:anywhere}
+.role-user-summary span,.role-user-summary small{font-size:8px;color:#829087;line-height:1.5}
+.role-user-row>button{border:1px solid #efd8d4;border-radius:7px;background:#fff8f7;color:#a64b40;padding:7px 10px;font-size:9px;font-weight:750}
+@media(max-width:900px){.role-user-fields{grid-template-columns:1fr 1fr}.permission-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.role-user-fields,.permission-grid{grid-template-columns:1fr}.role-user-row{align-items:flex-start}.permission-option{min-height:54px}}
