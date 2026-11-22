@@ -56,10 +56,11 @@ export default function BusGpsTracker({ routes, buses, schoolName, notify }: {
   notify: (message: string) => void
 }) {
   const [routeIndex, setRouteIndex] = useState(0)
+  const [selectedBusNumber, setSelectedBusNumber] = useState('')
   const availableRoutes = routes.length ? routes : [sampleRoute]
   const route = availableRoutes[Math.min(routeIndex, availableRoutes.length - 1)]
   const routeBuses = buses.filter(bus => !bus.route || bus.route === route.name)
-  const bus = routeBuses[0] || buses[0]
+  const bus = routeBuses.find(item => item.number === selectedBusNumber) || routeBuses[0] || buses[0]
   const payload = useMemo(() => makeTrackingPayload(route, bus, schoolName), [route, bus, schoolName])
   const shareUrl = createShareUrl(payload)
   const message = `🚌 ${schoolName || 'School'} Bus Live Tracking\nRoute: ${payload.routeName}\nBus: ${payload.busNumber}\nTrack the bus and check stop-wise arrival time here:\n${shareUrl}\n\nETA is a frontend preview until live GPS is connected.`
@@ -80,6 +81,7 @@ export default function BusGpsTracker({ routes, buses, schoolName, notify }: {
     </div>
     <div className="bus-share-controls">
       <label>Choose route<select value={routeIndex} onChange={event => setRouteIndex(Number(event.target.value))}>{availableRoutes.map((item, index) => <option value={index} key={item.name + index}>{item.name}</option>)}</select></label>
+      <label>Choose route bus<select value={bus?.number || ''} onChange={event => setSelectedBusNumber(event.target.value)}>{(routeBuses.length ? routeBuses : buses).length ? (routeBuses.length ? routeBuses : buses).map((item, index) => <option value={item.number} key={item.number + index}>{item.number} · {item.driver || 'Driver not assigned'}</option>) : <option value="">Demo bus · TN 23 AB 1234</option>}</select></label>
       <div className="bus-share-meta"><span><Bus size={15}/> {payload.busNumber}</span><span><Navigation size={14}/> {payload.currentLocation}</span></div>
     </div>
     <div className="bus-gps-preview">
