@@ -28,7 +28,7 @@ const today = () => new Date().toLocaleDateString('en-CA')
 const readQueue = (): QueueItem[] => { try { return JSON.parse(localStorage.getItem('acadamix-attendance-queue') || '[]') as QueueItem[] } catch { return [] } }
 
 export default function MobileQRAttendance({ standards: appStandards, notify }: { standards?: {name:string;sections:string[]}[]; notify?: (message:string)=>void }) {
-  const standards = useMemo(() => seedStandards.map((s, i) => ({...s, name: appStandards?.[i]?.name || s.name, sections: (appStandards?.[i]?.sections?.length ? appStandards[i].sections : s.sections.map(x=>x.name)).map((name,j)=>({id:s.sections[j]?.id || s.id+'-'+j,name}))})), [appStandards])
+  const standards = useMemo(() => seedStandards.map((s, i) => { const configured = appStandards?.[i]; const sectionNames = configured?.sections?.length ? configured.sections : s.sections.map(x=>x.name); return {...s, name: configured?.name || s.name, sections: sectionNames.map((name,j)=>({id:s.sections[j]?.id || s.id+'-'+j,name}))} }), [appStandards])
   const [step,setStep] = useState(1)
   const [token,setToken] = useState('')
   const [scanned,setScanned] = useState<Standard|null>(null)
