@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import './mobile-qr-attendance.css'
 import { Camera, Check, ChevronLeft, ChevronRight, Clock3, Download, MapPin, QrCode, ShieldCheck, Smartphone, Users, Wifi, WifiOff, X } from 'lucide-react'
 
 type Standard = { id: string; name: string; qr_token: string; sections: { id: string; name: string }[] }
