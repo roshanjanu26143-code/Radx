@@ -283,3 +283,19 @@ body,.app-shell{background:#fffbf5;color:#4b2d19}
 .people-detail-grid span{font-size:8px;color:#829087;text-transform:capitalize}
 .people-detail-grid b{font-size:10px;color:#34483b;overflow-wrap:anywhere;text-transform:none}
 @media(max-width:700px){.people-card-grid{grid-template-columns:1fr}.people-detail-grid{grid-template-columns:1fr}.primary-contact-field{gap:12px}}
+
+
+/* Two-level vertical sidebar navigation */
+.vertical-sidebar{min-height:100vh;overflow:hidden}
+.vertical-sidebar .vertical-nav-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;flex:1;min-height:0;overflow:hidden}
+.vertical-sidebar .parent-tabs,.vertical-sidebar .child-tabs{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#dce7de transparent;padding-bottom:8px}
+.vertical-sidebar .parent-tabs::-webkit-scrollbar,.vertical-sidebar .child-tabs::-webkit-scrollbar{width:4px}
+.vertical-sidebar .parent-tabs::-webkit-scrollbar-thumb,.vertical-sidebar .child-tabs::-webkit-scrollbar-thumb{background:#dce7de;border-radius:8px}
+.vertical-sidebar .parent-tab{flex:0 0 auto;min-height:40px;transition:background .15s,color .15s}
+.vertical-sidebar .parent-tab.active>svg:last-child{opacity:1;transform:translateX(1px);color:#1c7654}
+.vertical-sidebar .child-tabs{border-left:1px solid #e7eee8;padding-left:9px}
+.vertical-sidebar .child-tabs-heading{position:sticky;top:0;z-index:1;background:#fff;padding-top:9px}
+.vertical-sidebar .child-tab{width:100%;flex:0 0 auto;line-height:1.35;transition:background .15s,color .15s}
+.vertical-sidebar .vertical-sidebar-bottom{flex:0 0 auto;background:#fff;padding-top:8px;border-top:1px solid #edf1ed}
+@media(max-width:820px){.vertical-sidebar{height:100dvh;min-height:0}.vertical-sidebar .vertical-nav-layout{min-height:0}.vertical-sidebar .vertical-sidebar-bottom{padding-bottom:max(4px,env(safe-area-inset-bottom))}}
+@media(min-width:821px) and (max-height:760px){.vertical-sidebar .brand-lockup{padding-bottom:12px}.vertical-sidebar .school-switcher{margin-bottom:10px}.vertical-sidebar .parent-tab{min-height:36px}.vertical-sidebar .child-tab{min-height:32px}.vertical-sidebar .vertical-sidebar-bottom{margin-top:7px}}
