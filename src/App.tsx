@@ -125,7 +125,7 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages}:
   return ()=>{cancelled=true}
  },[schoolId])
  useEffect(()=>{
-  if(!workspaceLoaded)return
+  if(!workspaceLoaded||userRole!=='Admin')return
   const timer=window.setTimeout(async()=>{
    const {error}=await supabase.from('school_workspace_state').upsert({school_id:schoolId,standards,routes,buses,people_id_settings:peopleIdSettings,session_settings:{adminAutoLogout,roleAutoLogout,adminKeepSignedIn},updated_at:new Date().toISOString()},{onConflict:'school_id'})
    if(error)setWorkspaceLoadError('Workspace settings could not be saved: '+error.message)
@@ -275,6 +275,8 @@ const accessRoles = [
   'Assistant Principal',
   'Correspondent',
   'Academic Director',
+  'Teacher',
+  'Staff',
 ]
 
 function AuthScreen() {
