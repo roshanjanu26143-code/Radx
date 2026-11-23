@@ -74,6 +74,7 @@ type PeopleIdSettings={studentPrefix:string;teacherPrefix:string;staffPrefix:str
 const rolePageDefaults:Record<string,string[]> = {
  'Cashier-Staff':['Finance','Fees','Fees Structure','Students Data','Pending Fees'],
  'Academic Director':['Exam Schedules','Attendance','Student Results','Performance'],
+ 'Teacher':['Attendance'],
 }
 const rolePageOptions = schoolNavigation.flatMap(group=>group.children
  .filter(child=>!(group.label==='Settings'&&(child==='Role Users'||child==='Audit Log')))
