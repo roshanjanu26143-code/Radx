@@ -1,0 +1,2 @@
+create index if not exists school_attendance_marks_session_school_idx on public.school_attendance_marks(session_id,school_id);
+create index if not exists school_attendance_sessions_school_teacher_idx on public.school_attendance_sessions(school_id,teacher_person_id);
