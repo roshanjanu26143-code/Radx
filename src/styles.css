@@ -359,3 +359,10 @@ body,.app-shell{background:#fffbf5;color:#4b2d19}
 .notice-cancel{border:1px solid #e3e9e4;background:#fff;color:#637168}
 .notice-confirm{border:1px solid #1c7654;background:#1c7654;color:#fff}
 @media(max-width:600px){.toast-stack{right:12px;bottom:12px;width:calc(100vw - 24px)}.notice-demo-row{align-items:flex-start;flex-direction:column}.notice-demo-row .primary-action{width:100%}.notification-pill-row{align-items:flex-start}.notice-action-row button{flex:1 1 calc(50% - 9px)}.notice-dialog{padding:20px}}
+
+.progress-toast-floating{position:fixed;left:22px;bottom:22px;z-index:105;width:min(340px,calc(100vw - 28px));display:flex;align-items:flex-start;gap:11px;padding:14px;border:1px solid #dce9df;border-radius:12px;background:#fff;color:#34473b;box-shadow:0 12px 34px #173d2c24;animation:notice-toast-in .2s ease-out}
+.progress-toast-floating-copy{flex:1;min-width:0;display:grid;grid-template-columns:1fr auto;gap:5px 10px;align-items:center}
+.progress-toast-floating-copy b{font-size:11px}
+.progress-toast-floating-copy>span{font-size:10px;font-weight:800;color:#1c7654;font-variant-numeric:tabular-nums}
+.progress-toast-floating-copy .notice-progress-track{grid-column:1/-1;width:100%;margin:5px 0 0}
+@media(max-width:600px){.progress-toast-floating{left:12px;bottom:12px;width:calc(100vw - 24px)}}
