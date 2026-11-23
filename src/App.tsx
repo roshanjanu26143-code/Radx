@@ -78,7 +78,7 @@ const rolePageOptions = schoolNavigation.flatMap(group=>group.children
  .filter(child=>!(group.label==='Settings'&&(child==='Role Users'||child==='Audit Log')))
  .map(child=>({parent:group.label,child,label:child})))
 const readNavigationFromUrl=()=>{const params=new URLSearchParams(window.location.search);const requestedParent=params.get('tab')||'Overview';const group=schoolNavigation.find(item=>item.label===requestedParent)||schoolNavigation[0];const requestedChild=params.get('page')||group.children[0];const requestedView=params.get('view')||'Academic';const views=['Academic','Finance','Transportation','Attendance report'];return {parent:group.label,child:group.children.includes(requestedChild)?requestedChild:group.children[0],view:views.includes(requestedView)?requestedView:'Academic'}}
-export function Dashboard({onSignOut,schoolName,schoolId}:{onSignOut:()=>void;schoolName:string;schoolId:string}) {
+export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages}:{onSignOut:()=>void;schoolName:string;schoolId:string;userRole:string;allowedPages:string[]}) {
  const [activeParent,setActiveParent]=useState(()=>readNavigationFromUrl().parent),[activeChild,setActiveChild]=useState(()=>readNavigationFromUrl().child)
  const [dashboardView,setDashboardView]=useState(()=>readNavigationFromUrl().view),[mobileOpen,setMobileOpen]=useState(false),[toast,setToast]=useState<{id:number;message:string}[]>([])
  const [standards,setStandards]=useState<StandardRow[]>(Array.from({length:12},(_,i)=>({name:'Standard '+(i+1),sections:[]})))
@@ -148,7 +148,9 @@ export function Dashboard({onSignOut,schoolName,schoolId}:{onSignOut:()=>void;sc
  const nextPersonId=(type:'Student'|'Teacher'|'Staff'|'Driver & Cleaner')=>{const key=type==='Student'?'student':type==='Teacher'?'teacher':type==='Staff'?'staff':'driver';const prefix=peopleIdSettings[(key+'Prefix') as keyof PeopleIdSettings] as string;const seq=peopleIdSettings[(key+'Next') as keyof PeopleIdSettings] as number;return prefix+'-'+String(seq).padStart(5,'0')}
  const addPerson=async(event:FormEvent<HTMLFormElement>,type:'Student'|'Teacher'|'Staff'|'Driver & Cleaner')=>{event.preventDefault();const form=event.currentTarget;if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}const data=Object.fromEntries(new FormData(form).entries()) as Record<string,string>;const name=(data.name||'').trim();if(!name){notify('Enter the name to continue.');return}if(type==='Student'&&!data.mother_phone?.trim()&&!data.father_phone?.trim()&&!data.guardian_phone?.trim()){notify('Enter a mobile number for the mother, father or guardian.');return}if(type==='Student'&&data.guardian_name?.trim()&&!data.guardian_relationship?.trim()){notify('Enter the guardian relationship.');return}if(type==='Student'&&data.primary_contact==='Father'&&!data.father_phone?.trim()||type==='Student'&&data.primary_contact==='Mother'&&!data.mother_phone?.trim()||type==='Student'&&data.primary_contact==='Guardian'&&!data.guardian_phone?.trim()){notify('Enter the mobile number for the selected primary contact.');return}const generated=type==='Student'&&studentManualAdmission?manualAdmissionNumber.trim():nextPersonId(type);if(!generated){notify('Enter the manual admission number.');return}if(peopleRecords.some(person=>person.id.toLowerCase()===generated.toLowerCase())){notify('This ID / admission number already exists.');return}const details={...data};for(const [key,value] of Object.entries(details)){if(key==='phone'||key.endsWith('_phone')){const digits=value.replace(/\D/g,'');if(value.trim()&&!/^[6-9]\d{9}$/.test(digits)){notify('Enter a valid 10-digit Indian mobile number.');return}details[key]=value.trim()?'+91'+digits:''}}if(type==='Student')details.academic_year=academicYear;if(type==='Teacher')details.joining_year=String(new Date().getFullYear());if(type==='Student'){details.section='';details.primary_contact=details.primary_contact|| (details.father_phone?'Father':details.mother_phone?'Mother':'Guardian')}try{const {data:saved,error}=await supabase.from('school_people').insert({school_id:schoolId,person_id:generated,record_type:type,full_name:name,details}).select('person_id,record_type,full_name,details').single();if(error)throw error;if(!saved)throw new Error('The saved person record was not returned.');setPeopleRecords(items=>[{id:saved.person_id,type:saved.record_type,name:saved.full_name,details:(saved.details||{}) as Record<string,string>},...items]);setPeopleIdSettings(current=>{const key=type==='Student'?'student':type==='Teacher'?'teacher':type==='Staff'?'staff':'driver';const counter=(key+'Next') as keyof PeopleIdSettings;return type==='Student'&&studentManualAdmission?current:{...current,[counter]:(current[counter] as number)+1}});setManualAdmissionNumber('');form.reset();notify(type+' saved to the school database. ID: '+generated)}catch(error){const message=error instanceof Error?error.message:'Could not save this record.';notify(message.includes('duplicate key')?'This ID / admission number already exists in the school database.':message)}};
  const notify=(message:string)=>{const id=Date.now()+Math.random();setToast(items=>[...items.slice(-2),{id,message}]);window.setTimeout(()=>setToast(items=>items.filter(item=>item.id!==id)),4200)}
- const currentParent=schoolNavigation.find(item=>item.label===activeParent)||schoolNavigation[0]
+ const visibleNavigation=userRole==='Admin'?schoolNavigation:schoolNavigation.map(group=>({...group,children:group.children.filter(child=>allowedPages.includes(child))})).filter(group=>group.children.length>0)
+ const currentParent=visibleNavigation.find(item=>item.label===activeParent)||visibleNavigation[0]||schoolNavigation[0]
+ useEffect(()=>{if(userRole!=='Admin'&&!visibleNavigation.some(group=>group.label===activeParent&&group.children.includes(activeChild))){const first=visibleNavigation[0];if(first)navigateTo(first.label,first.children[0])}},[userRole,allowedPages.join('|'),activeParent,activeChild])
  useEffect(()=>{if(activeParent==='Settings'&&activeChild==='Role Users')void loadRoleUsers();if(activeParent==='Settings'&&activeChild==='Audit Log'){supabase.from('school_audit_logs').select('id,actor_email,action,entity_type,details,created_at').eq('school_id',schoolId).order('created_at',{ascending:false}).limit(100).then(({data,error})=>{if(error)notify('Could not load audit history: '+error.message);else setAuditLogs((data||[]) as typeof auditLogs)})}},[activeParent,activeChild,schoolId])
  const navigateTo=(parent:string,child:string)=>{const url=new URL(window.location.href);url.searchParams.set('tab',parent);url.searchParams.set('page',child);window.history.pushState({acadamixNavigation:true},'',url);setActiveParent(parent);setActiveChild(child);setMobileOpen(false)}
  const selectParent=(item:NavItem)=>navigateTo(item.label,item.children[0])
@@ -194,9 +196,9 @@ export function Dashboard({onSignOut,schoolName,schoolId}:{onSignOut:()=>void;sc
  return <div className="app-shell vertical-app-shell">{mobileOpen&&<button className="mobile-scrim" onClick={()=>setMobileOpen(false)} aria-label="Close navigation"/>}
  <aside className={'sidebar vertical-sidebar '+(mobileOpen?'sidebar-open':'')}><div className="brand-lockup"><div className="brand-mark"><GraduationCap size={23}/></div><div><div className="brand-name">AI <span>ACADAMIX</span></div><div className="brand-powered">POWERED BY <b>RADX</b></div></div><button className="icon-button sidebar-close" onClick={()=>setMobileOpen(false)}><X size={18}/></button></div>
  <div className="school-switcher"><div className="school-avatar">{(schoolName||'S').slice(0,2).toUpperCase()}</div><div className="school-copy"><b>{schoolName||'School workspace'}</b><span>{schoolId}</span></div></div>
- <div className="vertical-nav-layout"><nav className="parent-tabs" aria-label="Main navigation">{schoolNavigation.map(item=>{const Icon=item.icon;const isActive=activeParent===item.label;return <button key={item.label} type="button" aria-current={isActive?'page':undefined} aria-expanded={isActive} className={'parent-tab '+(isActive?'active':'')} onClick={()=>selectParent(item)}><Icon size={17}/><span>{item.label}</span><ChevronRight size={14}/></button>})}</nav><nav className="child-tabs" aria-label={activeParent+' pages'}><div className="child-tabs-heading">{activeParent}</div>{currentParent.children.map(child=><button key={child} type="button" aria-current={activeChild===child?'page':undefined} className={'child-tab '+(activeChild===child?'active':'')} onClick={()=>selectChild(currentParent,child)}>{child}</button>)}</nav></div>
- <div className="sidebar-bottom vertical-sidebar-bottom"><div className="sidebar-user"><div className="user-avatar">AD</div><div className="user-copy"><b>Admin</b><span>School administrator</span></div></div><button className="sidebar-signout" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button></div></aside>
- <main className="main-area vertical-main-area"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMobileOpen(true)}><Menu size={20}/></button><div className="breadcrumb">ACADAMIX <ChevronRight size={14}/><span>{activeParent}</span><ChevronRight size={14}/><b>{activeChild}</b></div></div><div className="topbar-right"><div className="search-box"><Search size={17}/><input placeholder="Search this workspace..."/></div><div className="top-profile"><div className="user-avatar small">AD</div><span>Admin</span></div></div></header>
+ <div className="vertical-nav-layout"><nav className="parent-tabs" aria-label="Main navigation">{visibleNavigation.map(item=>{const Icon=item.icon;const isActive=activeParent===item.label;return <button key={item.label} type="button" aria-current={isActive?'page':undefined} aria-expanded={isActive} className={'parent-tab '+(isActive?'active':'')} onClick={()=>selectParent(item)}><Icon size={17}/><span>{item.label}</span><ChevronRight size={14}/></button>})}</nav><nav className="child-tabs" aria-label={activeParent+' pages'}><div className="child-tabs-heading">{activeParent}</div>{currentParent.children.filter(child=>userRole==='Admin'||allowedPages.includes(child)).map(child=><button key={child} type="button" aria-current={activeChild===child?'page':undefined} className={'child-tab '+(activeChild===child?'active':'')} onClick={()=>selectChild(currentParent,child)}>{child}</button>)}</nav></div>
+ <div className="sidebar-bottom vertical-sidebar-bottom"><div className="sidebar-user"><div className="user-avatar">AD</div><div className="user-copy"><b>{userRole}</b><span>{userRole==='Admin'?'School administrator':'School team member'}</span></div></div><button className="sidebar-signout" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button></div></aside>
+ <main className="main-area vertical-main-area"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMobileOpen(true)}><Menu size={20}/></button><div className="breadcrumb">ACADAMIX <ChevronRight size={14}/><span>{activeParent}</span><ChevronRight size={14}/><b>{activeChild}</b></div></div><div className="topbar-right"><div className="search-box"><Search size={17}/><input placeholder="Search this workspace..."/></div><div className="top-profile"><div className="user-avatar small">{userRole.slice(0,1)}</div><span>{userRole}</span></div></div></header>
  <div className="page-content vertical-page-content"><div className="workspace-page-heading"><div><span className="section-eyebrow">{activeParent.toUpperCase()}</span><h1>{activeChild}</h1><p>{activeParent==='Overview'?'Your school workspace at a glance.':'Manage '+activeChild.toLowerCase()+' for '+(schoolName||'your school')+'.'}</p></div><span className="school-id-badge">{schoolId}</span></div>{!workspaceLoaded&&!workspaceLoadError&&<div className="inline-notice notice-neutral" role="status"><Activity size={16}/><div><b>Loading school data</b><p>Fetching your saved records and settings.</p></div></div>}{workspaceLoadError&&<div className="inline-notice notice-warning" role="alert"><CircleAlert size={16}/><div><b>School data sync issue</b><p>{workspaceLoadError}</p></div></div>}{content()}<footer className="footer"><span>© 2026 AI ACADAMIX</span><span>Powered by RADX</span><span className="footer-status"><i/> School workspace</span></footer></div></main>{toast.length>0&&<div className="toast-stack" aria-live="polite" aria-relevant="additions">{toast.map(item=><div className="toast" key={item.id}><span className="toast-icon"><Check size={15}/></span><span>{item.message}</span></div>)}</div>}</div>
 }
 
@@ -279,6 +281,8 @@ function AuthScreen() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [schoolId, setSchoolId] = useState('')
   const [role, setRole] = useState('Admin')
+  const [sessionRole,setSessionRole]=useState('Admin')
+  const [sessionPages,setSessionPages]=useState<string[]>([])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -330,11 +334,8 @@ function AuthScreen() {
         if(user){
           const {data:school,error:schoolError}=await supabase.from('school_tenants').select('school_id,school_name').eq('admin_user_id',user.id).maybeSingle()
           if(schoolError)throw schoolError
-          if(school){
-            if(mounted){setSchoolId(school.school_id);setSchoolName(school.school_name);setSchoolStatus('verified');setAuthenticated(true)}
-          }else{
-            await supabase.auth.signOut()
-          }
+          if(school){if(mounted){setSessionRole('Admin');setSessionPages([]);setSchoolId(school.school_id);setSchoolName(school.school_name);setSchoolStatus('verified');setAuthenticated(true)}}
+          else{const {data:membership,error:membershipError}=await supabase.from('school_user_roles').select('school_id,role,allowed_pages,status').eq('user_id',user.id).maybeSingle();if(membershipError)throw membershipError;if(membership&&membership.status==='active'){const {data:memberSchool,error:memberSchoolError}=await supabase.from('school_tenants').select('school_id,school_name').eq('school_id',membership.school_id).maybeSingle();if(memberSchoolError)throw memberSchoolError;if(memberSchool&&mounted){setSessionRole(membership.role);setSessionPages(membership.allowed_pages||[]);setSchoolId(memberSchool.school_id);setSchoolName(memberSchool.school_name);setSchoolStatus('verified');setAuthenticated(true)}}else await supabase.auth.signOut()}
         }
       }catch(error){
         if(mounted)setNotice(error instanceof Error?'Could not restore your Admin session: '+error.message:'Could not restore your Admin session.')
@@ -375,10 +376,6 @@ function AuthScreen() {
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (role !== 'Admin') {
-      setNotice('Staff role accounts are not configured yet. Please use the Admin account until staff account setup is available.')
-      return
-    }
     setIsLoggingIn(true)
     setNotice('')
     const cleanEmail = email.trim().toLowerCase()
@@ -393,21 +390,19 @@ function AuthScreen() {
       }
       setShowResendConfirmation(false)
 
-      const { data: school, error: schoolError } = await supabase
-        .from('school_tenants')
-        .select('admin_user_id, admin_email, school_id, school_name')
-        .eq('school_id', schoolId.trim().toUpperCase())
-        .maybeSingle()
-
-      if (schoolError) throw schoolError
-      if (!school || school.admin_user_id !== authData.user.id || school.admin_email?.toLowerCase() !== cleanEmail) {
-        await supabase.auth.signOut()
-        throw new Error('This email is not the Admin account registered for the verified School ID.')
+      const {data:school,error:schoolError}=await supabase.from('school_tenants').select('admin_user_id,admin_email,school_id,school_name').eq('school_id',schoolId.trim().toUpperCase()).maybeSingle()
+      if(schoolError)throw schoolError
+      if(!school){await supabase.auth.signOut();throw new Error('The verified school could not be found.')}
+      if(role==='Admin'){
+        if(school.admin_user_id!==authData.user.id||school.admin_email?.toLowerCase()!==cleanEmail){await supabase.auth.signOut();throw new Error('This email is not the Admin account registered for the verified School ID.')}
+        setSessionRole('Admin');setSessionPages([])
+      }else{
+        const {data:membership,error:membershipError}=await supabase.from('school_user_roles').select('role,allowed_pages,status').eq('school_id',schoolId.trim().toUpperCase()).eq('user_id',authData.user.id).maybeSingle()
+        if(membershipError)throw membershipError
+        if(!membership||membership.status!=='active'||membership.role!==role){await supabase.auth.signOut();throw new Error('This account does not have an active '+role+' assignment for this School ID.')}
+        setSessionRole(membership.role);setSessionPages(membership.allowed_pages||[])
       }
-
-      setSchoolName(school.school_name)
-      setSchoolId(school.school_id)
-      setAuthenticated(true)
+      setSchoolName(school.school_name);setSchoolId(school.school_id);setAuthenticated(true)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Login failed. Please try again.')
     } finally {
@@ -586,9 +581,10 @@ function AuthScreen() {
   if(authLoading)return <div className="splash-screen"><div className="splash-mark"><GraduationCap size={42}/></div><div className="splash-title">AI <span>ACADAMIX</span></div><div className="splash-powered">RESTORING SECURE SESSION</div><div className="splash-loader"><i/></div></div>
 
   if (authenticated) {
-    return <Dashboard schoolName={schoolName} schoolId={schoolId} onSignOut={async () => {
+    return <Dashboard schoolName={schoolName} schoolId={schoolId} userRole={sessionRole} allowedPages={sessionPages} onSignOut={async () => {
       await supabase.auth.signOut()
       setAuthenticated(false)
+      setSessionRole('Admin');setSessionPages([])
       setPassword('')
       setSchoolStatus('idle')
       setNotice('You have been signed out.')
