@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Check, Trash2, Users } from 'lucide-react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Users } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 type Teacher={id:string;name:string}
@@ -19,7 +19,7 @@ export default function TeacherClassAllotment({schoolId,teachers,standards}:{sch
  const load=async()=>{setLoading(true);const {data,error}=await supabase.from('school_teacher_class_assignments').select('id,teacher_person_id,standard_name,section_name,subject_name,is_active').eq('school_id',schoolId).order('created_at',{ascending:false});if(error)setError(error.message);else{setRows((data||[]) as Assignment[]);setError('')}setLoading(false)}
  useEffect(()=>{void load()},[schoolId])
  useEffect(()=>{if(!sections.includes(sectionName))setSectionName(sections[0]||'')},[standardName,sections,sectionName])
- const save=async(event:React.FormEvent<HTMLFormElement>)=>{event.preventDefault();if(!teacherId||!standardName||!sectionName)return;setSaving(true);setError('');const existing=rows.find(r=>r.teacher_person_id===teacherId&&r.standard_name===standardName&&r.section_name===sectionName&&(r.subject_name||'')===subjectName.trim());let result;if(existing){result=await supabase.from('school_teacher_class_assignments').update({is_active:true,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('id',existing.id)}else{result=await supabase.from('school_teacher_class_assignments').insert({school_id:schoolId,teacher_person_id:teacherId,standard_name:standardName,section_name:sectionName,subject_name:subjectName.trim()||null})}setSaving(false);if(result.error){setError(result.error.message);return}setSubjectName('');await load()}
+ const save=async(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();if(!teacherId||!standardName||!sectionName)return;setSaving(true);setError('');const existing=rows.find(r=>r.teacher_person_id===teacherId&&r.standard_name===standardName&&r.section_name===sectionName&&(r.subject_name||'')===subjectName.trim());let result;if(existing){result=await supabase.from('school_teacher_class_assignments').update({is_active:true,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('id',existing.id)}else{result=await supabase.from('school_teacher_class_assignments').insert({school_id:schoolId,teacher_person_id:teacherId,standard_name:standardName,section_name:sectionName,subject_name:subjectName.trim()||null})}setSaving(false);if(result.error){setError(result.error.message);return}setSubjectName('');await load()}
  const toggle=async(row:Assignment)=>{const {error}=await supabase.from('school_teacher_class_assignments').update({is_active:!row.is_active,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('id',row.id);if(error)setError(error.message);else await load()}
  const teacherName=(id:string)=>teachers.find(t=>t.id===id)?.name||id
  return <section className="workspace-panel" style={{marginTop:20}}>
