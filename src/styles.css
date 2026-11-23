@@ -208,3 +208,62 @@ body,.app-shell{background:#fffbf5;color:#4b2d19}
 .indian-phone-input>span{height:100%;display:flex;align-items:center;padding:0 11px;border-right:1px solid #e8eee8;background:#f7faf7;color:#1c7654;font-size:11px;font-weight:800;white-space:nowrap}
 .people-form-grid .indian-phone-input input{height:100%;border:0;border-radius:0;box-shadow:none;padding:0 11px;min-width:0;flex:1}
 .people-form-grid .indian-phone-input input:focus{border:0;box-shadow:none}
+
+
+/* Admission -> standard allocation and family directory */
+.standard-student-allocation{margin-top:20px;padding-top:18px;border-top:1px solid #edf1ed}
+.allocation-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.allocation-heading>div{display:flex;flex-direction:column;gap:4px}
+.allocation-heading b{font-size:12px;color:#34483b}
+.allocation-heading span:not(.count-pill){font-size:9px;color:#829087;line-height:1.5}
+.allocation-student-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid #f0f3f0}
+.allocation-student-row .people-record-main{flex:1}
+.allocation-student-row select{height:36px;min-width:135px;border:1px solid #e3eae4;border-radius:8px;background:white;padding:0 9px;color:#34483b;font-size:10px}
+.parents-search{display:flex;align-items:center;gap:9px;height:44px;padding:0 13px;border:1px solid #e4ebe5;border-radius:10px;color:#829087;margin-bottom:17px}
+.parents-search:focus-within{border-color:#70a88b;box-shadow:0 0 0 3px #1c765410}
+.parents-search input{width:100%;height:100%;border:0;outline:0;background:transparent;color:#34483b;font-size:11px}
+.parent-family-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.parent-family-card{min-width:0;padding:15px;border:1px solid #e7ede8;border-radius:12px;background:#fff;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.parent-family-card:hover{border-color:#a8cbb4;box-shadow:0 5px 18px #1c765410}
+.family-card-top{display:flex;align-items:center;gap:10px}
+.family-avatar{width:38px;height:38px;display:grid;place-items:center;flex:0 0 auto;border-radius:11px;background:#eaf4ed;color:#1c7654}
+.family-card-title{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.family-card-title b{font-size:12px;color:#34483b;overflow-wrap:anywhere}
+.family-card-title span,.family-open{font-size:9px;color:#829087}
+.family-open{display:flex;align-items:center;gap:4px;color:#1c7654;font-weight:750}
+.family-phone-list{display:flex;flex-direction:column;gap:5px;padding:12px 0 9px;margin-top:9px;border-top:1px solid #f0f3f0;color:#65746a;font-size:9px}
+.family-primary-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.family-primary-actions>span{margin-right:auto;font-size:8px;color:#829087}
+.family-primary-actions a,.family-primary-actions button{display:inline-flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid #e3ece4;border-radius:7px;background:#f8fbf8;color:#1c7654;text-decoration:none;font-size:9px;font-weight:750}
+.family-children-preview{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.child-chip{padding:6px 8px;border-radius:7px;background:#f2f6f2;color:#52665a;font-size:8px;font-weight:700}
+.family-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;background:#17251db8}
+.family-modal{width:min(760px,100%);max-height:90vh;overflow:auto;padding:22px;border-radius:16px;background:white;box-shadow:0 20px 70px #0003}
+.family-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;padding-bottom:15px;border-bottom:1px solid #edf1ed}
+.family-modal-head h2{font:750 20px Manrope,sans-serif;color:#304238;margin:5px 0}
+.family-modal-head p{font-size:10px;color:#829087;margin:0}
+.family-contact-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:15px}
+.family-contact-item{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid #e8eee8;border-radius:9px;min-width:0}
+.family-contact-item b,.family-address b{font-size:9px;color:#829087;text-transform:uppercase;letter-spacing:.06em}
+.family-contact-item span,.family-contact-item a{font-size:10px;color:#34483b;overflow-wrap:anywhere;text-decoration:none}
+.family-address{display:flex;flex-direction:column;gap:6px;padding:13px;margin-top:10px;border-radius:9px;background:#f7faf7}
+.family-address span{font-size:10px;color:#52665a}
+.family-modal-section{margin-top:19px}
+.family-child-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid #eff2ef}
+.family-child-avatar{width:35px;height:35px;display:grid;place-items:center;flex:0 0 auto;border-radius:50%;background:#fff0df;color:#a35a1d;font-size:12px;font-weight:800}
+.family-child-row .people-record-main{flex:1}
+.child-view-button{display:flex;align-items:center;gap:6px;padding:8px 10px;border:0;border-radius:7px;background:#eaf4ed;color:#176846;font-size:9px;font-weight:800;white-space:nowrap}
+.child-report-panel{margin-top:16px;padding:15px;border:1px solid #e2ebe3;border-radius:11px;background:#fbfdfb}
+.child-report-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.child-report-head h3{margin:5px 0;font-size:15px;color:#34483b}
+.child-report-head span:last-child{font-size:9px;color:#829087}
+.child-report-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:13px}
+.child-report-grid>div{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid #e7eee8;border-radius:9px;background:white}
+.child-report-grid span{font-size:9px;color:#829087}
+.child-report-grid b{font-size:16px;color:#1c7654}
+.child-report-grid small{font-size:8px;color:#98a39b;line-height:1.4}
+.child-report-grid .fee-pending{border-color:#f1d0cc;background:#fff8f7}
+.child-report-grid .fee-pending b{color:#c43e35}
+.demo-data-note{font-size:9px;color:#9a8065;line-height:1.5;margin:12px 0 0}
+@media(max-width:760px){.parent-family-grid{grid-template-columns:1fr}.family-contact-grid{grid-template-columns:1fr 1fr}.child-report-grid{grid-template-columns:1fr}.family-modal{padding:16px}.family-child-row{align-items:flex-start;flex-wrap:wrap}.family-child-row .people-record-main{min-width:calc(100% - 55px)}.child-view-button{margin-left:45px}}
+@media(max-width:480px){.family-contact-grid{grid-template-columns:1fr}.allocation-student-row{flex-wrap:wrap}.allocation-student-row select{width:100%}.family-primary-actions>span{width:100%}}
