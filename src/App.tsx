@@ -400,12 +400,12 @@ function AuthScreen() {
       if(!school){await supabase.auth.signOut();throw new Error('The verified school could not be found.')}
       if(role==='Admin'){
         if(school.admin_user_id!==authData.user.id||school.admin_email?.toLowerCase()!==cleanEmail){await supabase.auth.signOut();throw new Error('This email is not the Admin account registered for the verified School ID.')}
-        setSessionRole('Admin');setSessionPages([])
+        setSessionRole('Admin');setSessionPages([]);setSessionTeacherPersonId(null)
       }else{
         const {data:membership,error:membershipError}=await supabase.from('school_user_roles').select('role,allowed_pages,status,person_id').eq('school_id',schoolId.trim().toUpperCase()).eq('user_id',authData.user.id).maybeSingle()
         if(membershipError)throw membershipError
         if(!membership||membership.status!=='active'||membership.role!==role){await supabase.auth.signOut();throw new Error('This account does not have an active '+role+' assignment for this School ID.')}
-        setSessionRole(membership.role);setSessionPages(membership.allowed_pages||[])
+        setSessionRole(membership.role);setSessionPages(membership.allowed_pages||[]);setSessionTeacherPersonId(membership.person_id||null)
       }
       setSchoolName(school.school_name);setSchoolId(school.school_id);setAuthenticated(true)
     } catch (error) {
