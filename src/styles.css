@@ -200,3 +200,11 @@ body,.app-shell{background:#fffbf5;color:#4b2d19}
 .people-record-main b{font-size:11px;color:#34483b}
 .people-record-main span,.people-record-main small{font-size:9px;color:#829087;line-height:1.5;overflow-wrap:anywhere}
 @media(max-width:760px){.people-form-grid,.people-id-settings-grid{grid-template-columns:1fr}.id-entry-row{align-items:flex-start;flex-direction:column}.id-entry-row>input{width:100%}}
+
+
+/* Indian mobile number field: country code is fixed and user enters 10 digits */
+.indian-phone-input{display:flex;align-items:center;width:100%;height:41px;min-width:0;border:1px solid #e3eae4;border-radius:8px;background:#fff;overflow:hidden}
+.indian-phone-input:focus-within{border-color:#70a88b;box-shadow:0 0 0 3px #1c765410}
+.indian-phone-input>span{height:100%;display:flex;align-items:center;padding:0 11px;border-right:1px solid #e8eee8;background:#f7faf7;color:#1c7654;font-size:11px;font-weight:800;white-space:nowrap}
+.people-form-grid .indian-phone-input input{height:100%;border:0;border-radius:0;box-shadow:none;padding:0 11px;min-width:0;flex:1}
+.people-form-grid .indian-phone-input input:focus{border:0;box-shadow:none}
