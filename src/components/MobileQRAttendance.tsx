@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './mobile-qr-attendance.css'
-import { Camera, Check, ChevronRight, Copy, Download, MapPin, QrCode, ShieldCheck, Smartphone, Users, Wifi, WifiOff, X } from 'lucide-react'
+import { Camera, Check, ChevronRight, Clock3, Copy, Download, MapPin, QrCode, ShieldCheck, Smartphone, Users, Wifi, WifiOff, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { QRCodeSVG } from 'qrcode.react'
 
