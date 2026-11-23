@@ -189,7 +189,7 @@ export function Dashboard({onSignOut,schoolName,schoolId}:{onSignOut:()=>void;sc
  <div className="vertical-nav-layout"><nav className="parent-tabs" aria-label="Main navigation">{schoolNavigation.map(item=>{const Icon=item.icon;const isActive=activeParent===item.label;return <button key={item.label} type="button" aria-current={isActive?'page':undefined} aria-expanded={isActive} className={'parent-tab '+(isActive?'active':'')} onClick={()=>selectParent(item)}><Icon size={17}/><span>{item.label}</span><ChevronRight size={14}/></button>})}</nav><nav className="child-tabs" aria-label={activeParent+' pages'}><div className="child-tabs-heading">{activeParent}</div>{currentParent.children.map(child=><button key={child} type="button" aria-current={activeChild===child?'page':undefined} className={'child-tab '+(activeChild===child?'active':'')} onClick={()=>selectChild(currentParent,child)}>{child}</button>)}</nav></div>
  <div className="sidebar-bottom vertical-sidebar-bottom"><div className="sidebar-user"><div className="user-avatar">AD</div><div className="user-copy"><b>Admin</b><span>School administrator</span></div></div><button className="sidebar-signout" onClick={onSignOut}><LogOut size={16}/><span>Sign out</span></button></div></aside>
  <main className="main-area vertical-main-area"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMobileOpen(true)}><Menu size={20}/></button><div className="breadcrumb">ACADAMIX <ChevronRight size={14}/><span>{activeParent}</span><ChevronRight size={14}/><b>{activeChild}</b></div></div><div className="topbar-right"><div className="search-box"><Search size={17}/><input placeholder="Search this workspace..."/></div><div className="top-profile"><div className="user-avatar small">AD</div><span>Admin</span></div></div></header>
- <div className="page-content vertical-page-content"><div className="workspace-page-heading"><div><span className="section-eyebrow">{activeParent.toUpperCase()}</span><h1>{activeChild}</h1><p>{activeParent==='Overview'?'Your school workspace at a glance.':'Manage '+activeChild.toLowerCase()+' for '+(schoolName||'your school')+'.'}</p></div><span className="school-id-badge">{schoolId}</span></div>{content()}<footer className="footer"><span>© 2026 AI ACADAMIX</span><span>Powered by RADX</span><span className="footer-status"><i/> School workspace</span></footer></div></main>{toast.length>0&&<div className="toast-stack" aria-live="polite" aria-relevant="additions">{toast.map(item=><div className="toast" key={item.id}><span className="toast-icon"><Check size={15}/></span><span>{item.message}</span></div>)}</div>}</div>
+ <div className="page-content vertical-page-content"><div className="workspace-page-heading"><div><span className="section-eyebrow">{activeParent.toUpperCase()}</span><h1>{activeChild}</h1><p>{activeParent==='Overview'?'Your school workspace at a glance.':'Manage '+activeChild.toLowerCase()+' for '+(schoolName||'your school')+'.'}</p></div><span className="school-id-badge">{schoolId}</span></div>{workspaceLoadError&&<div className="inline-notice notice-warning" role="alert"><CircleAlert size={16}/><div><b>School data sync issue</b><p>{workspaceLoadError}</p></div></div>}{content()}<footer className="footer"><span>© 2026 AI ACADAMIX</span><span>Powered by RADX</span><span className="footer-status"><i/> School workspace</span></footer></div></main>{toast.length>0&&<div className="toast-stack" aria-live="polite" aria-relevant="additions">{toast.map(item=><div className="toast" key={item.id}><span className="toast-icon"><Check size={15}/></span><span>{item.message}</span></div>)}</div>}</div>
 }
 
 type NoticeTone='success'|'info'|'warning'|'danger'
@@ -276,6 +276,7 @@ function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [schoolStatus, setSchoolStatus] = useState<'idle' | 'checking' | 'verified' | 'unavailable'>('idle')
   const [authenticated, setAuthenticated] = useState(false)
+  const [authLoading,setAuthLoading]=useState(true)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [showResendConfirmation, setShowResendConfirmation] = useState(false)
   const [isResendingConfirmation, setIsResendingConfirmation] = useState(false)
@@ -311,6 +312,32 @@ function AuthScreen() {
     const timer = window.setTimeout(() => setNotice(''), 4200)
     return () => window.clearTimeout(timer)
   }, [notice])
+
+  useEffect(() => {
+    let mounted=true
+    const restoreAdminSession=async()=>{
+      try{
+        const {data:{user},error:userError}=await supabase.auth.getUser()
+        if(userError)throw userError
+        if(user){
+          const {data:school,error:schoolError}=await supabase.from('school_tenants').select('school_id,school_name').eq('admin_user_id',user.id).maybeSingle()
+          if(schoolError)throw schoolError
+          if(school){
+            if(mounted){setSchoolId(school.school_id);setSchoolName(school.school_name);setSchoolStatus('verified');setAuthenticated(true)}
+          }else{
+            await supabase.auth.signOut()
+          }
+        }
+      }catch(error){
+        if(mounted)setNotice(error instanceof Error?'Could not restore your Admin session: '+error.message:'Could not restore your Admin session.')
+      }finally{
+        if(mounted)setAuthLoading(false)
+      }
+    }
+    void restoreAdminSession()
+    return ()=>{mounted=false}
+  },[])
+
 
   const verifySchool = async () => {
     if (!schoolId.trim()) {
@@ -547,6 +574,8 @@ function AuthScreen() {
       setIsRegistering(false)
     }
   }
+
+  if(authLoading)return <div className="splash-screen"><div className="splash-mark"><GraduationCap size={42}/></div><div className="splash-title">AI <span>ACADAMIX</span></div><div className="splash-powered">RESTORING SECURE SESSION</div><div className="splash-loader"><i/></div></div>
 
   if (authenticated) {
     return <Dashboard schoolName={schoolName} schoolId={schoolId} onSignOut={async () => {
