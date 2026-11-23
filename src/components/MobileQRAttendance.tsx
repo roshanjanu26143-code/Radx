@@ -125,7 +125,7 @@ export default function MobileQRAttendance({ standards: appStandards, notify }: 
     notify?.(online?'Attendance saved in frontend preview. Backend sync will be connected later.':'Saved Offline')
   }
   const pending=queue.filter(q=>q.status==='PENDING').length
-  const sectionOptions=teacher?.allotments.filter(a=>a.standard_id===scanned?.id).map(a=>scanned.sections.find(s=>s.id===a.section_id)).filter(Boolean) || []
+  const sectionOptions=teacher&&scanned?teacher.allotments.filter(a=>a.standard_id===scanned.id).map(a=>scanned.sections.find(s=>s.id===a.section_id)).filter(Boolean):[]
   const reset=()=>{setStep(1);setToken('');setScanned(null);setEmpId('');setTeacher(null);setSectionId('');setMarks({});setPreview(false);setScanError('');setGpsStatus('idle')}
   const stepNames=['Scan QR','Verify teacher','Mark attendance','Complete']
   return <div className="qr-attendance">
