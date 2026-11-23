@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './mobile-qr-attendance.css'
-import { Camera, Check, ChevronRight, Clock3, Copy, Download, MapPin, QrCode, ShieldCheck, Smartphone, Users, Wifi, WifiOff, X } from 'lucide-react'
+import { Camera, Check, ChevronRight, Copy, Download, MapPin, QrCode, ShieldCheck, Smartphone, Users, Wifi, WifiOff, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 type Standard = { name: string; sections: string[] }
@@ -22,13 +22,13 @@ export default function MobileQRAttendance({schoolId,standards,people,notify}:{s
  const [queue,setQueue]=useState<QueueItem[]>(()=>readQueue(schoolId)),[online,setOnline]=useState(navigator.onLine)
  const [sessions,setSessions]=useState<AttendanceSession[]>([]),[location,setLocation]=useState<{lat:number;lng:number;accuracy:number}|null>(null)
  const [cameraOn,setCameraOn]=useState(false),[cameraError,setCameraError]=useState(''),[scanError,setScanError]=useState('')
- const [activeSession,setActiveSession]=useState<SessionCode>('MORNING'),[nowTick,setNowTick]=useState(Date.now()),[syncing,setSyncing]=useState(false)
+ const [activeSession,setActiveSession]=useState<SessionCode>('MORNING'),[syncing,setSyncing]=useState(false)
  const videoRef=useRef<HTMLVideoElement>(null),streamRef=useRef<MediaStream|null>(null),syncingRef=useRef(false)
  const teachers=useMemo(()=>people.filter(p=>p.type==='Teacher'),[people])
  const students=useMemo(()=>people.filter(p=>p.type==='Student'&&p.details.joining_standard===scanned?.name&&p.details.section===sectionName).sort((a,b)=>(a.details.roll_number||a.id).localeCompare(b.details.roll_number||b.id,undefined,{numeric:true})),[people,scanned,sectionName])
  const present=students.filter(s=>(marks[s.id]||'PRESENT')==='PRESENT').length,absent=students.length-present
  const pending=queue.filter(q=>q.status==='PENDING').length,failed=queue.filter(q=>q.status==='FAILED').length
- const date=localDate(),timeString=new Date(nowTick).toTimeString().slice(0,5),sectionOptions=scanned?.sections||[]
+ const date=localDate(),sectionOptions=scanned?.sections||[]
  const alreadySubmitted=!!(scanned&&sectionName&&(sessions.some(r=>r.attendance_date===date&&r.session_code===activeSession&&r.standard_name===scanned.name&&r.section_name===sectionName)||queue.some(q=>q.status!=='FAILED'&&q.payload.p_attendance_date===date&&q.payload.p_session_code===activeSession&&q.payload.p_standard_name===scanned.name&&q.payload.p_section_name===sectionName)))
 
  useEffect(()=>{
@@ -52,9 +52,9 @@ export default function MobileQRAttendance({schoolId,standards,people,notify}:{s
 
  useEffect(()=>{localStorage.setItem(queueKey(schoolId),JSON.stringify(queue))},[queue,schoolId])
  useEffect(()=>{
-  const timer=window.setInterval(()=>setNowTick(Date.now()),15000),on=()=>setOnline(true),off=()=>setOnline(false)
+  const on=()=>setOnline(true),off=()=>setOnline(false)
   window.addEventListener('online',on);window.addEventListener('offline',off)
-  return()=>{window.clearInterval(timer);window.removeEventListener('online',on);window.removeEventListener('offline',off);streamRef.current?.getTracks().forEach(t=>t.stop())}
+  return()=>{window.removeEventListener('online',on);window.removeEventListener('offline',off);streamRef.current?.getTracks().forEach(t=>t.stop())}
  },[])
  useEffect(()=>{
   if(!cameraOn||!videoRef.current)return
@@ -74,17 +74,19 @@ export default function MobileQRAttendance({schoolId,standards,people,notify}:{s
  },[cameraOn])
  useEffect(()=>{
   if(!online||!queue.some(q=>q.status==='PENDING')||syncingRef.current)return
-  let cancelled=false
-  const sync=async()=>{syncingRef.current=true;setSyncing(true)
-   for(const item of queue.filter(q=>q.status==='PENDING')){if(cancelled)break
+  const sync=async()=>{
+   syncingRef.current=true;setSyncing(true)
+   for(const item of queue.filter(q=>q.status==='PENDING')){
     const {error}=await supabase.rpc('submit_school_attendance',item.payload as never)
-    if(error){if(error.code==='23505'||error.message.toLowerCase().includes('duplicate key'))setQueue(current=>current.map(q=>q.id===item.id?{...q,status:'FAILED',error:'This class/session was already submitted.'}:q));break}
+    if(error){
+     if(error.code==='23505'||error.message.toLowerCase().includes('duplicate key'))setQueue(current=>current.map(q=>q.id===item.id?{...q,status:'FAILED',error:'This class/session was already submitted.'}:q))
+     break
+    }
     setQueue(current=>current.map(q=>q.id===item.id?{...q,status:'SYNCED',error:undefined}:q))
    }
-   syncingRef.current=false;if(!cancelled)setSyncing(false)
+   syncingRef.current=false;setSyncing(false)
   }
   void sync()
-  return()=>{cancelled=true}
  },[online,queue])
 
  const validateQr=()=>{
