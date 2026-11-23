@@ -267,3 +267,19 @@ body,.app-shell{background:#fffbf5;color:#4b2d19}
 .demo-data-note{font-size:9px;color:#9a8065;line-height:1.5;margin:12px 0 0}
 @media(max-width:760px){.parent-family-grid{grid-template-columns:1fr}.family-contact-grid{grid-template-columns:1fr 1fr}.child-report-grid{grid-template-columns:1fr}.family-modal{padding:16px}.family-child-row{align-items:flex-start;flex-wrap:wrap}.family-child-row .people-record-main{min-width:calc(100% - 55px)}.child-view-button{margin-left:45px}}
 @media(max-width:480px){.family-contact-grid{grid-template-columns:1fr}.allocation-student-row{flex-wrap:wrap}.allocation-student-row select{width:100%}.family-primary-actions>span{width:100%}}
+
+
+.primary-contact-field{grid-column:1/-1;display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:0;padding:12px 14px;border:1px solid #e3eae4;border-radius:9px}
+.primary-contact-field legend{padding:0 5px;color:#526158;font-size:10px;font-weight:750}
+.primary-contact-field label{display:flex;align-items:center;gap:7px;color:#52665a;font-size:10px;font-weight:650}
+.primary-contact-field input{width:15px;height:15px;accent-color:#1c7654}
+.people-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.people-profile-card{display:flex;align-items:center;gap:11px;min-width:0;padding:12px;border:1px solid #e7ede8;border-radius:10px;background:white;text-align:left;cursor:pointer}
+.people-profile-card:hover{border-color:#a8cbb4;background:#fbfdfb}
+.people-profile-card .people-record-main{flex:1;min-width:0}
+.people-profile-card>svg{flex:0 0 auto;color:#1c7654}
+.people-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:17px}
+.people-detail-grid>div{display:flex;flex-direction:column;gap:5px;padding:11px;border:1px solid #e8eee8;border-radius:8px;min-width:0}
+.people-detail-grid span{font-size:8px;color:#829087;text-transform:capitalize}
+.people-detail-grid b{font-size:10px;color:#34483b;overflow-wrap:anywhere;text-transform:none}
+@media(max-width:700px){.people-card-grid{grid-template-columns:1fr}.people-detail-grid{grid-template-columns:1fr}.primary-contact-field{gap:12px}}
