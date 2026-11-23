@@ -11,21 +11,23 @@ type Mark = 'PRESENT' | 'ABSENT'
 type QueueItem = { id: string; payload: Record<string, unknown>; status: 'PENDING' | 'SYNCED' | 'FAILED'; created_at: string; error?: string }
 type QrRow = { standard_name: string; qr_token: string; is_active: boolean }
 type AttendanceSession = { id: string; attendance_date: string; session_code: SessionCode; standard_name: string; section_name: string }
+type TeacherAssignment={standard_name:string;section_name:string;subject_name:string|null}
 const localDate = () => { const d=new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-') }
 const queueKey = (schoolId:string) => 'acadamix-attendance-queue-'+schoolId
 const readQueue = (schoolId:string):QueueItem[] => { try{return JSON.parse(localStorage.getItem(queueKey(schoolId))||'[]') as QueueItem[]}catch{return []} }
 
-export default function MobileQRAttendance({schoolId,standards,people,notify}:{schoolId:string;standards:Standard[];people:Person[];notify?:(message:string)=>void}) {
+export default function MobileQRAttendance({schoolId,standards,people,notify,userRole='Admin',teacherPersonId=null}:{schoolId:string;standards:Standard[];people:Person[];notify?:(message:string)=>void;userRole?:string;teacherPersonId?:string|null}) {
  const [step,setStep]=useState(1),[token,setToken]=useState(''),[qrRows,setQrRows]=useState<QrRow[]>([])
  const [dataLoading,setDataLoading]=useState(true),[dataError,setDataError]=useState(''),[scanned,setScanned]=useState<Standard|null>(null)
  const [teacherId,setTeacherId]=useState(''),[teacher,setTeacher]=useState<Person|null>(null),[sectionName,setSectionName]=useState('')
  const [marks,setMarks]=useState<Record<string,Mark>>({}),[preview,setPreview]=useState(false)
  const [queue,setQueue]=useState<QueueItem[]>(()=>readQueue(schoolId)),[online,setOnline]=useState(navigator.onLine)
- const [sessions,setSessions]=useState<AttendanceSession[]>([]),[location,setLocation]=useState<{lat:number;lng:number;accuracy:number}|null>(null)
+ const [sessions,setSessions]=useState<AttendanceSession[]>([]),[teacherAssignments,setTeacherAssignments]=useState<TeacherAssignment[]>([]),[location,setLocation]=useState<{lat:number;lng:number;accuracy:number}|null>(null)
  const [cameraOn,setCameraOn]=useState(false),[cameraError,setCameraError]=useState(''),[scanError,setScanError]=useState('')
  const [activeSession,setActiveSession]=useState<SessionCode>('MORNING'),[syncing,setSyncing]=useState(false)
  const videoRef=useRef<HTMLVideoElement>(null),streamRef=useRef<MediaStream|null>(null),syncingRef=useRef(false)
- const teachers=useMemo(()=>people.filter(p=>p.type==='Teacher'),[people])
+ const teachers=useMemo(()=>people.filter(p=>p.type==='Teacher'&&(userRole!=='Teacher'||p.id===teacherPersonId)),[people,userRole,teacherPersonId])
+ const availableStandards=useMemo(()=>userRole==='Teacher'?standards.map(s=>({...s,sections:s.sections.filter(section=>teacherAssignments.some(a=>a.standard_name===s.name&&a.section_name===section))})).filter(s=>s.sections.length>0):standards,[standards,teacherAssignments,userRole])
  const students=useMemo(()=>people.filter(p=>p.type==='Student'&&p.details.joining_standard===scanned?.name&&p.details.section===sectionName).sort((a,b)=>(a.details.roll_number||a.id).localeCompare(b.details.roll_number||b.id,undefined,{numeric:true})),[people,scanned,sectionName])
  const present=students.filter(s=>(marks[s.id]||'PRESENT')==='PRESENT').length,absent=students.length-present
  const pending=queue.filter(q=>q.status==='PENDING').length,failed=queue.filter(q=>q.status==='FAILED').length
@@ -36,20 +38,22 @@ export default function MobileQRAttendance({schoolId,standards,people,notify}:{s
   let cancelled=false
   const load=async()=>{
    setDataLoading(true);setDataError('')
-   const [qr,saved]=await Promise.all([
+   const [qr,saved,assigned]=await Promise.all([
     supabase.from('school_classroom_qr').select('standard_name,qr_token,is_active').eq('school_id',schoolId).eq('is_active',true),
-    supabase.from('school_attendance_sessions').select('id,attendance_date,session_code,standard_name,section_name').eq('school_id',schoolId).eq('attendance_date',date)
+    supabase.from('school_attendance_sessions').select('id,attendance_date,session_code,standard_name,section_name').eq('school_id',schoolId).eq('attendance_date',date),
+    userRole==='Teacher'&&teacherPersonId?supabase.from('school_teacher_class_assignments').select('standard_name,section_name,subject_name').eq('school_id',schoolId).eq('teacher_person_id',teacherPersonId).eq('is_active',true):Promise.resolve({data:[],error:null})
    ])
-   if(qr.error)throw qr.error;if(saved.error)throw saved.error
+   if(qr.error)throw qr.error;if(saved.error)throw saved.error;if(assigned.error)throw assigned.error
+   const assignedRows=(assigned.data||[]) as TeacherAssignment[]
    let rows=(qr.data||[]) as QrRow[]
-   const missing=standards.filter(s=>!rows.some(r=>r.standard_name===s.name))
+   const missing=userRole==='Admin'?standards.filter(s=>!rows.some(r=>r.standard_name===s.name)):[]
    if(missing.length){const {error}=await supabase.from('school_classroom_qr').insert(missing.map(s=>({school_id:schoolId,standard_name:s.name})));if(error)throw error
     const refreshed=await supabase.from('school_classroom_qr').select('standard_name,qr_token,is_active').eq('school_id',schoolId).eq('is_active',true);if(refreshed.error)throw refreshed.error;rows=(refreshed.data||[]) as QrRow[]}
-   if(cancelled)return;setQrRows(rows);setSessions((saved.data||[]) as AttendanceSession[]);setDataLoading(false)
+   if(cancelled)return;setTeacherAssignments(assignedRows);setQrRows(userRole==='Teacher'?rows.filter(r=>assignedRows.some(a=>a.standard_name===r.standard_name)):rows);setSessions((saved.data||[]) as AttendanceSession[]);setDataLoading(false)
   }
   void load().catch(e=>{if(!cancelled){setDataError(e instanceof Error?e.message:'Could not load attendance data.');setDataLoading(false)}})
   return()=>{cancelled=true}
- },[schoolId,standards,date])
+ },[schoolId,standards,date,userRole,teacherPersonId])
 
  useEffect(()=>{localStorage.setItem(queueKey(schoolId),JSON.stringify(queue))},[queue,schoolId])
  useEffect(()=>{
@@ -94,7 +98,7 @@ export default function MobileQRAttendance({schoolId,standards,people,notify}:{s
   setScanError('')
   const found=qrRows.find(r=>r.is_active&&r.qr_token.toLowerCase()===token.trim().toLowerCase())
   if(!found){setScanError('This QR token is not active for this school.');return}
-  const standard=standards.find(s=>s.name===found.standard_name)
+  const standard=availableStandards.find(s=>s.name===found.standard_name)
   if(!standard){setScanError('This classroom standard is no longer configured.');return}
   setScanned(standard)
   const now=new Date().toTimeString().slice(0,5),session:SessionCode|null=now>='08:00'&&now<='10:00'?'MORNING':now>='13:00'&&now<='15:00'?'AFTERNOON':null
@@ -104,7 +108,7 @@ export default function MobileQRAttendance({schoolId,standards,people,notify}:{s
   setStep(2)
  }
  const verifyTeacher=()=>{
-  const found=teachers.find(p=>[p.id,p.details.employee_id,p.details.emp_id].some(v=>(v||'').toLowerCase()===teacherId.trim().toLowerCase()))
+  const found=teacherPersonId&&userRole==='Teacher'?teachers.find(p=>p.id===teacherPersonId):teachers.find(p=>[p.id,p.details.employee_id,p.details.emp_id].some(v=>(v||'').toLowerCase()===teacherId.trim().toLowerCase()))
   if(!found){setScanError('Teacher ID was not found in this school.');return}
   setTeacher(found);setScanError('');setSectionName(sectionOptions.length===1?sectionOptions[0]:'');setMarks({});setStep(3)
  }
@@ -133,7 +137,7 @@ export default function MobileQRAttendance({schoolId,standards,people,notify}:{s
     <button className="qr-primary" onClick={validateQr} disabled={!token.trim()||dataLoading}>Validate QR <ChevronRight size={17}/></button>
     <div className="qr-security-row"><span><ShieldCheck size={14}/> QR token checked against this school</span><span><Clock3 size={14}/> Scheduled attendance window</span></div>
    </>}
-   {step===2&&scanned&&<><div className="qr-step-title"><div className="qr-step-icon"><ShieldCheck/></div><div><span>STEP 02 · TEACHER VERIFICATION</span><h3>Verify your identity</h3><p>Enter the ID of a teacher registered in this school.</p></div></div><div className="qr-class-chip"><QrCode size={16}/>{scanned.name}<span>{activeSession}</span></div><label className="qr-field">Teacher employee ID<input value={teacherId} onChange={e=>setTeacherId(e.target.value)} placeholder="Enter registered teacher ID" autoCapitalize="characters"/></label><button className="qr-primary" onClick={verifyTeacher} disabled={!teacherId.trim()||!teachers.length}>Verify teacher <ChevronRight size={17}/></button><div className="qr-demo-hint">{teachers.length?('Registered teachers: '+teachers.length+'. Use the ID shown in Peoples.'):'No teacher records found. Add a teacher in Admission first.'}</div></>}
+   {step===2&&scanned&&<><div className="qr-step-title"><div className="qr-step-icon"><ShieldCheck/></div><div><span>STEP 02 · TEACHER VERIFICATION</span><h3>Verify your identity</h3><p>Enter the ID of a teacher registered in this school.</p></div></div><div className="qr-class-chip"><QrCode size={16}/>{scanned.name}<span>{activeSession}</span></div>{userRole==='Teacher'?<div className="qr-demo-hint">Your login is linked to {teachers[0]?.name||'a teacher profile'}; identity is verified from your authenticated account.</div>:<><label className="qr-field">Teacher employee ID<input value={teacherId} onChange={e=>setTeacherId(e.target.value)} placeholder="Enter registered teacher ID" autoCapitalize="characters"/></label><div className="qr-demo-hint">{teachers.length?('Registered teachers: '+teachers.length+'. Use the ID shown in Peoples.'):'No teacher records found. Add a teacher in Admission first.'}</div></>}<button className="qr-primary" onClick={verifyTeacher} disabled={userRole==='Teacher'?!teacherPersonId||!teachers.length:!teacherId.trim()||!teachers.length}>{userRole==='Teacher'?'Continue as linked teacher':'Verify teacher'} <ChevronRight size={17}/></button></>}
    {step===3&&teacher&&scanned&&<><div className="qr-step-title"><div className="qr-step-icon"><Users/></div><div><span>STEP 03 · ATTENDANCE REGISTER</span><h3>Mark student attendance</h3><p>Students default to Present. Tap a student to mark Absent.</p></div></div>
     <div className="qr-teacher-card"><div className="qr-teacher-avatar">{teacher.name.slice(0,1).toUpperCase()}</div><div><b>{teacher.name}</b><span>{teacher.id} · Registered teacher</span></div><span className="qr-verified"><ShieldCheck size={14}/> Verified</span></div>
     <div className="qr-register-meta"><div><small>STANDARD</small><b>{scanned.name}</b></div><div><small>SESSION</small><b>{activeSession}</b></div><div><small>DATE</small><b>{new Date(date+'T00:00:00').toLocaleDateString('en-IN')}</b></div></div>
