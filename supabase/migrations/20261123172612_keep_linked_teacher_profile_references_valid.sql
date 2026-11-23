@@ -1,0 +1,2 @@
+alter table public.school_user_roles drop constraint if exists school_user_roles_teacher_person_fk;
+alter table public.school_user_roles add constraint school_user_roles_teacher_person_fk foreign key(school_id,person_id) references public.school_people(school_id,person_id) on update cascade on delete restrict;
