@@ -625,10 +625,13 @@ function ParentsBook({records,notify}:{records:PeopleRecord[];notify:(message:st
  const families:ParentFamily[]=[]
  students.forEach(child=>{
   const d=child.details
-  const phones=[d.father_phone,d.mother_phone,d.guardian_phone].filter(Boolean).map(value=>value.replace(/\D/g,''))
-  let family=families.find(item=>[item.father_phone,item.mother_phone,item.guardian_phone].filter(Boolean).some(value=>phones.includes(value.replace(/\D/g,''))))
+  const normalizeFamilyPhone=(value:string)=>{const digits=value.replace(/\D/g,'');return digits.length===12&&digits.startsWith('91')?digits.slice(2):digits}
+  const phones=[d.father_phone,d.mother_phone,d.guardian_phone].filter(Boolean).map(normalizeFamilyPhone)
+  const matchedFamilies=families.filter(item=>[item.father_phone,item.mother_phone,item.guardian_phone].filter(Boolean).some(value=>phones.includes(normalizeFamilyPhone(value))))
+  let family=matchedFamilies[0]
   if(!family){family={key:child.id,father_name:d.father_name||'',father_phone:d.father_phone||'',mother_name:d.mother_name||'',mother_phone:d.mother_phone||'',guardian_name:d.guardian_name||'',guardian_phone:d.guardian_phone||'',guardian_relationship:d.guardian_relationship||'',primary_contact:d.primary_contact||'Father',address:[d.address_line_1,d.address_line_2,d.town_city,d.sub_town].filter(Boolean).join(', '),children:[]};families.push(family)}
   else{
+   matchedFamilies.slice(1).forEach(other=>{family!.father_name=family!.father_name||other.father_name;family!.father_phone=family!.father_phone||other.father_phone;family!.mother_name=family!.mother_name||other.mother_name;family!.mother_phone=family!.mother_phone||other.mother_phone;family!.guardian_name=family!.guardian_name||other.guardian_name;family!.guardian_phone=family!.guardian_phone||other.guardian_phone;family!.guardian_relationship=family!.guardian_relationship||other.guardian_relationship;family!.address=family!.address||other.address;family!.children.push(...other.children);const index=families.indexOf(other);if(index>=0)families.splice(index,1)})
    family.father_name=family.father_name||d.father_name||'';family.father_phone=family.father_phone||d.father_phone||''
    family.mother_name=family.mother_name||d.mother_name||'';family.mother_phone=family.mother_phone||d.mother_phone||''
    family.guardian_name=family.guardian_name||d.guardian_name||'';family.guardian_phone=family.guardian_phone||d.guardian_phone||''
