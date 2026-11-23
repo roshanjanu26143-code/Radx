@@ -1,0 +1,1 @@
+grant execute on function public.validate_school_role_person_link() to authenticated;
