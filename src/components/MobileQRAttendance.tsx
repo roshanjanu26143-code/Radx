@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import './mobile-qr-attendance.css'
 import { Camera, Check, ChevronRight, Copy, Download, MapPin, QrCode, ShieldCheck, Smartphone, Users, Wifi, WifiOff, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { QRCodeSVG } from 'qrcode.react'
 
 type Standard = { name: string; sections: string[] }
 type Person = { id: string; type: string; name: string; details: Record<string, string> }
@@ -128,7 +129,7 @@ export default function MobileQRAttendance({schoolId,standards,people,notify}:{s
     <div className="qr-camera-box">{cameraOn?<video ref={videoRef} muted playsInline/>:<div className="qr-camera-placeholder"><QrCode size={48}/><b>Classroom QR scanner</b><span>Point the camera at the printed classroom QR.</span></div>}</div>
     <div className="qr-camera-actions"><button className="qr-secondary" onClick={()=>{setCameraError('');setCameraOn(v=>!v)}}><Camera size={16}/>{cameraOn?'Stop camera':'Open camera'}</button><span>School-specific UUID QR token</span></div>
     <label className="qr-field">QR token<input value={token} onChange={e=>setToken(e.target.value)} placeholder="Scan or paste the classroom QR token"/></label>
-    <div className="qr-demo-hint"><b>Classroom QR tokens</b>{dataLoading?' · Loading…':qrRows.length===0?' · No standards configured':qrRows.map(r=><span key={r.standard_name}> · {r.standard_name}: <button type="button" onClick={()=>setToken(r.qr_token)}>{r.qr_token.slice(0,8)}…</button><button type="button" onClick={()=>void copyToken(r.qr_token)} aria-label={'Copy '+r.standard_name+' token'}><Copy size={12}/></button></span>)}</div>
+    <div className="qr-token-grid"><b>Permanent classroom QR codes</b>{dataLoading? <span>Loading classroom codes…</span>:qrRows.length===0?<span>No standards configured yet.</span>:qrRows.map(r=><div className="qr-token-card" key={r.standard_name}><b>{r.standard_name}</b><QRCodeSVG value={r.qr_token} size={112} level="M" includeMargin/><code>{r.qr_token}</code><div><button type="button" onClick={()=>setToken(r.qr_token)}>Use token</button><button type="button" onClick={()=>void copyToken(r.qr_token)} aria-label={"Copy "+r.standard_name+" token"}><Copy size={12}/> Copy</button></div></div>)}</div>
     <button className="qr-primary" onClick={validateQr} disabled={!token.trim()||dataLoading}>Validate QR <ChevronRight size={17}/></button>
     <div className="qr-security-row"><span><ShieldCheck size={14}/> QR token checked against this school</span><span><Clock3 size={14}/> Scheduled attendance window</span></div>
    </>}
