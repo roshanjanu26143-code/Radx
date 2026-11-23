@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
 
   const { error: roleError } = await admin.from("school_user_roles").insert({
     school_id: schoolId, user_id: invitation.user.id, email, role,
-    allowed_pages: pages, status: "active", created_by: caller.id,
+    allowed_pages: pages, status: "active", created_by: caller.id, created_by_email: caller.email ?? null,
   });
   if (roleError) {
     await admin.auth.admin.deleteUser(invitation.user.id);
