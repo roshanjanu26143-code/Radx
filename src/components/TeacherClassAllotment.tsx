@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabase'
 
 type Teacher={id:string;name:string}
 type Standard={name:string;sections:string[]}
-type Assignment={id:string;teacher_person_id:string;standard_name:string;section_name:string;subject_name:string|null;is_active:boolean}\ntype SubjectOption={standard_name:string;subject_name:string;is_active:boolean}
+type Assignment={id:string;teacher_person_id:string;standard_name:string;section_name:string;subject_name:string|null;is_active:boolean}
+type SubjectOption={standard_name:string;subject_name:string;is_active:boolean}
 
 export default function TeacherClassAllotment({schoolId,teachers,standards}:{schoolId:string;teachers:Teacher[];standards:Standard[]}) {
- const [rows,setRows]=useState<Assignment[]>([])\n const [subjects,setSubjects]=useState<SubjectOption[]>([])
+ const [rows,setRows]=useState<Assignment[]>([])
+ const [subjects,setSubjects]=useState<SubjectOption[]>([])
  const [teacherId,setTeacherId]=useState('')
  const [standardName,setStandardName]=useState(standards[0]?.name||'')
  const [sectionName,setSectionName]=useState('')
