@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Bus, Clock3, MapPin, Navigation, Phone, Radio, Route as RouteIcon, Search, Signal, Users, WifiOff } from 'lucide-react'
+import { Activity, Bus, Clock3, MapPin, Phone, Route as RouteIcon, Search } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 type Person = { id: string; type: string; name: string; details: Record<string, string> }
@@ -82,13 +82,6 @@ export default function TransportLiveTracking({ schoolId, peopleRecords, notify 
   if (loading) return <section className="transport-live"><div className="transport-live-loading"><Activity size={18}/> Connecting to live fleet…</div></section>
 
   return <section className="transport-live">
-    <aside className="transport-live-rail">
-      <div className="transport-live-brand"><Bus size={19}/><b>Transport</b></div>
-      <button className="active" type="button"><Radio size={16}/> Live tracking</button>
-      <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('radx-transport-navigate', { detail: 'Routes' }))}><RouteIcon size={16}/> Routes</button>
-      <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('radx-transport-navigate', { detail: 'Students' }))}><Users size={16}/> Students</button>
-      <div className="transport-live-rail-foot"><ShieldCheckIcon/><b>Fleet visibility</b><span>Live signals are verified from registered GPS devices.</span></div>
-    </aside>
     <div className="transport-live-fleet">
       <div className="transport-live-fleet-head"><span>ACTIVE FLEET</span><b>{buses.length} buses registered</b></div>
       <label className="transport-live-search"><Search size={15}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search bus or route"/></label>
@@ -134,4 +127,3 @@ export default function TransportLiveTracking({ schoolId, peopleRecords, notify 
   </section>
 }
 
-function ShieldCheckIcon() { return <span className="transport-live-shield">✓</span> }
