@@ -141,14 +141,14 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
     <div><Users/><span>Students allotted</span><b>{allotments.filter(row => row.status === 'active').length}</b><small>Active transport users</small></div>
   </div>
 
-  if (page === 'Live tracking') return <section className="transport-page"><div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>Live fleet tracking</h2><p>Monitor school buses, GPS signals and route progress in one place.</p></div><button className="transport-refresh" onClick={() => void load()}><RefreshCw size={15}/> Refresh data</button></div>{pageNav}<TransportLiveTracking schoolId={schoolId} schoolName="" peopleRecords={peopleRecords} notify={notify}/></section>
+  if (page === 'Live tracking') return <section className="transport-page"><div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>Live fleet tracking</h2><p>Monitor school buses, GPS signals and route progress in one place.</p></div><button className="transport-refresh" onClick={() => void load()}><RefreshCw size={15}/> Refresh data</button></div>{pageNav}{pageSummary}<TransportLiveTracking schoolId={schoolId} schoolName="" peopleRecords={peopleRecords} notify={notify}/></section>
 
   if (loading) return <section className="workspace-panel transport-panel"><div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>{pageTitle}</h2><p>{pageDescription}</p></div></div>{pageNav}<div className="transport-loading"><RefreshCw size={18}/> Loading transport records…</div></section>
 
   return <section className="workspace-panel transport-panel">
     <div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>{pageTitle}</h2><p>{pageDescription}</p></div><button className="transport-refresh" onClick={() => void load()}><RefreshCw size={15}/> Refresh data</button></div>
-    ${pageNav}
-    ${pageSummary}
+    {pageNav}
+    {pageSummary}
 
     {page === 'Routes' && <>
       <form className="module-form transport-form" onSubmit={createRoute}>
