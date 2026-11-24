@@ -92,7 +92,7 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
    return [session?.attendance_date, session?.session_code, session?.standard_name, session?.section_name, session ? (studentById.get(session.teacher_person_id)?.full_name || session.teacher_person_id) : '', student?.details?.roll_number || '', student?.full_name || mark.student_person_id, mark.attendance_status]
   })
   const teacherRows = filteredTeacherAttendance.map(row => [row.attendance_date,row.session_code,row.checked_in_for_standard,row.checked_in_for_section,studentById.get(row.teacher_person_id)?.full_name || row.teacher_person_id,'','TEACHER CHECK-IN',row.attendance_status])
-  const content = [['Date', 'Session', 'Standard', 'Section', 'Teacher', 'Roll number', 'Student', 'Status'], ...rows, ...teacherRows].map(row => row.map(csvCell).join(',')).join('\\r\\n')
+  const content = [['Date', 'Session', 'Standard', 'Section', 'Teacher', 'Roll number', 'Student', 'Status'], ...rows, ...teacherRows].map(row => row.map(csvCell).join(',')).join(String.fromCharCode(13,10))
   const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8;' }))
   const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'attendance-report-' + month + '.csv'; anchor.click(); URL.revokeObjectURL(url)
  }
