@@ -1,0 +1,12 @@
+{
+  "name": "radx-gps-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TCP gateway for supported vehicle GPS tracker protocols; forwards normalized telemetry to Supabase.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}
