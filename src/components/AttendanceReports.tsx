@@ -57,13 +57,13 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
   if (markError) { setError(markError.message); setMarks([]); setStudents([]); setLoading(false); setRefreshing(false); return }
   const nextMarks = (markData || []) as AttendanceMark[]
   setMarks(nextMarks)
-  const studentIds = [...new Set(nextMarks.map(row => row.student_person_id))]
-  if (studentIds.length) {
+  const personIds = [...new Set([...nextMarks.map(row => row.student_person_id), ...nextSessions.map(row => row.teacher_person_id)])]
+  if (personIds.length) {
    const { data: peopleData, error: peopleError } = await supabase
     .from('school_people')
     .select('person_id,full_name,details')
     .eq('school_id', schoolId)
-    .in('person_id', studentIds)
+    .in('person_id', personIds)
    if (peopleError) setError(peopleError.message)
    setStudents((peopleData || []) as Student[])
   } else setStudents([])
@@ -93,9 +93,9 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
   const rows = filteredMarks.map(mark => {
    const session = sessions.find(item => item.id === mark.session_id)
    const student = studentById.get(mark.student_person_id)
-   return [session?.attendance_date, session?.session_code, session?.standard_name, session?.section_name, student?.details?.roll_number || '', student?.full_name || mark.student_person_id, mark.attendance_status]
+   return [session?.attendance_date, session?.session_code, session?.standard_name, session?.section_name, session ? (studentById.get(session.teacher_person_id)?.full_name || session.teacher_person_id) : '', student?.details?.roll_number || '', student?.full_name || mark.student_person_id, mark.attendance_status]
   })
-  const content = [['Date', 'Session', 'Standard', 'Section', 'Roll number', 'Student', 'Status'], ...rows].map(row => row.map(csvCell).join(',')).join('\r\n')
+  const content = [['Date', 'Session', 'Standard', 'Section', 'Teacher', 'Roll number', 'Student', 'Status'], ...rows].map(row => row.map(csvCell).join(',')).join('\r\n')
   const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8;' }))
   const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'attendance-report-' + month + '.csv'; anchor.click(); URL.revokeObjectURL(url)
  }
@@ -139,13 +139,13 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
   </div>
   {error && <div className="qr-error">{error}</div>}
   <div className="workspace-heading" style={{marginTop:24}}><div><h3>Session register</h3><p>Select a session to view its student register.</p></div></div>
-  {loading ? <div className="report-empty">Loading attendance records…</div> : filteredSessions.length ? <div className="report-table-wrap"><table><thead><tr><th>Date</th><th>Standard</th><th>Section</th><th>Session</th><th>Students</th><th>Present</th><th>Absent</th><th>Details</th></tr></thead><tbody>{filteredSessions.map(session => {
+  {loading ? <div className="report-empty">Loading attendance records…</div> : filteredSessions.length ? <div className="report-table-wrap"><table><thead><tr><th>Date</th><th>Standard</th><th>Section</th><th>Session</th><th>Class teacher</th><th>Students</th><th>Present</th><th>Absent</th><th>Details</th></tr></thead><tbody>{filteredSessions.map(session => {
    const rows = marks.filter(row => row.session_id === session.id)
    const present = rows.filter(row => row.attendance_status.toUpperCase() === 'PRESENT').length
    const absent = rows.filter(row => row.attendance_status.toUpperCase() === 'ABSENT').length
-   return <tr key={session.id}><td>{new Date(session.attendance_date + 'T00:00:00').toLocaleDateString('en-IN')}</td><td>{session.standard_name}</td><td>{session.section_name}</td><td>{session.session_code}</td><td>{rows.length}</td><td className="status-present">{present}</td><td className="status-absent">{absent}</td><td><button className="report-row-button" onClick={() => setSelectedSession(session.id)}>{selectedSession === session.id ? 'Selected' : 'View register'}</button></td></tr>
+   return <tr key={session.id}><td>{new Date(session.attendance_date + 'T00:00:00').toLocaleDateString('en-IN')}</td><td>{session.standard_name}</td><td>{session.section_name}</td><td>{session.session_code}</td><td>{studentById.get(session.teacher_person_id)?.full_name || session.teacher_person_id}</td><td>{rows.length}</td><td className="status-present">{present}</td><td className="status-absent">{absent}</td><td><button className="report-row-button" onClick={() => setSelectedSession(session.id)}>{selectedSession === session.id ? 'Selected' : 'View register'}</button></td></tr>
   })}</tbody></table></div> : <div className="report-empty">No attendance sessions were recorded for this month and filter selection.</div>}
-  {selected && <div className="report-detail"><div className="workspace-heading"><div><h3>Student register</h3><p>{new Date(selected.attendance_date + 'T00:00:00').toLocaleDateString('en-IN')} · {selected.standard_name} · Section {selected.section_name} · {selected.session_code}</p></div></div>
+  {selected && <div className="report-detail"><div className="workspace-heading"><div><h3>Student register</h3><p>{new Date(selected.attendance_date + 'T00:00:00').toLocaleDateString('en-IN')} · {selected.standard_name} · Section {selected.section_name} · {selected.session_code} · Class teacher: {studentById.get(selected.teacher_person_id)?.full_name || selected.teacher_person_id}</p></div></div>
    {detailRows.length ? <div className="report-table-wrap"><table><thead><tr><th>Roll number</th><th>Student name</th><th>Attendance</th></tr></thead><tbody>{detailRows.map(row => <tr key={row.id}><td>{row.roll_number || '—'}</td><td>{row.student_name}</td><td className={row.attendance_status.toUpperCase() === 'PRESENT' ? 'status-present' : 'status-absent'}>{row.attendance_status}</td></tr>)}</tbody></table></div> : <div className="report-empty">No student marks found for this session.</div>}
   </div>}
   <p className="people-form-note" style={{marginTop:16}}>Monthly percentage = present marks ÷ all recorded student marks. This is a session-based percentage, not a unique-student monthly average.</p>
