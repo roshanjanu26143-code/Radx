@@ -1,0 +1,2 @@
+alter publication supabase_realtime add table public.school_bus_gps_devices;
+alter publication supabase_realtime add table public.school_bus_gps_positions;
