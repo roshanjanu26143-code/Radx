@@ -66,7 +66,7 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
       school_id: schoolId, bus_id: busId, provider_name: provider, model_name: modelName.trim() || null, protocol_type: protocolType,
       integration_mode: protocolType === 'vendor_cloud' ? 'vendor_cloud' : ['gt06_tcp','tk103_tcp'].includes(protocolType) ? 'tcp_gateway' : protocolType === 'custom_gateway' ? 'custom_gateway' : 'device_webhook',
       payload_format: protocolType === 'http_json' ? 'json' : protocolType === 'vendor_cloud' ? 'vendor_json' : 'custom_json',
-      provider_device_id: providerDeviceId.trim() || null, device_imei: imei.trim().replace(/\\D/g, ''),
+      provider_device_id: providerDeviceId.trim() || null, device_imei: imei.trim().replace(/\D/g, ''),
       sim_number: simNumber.trim() || null, device_label: deviceLabel.trim() || null, status: 'pending', ingest_token_hash: tokenHash,
     })
     if (error) notify(error.message)
@@ -98,6 +98,7 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
         <label>SIM mobile number <span className="field-hint">(optional)</span><input value={simNumber} onChange={e => setSimNumber(e.target.value)} placeholder="GPS SIM number"/></label>
         <label>Device label <span className="field-hint">(optional)</span><input value={deviceLabel} onChange={e => setDeviceLabel(e.target.value)} placeholder="Front dashboard tracker"/></label>
       </div>
+      <p className="gps-protocol-help">{protocolType === 'gt06_tcp' || protocolType === 'tk103_tcp' ? 'This tracker speaks a raw TCP protocol. Connect it to a compatible GPS gateway first; the gateway decodes packets and forwards authenticated JSON to ACADAMIX.' : protocolType === 'vendor_cloud' ? 'Choose this when the GPS brand portal can send a webhook. Configure the provider to forward this device’s location with the ACADAMIX device token.' : protocolType === 'custom_gateway' ? 'Use a custom adapter or gateway to translate the vendor payload into the documented ACADAMIX JSON format.' : 'Use for devices or vendor platforms that can send HTTPS JSON with the device token in the Authorization header.'}</p>
       <button className="primary-action" type="submit" disabled={saving || !buses.some(bus => !registered.has(bus.id))}><Plus size={16}/> Register GPS device</button>
       {!buses.length && <p className="gps-empty-note">Register a bus under Transport → Buses before adding its GPS device.</p>}
       {!!buses.length && registered.size === buses.length && <p className="gps-empty-note">Every registered bus already has a GPS device record.</p>}
