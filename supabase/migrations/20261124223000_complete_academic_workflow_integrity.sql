@@ -1,3 +1,10 @@
+drop policy if exists "Academic users read workspace structure" on public.school_workspace_state;
+drop policy if exists "Teachers read own assignments for timetable" on public.school_teacher_class_assignments;
+drop policy if exists "Academic managers read teacher profiles for standard setup" on public.school_people;
+drop policy if exists "Academic users read students for results" on public.school_people;
+drop policy if exists "Authorized users enter exam marks" on public.school_exam_marks;
+drop policy if exists "Authorized users update exam marks" on public.school_exam_marks;
+
 create policy "Academic users read workspace structure"
 on public.school_workspace_state for select to authenticated
 using (exists (select 1 from public.school_user_roles r where r.school_id=school_workspace_state.school_id and r.user_id=(select auth.uid()) and r.status='active' and r.allowed_pages && array['Standard','Subjects','Timetable','Attendance','Attendance Reports','Exam Schedules','Marks Entry','Student Results','Performance']::text[]));
