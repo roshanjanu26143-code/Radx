@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Bus, MapPin, Users, Route as RouteIcon, Plus, Trash2, RefreshCw } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import './TransportManagement.css'
+import TransportLiveTracking from './TransportLiveTracking'
 
 type Person = { id: string; type: string; name: string; details: Record<string, string> }
 type RouteRow = { id: string; route_name: string; start_point: string; end_point: string; is_active: boolean; stops: StopRow[] }
@@ -131,12 +132,14 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
     if (error) notify(error.message); else { notify('Student transport status updated.'); await load() }
   }
 
+  if (page === 'Live tracking') return <TransportLiveTracking schoolId={schoolId} schoolName="" peopleRecords={peopleRecords} notify={notify} />
+
   if (loading) return <section className="transport-panel"><div className="transport-loading"><RefreshCw size={18}/> Loading transport records…</div></section>
 
   return <section className="workspace-panel transport-panel">
     <div className="workspace-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>{page === 'Routes' ? 'Routes & Stops' : page === 'Buses' ? 'Bus Fleet' : 'Student Allotment'}</h2><p>{page === 'Routes' ? 'Create school routes and manage their pickup / drop stops.' : page === 'Buses' ? 'Register buses, assign drivers and cleaners, and track fleet status.' : 'Filter students by locality and assign them to a route, bus and pickup stop.'}</p></div><button className="transport-refresh" onClick={() => void load()}><RefreshCw size={15}/> Refresh</button></div>
     <div className="transport-summary">
-      <div><RouteIcon/><span>Routes</span><b>{routes.length}</b></div><div><Bus/><span>Active buses</span><b>{buses.filter(bus => bus.status === 'active').length}</b></div>{page === 'Allotment' && <div><Users/><span>Students allotted</span><b>{allotments.filter(row => row.status === 'active').length}</b></div>}
+      <div><RouteIcon/><span>Routes</span><b>{routes.length}</b></div><div><Bus/><span>Active buses</span><b>{buses.filter(bus => bus.status === 'active').length}</b></div>{(page === 'Allotment' || page === 'Students') && <div><Users/><span>Students allotted</span><b>{allotments.filter(row => row.status === 'active').length}</b></div>}
     </div>
 
     {page === 'Routes' && <>
@@ -157,7 +160,7 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
       <div className="transport-table-wrap"><table className="transport-table"><thead><tr><th>Bus</th><th>Route</th><th>Driver / Cleaner</th><th>Capacity</th><th>Status</th></tr></thead><tbody>{buses.map(bus => <tr key={bus.id}><td><b>{bus.registration_number}</b></td><td>{routes.find(route => route.id === bus.route_id)?.route_name || '—'}</td><td>{peopleRecords.find(person => person.id === bus.driver_person_id)?.name || 'Not assigned'}<small>{peopleRecords.find(person => person.id === bus.cleaner_person_id)?.name || 'Cleaner not assigned'}</small></td><td>{bus.capacity}</td><td><select className="transport-status" value={bus.status} onChange={e => void updateBusStatus(bus.id, e.target.value)}><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></select></td></tr>)}</tbody></table>{!buses.length && <div className="empty-table">No buses registered yet.</div>}</div>
     </>}
 
-    {page === 'Allotment' && <>
+    {(page === 'Allotment' || page === 'Students') && <>
       <div className="module-form transport-form">
         <div className="form-two-col"><label>Route<select value={selectedRoute} onChange={e => { setSelectedRoute(e.target.value); setSelectedBus(''); setSelectedStop('') }}><option value="">Choose route</option>{routes.map(route => <option key={route.id} value={route.id}>{route.route_name}</option>)}</select></label><label>Bus<select value={selectedBus} onChange={e => setSelectedBus(e.target.value)}><option value="">Choose bus</option>{buses.filter(bus => bus.route_id === selectedRoute && bus.status === 'active').map(bus => <option key={bus.id} value={bus.id}>{bus.registration_number} · {bus.capacity} seats</option>)}</select></label></div>
         <div className="form-three-col"><label>Pickup stop<select value={selectedStop} onChange={e => setSelectedStop(e.target.value)}><option value="">Not specified</option>{(activeRoute?.stops || []).map(stop => <option key={stop.id} value={stop.id}>{stop.stop_name}</option>)}</select></label><label>Monthly transport fee (₹)<input type="number" min="0" step="0.01" value={monthlyFee} onChange={e => setMonthlyFee(e.target.value)}/></label><label>Search student<input value={studentSearch} onChange={e => setStudentSearch(e.target.value)} placeholder="Name or admission ID"/></label></div>
