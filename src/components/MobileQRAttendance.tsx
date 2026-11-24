@@ -126,7 +126,7 @@ export default function MobileQRAttendance({schoolId,standards,people,notify,use
    if(assignmentError)throw assignmentError
    const assigned=(assignments||[]) as TeacherAssignment[]
    if(!assigned.some(item=>item.standard_name===scanned?.name)){setScanError('This teacher has no active allotment for '+(scanned?.name||'this class')+'.');return}
-   setTeacherAssignments(assigned);setTeacher(found);setSectionName('');setMarks({});setStep(3)
+   setTeacherAssignments(assigned);setTeacher(found);const assignedSections=assigned.filter(item=>item.standard_name===scanned?.name).map(item=>item.section_name);setSectionName(assignedSections.length===1?assignedSections[0]:'');setMarks({});setStep(3)
   }catch(error){setScanError(error instanceof Error?error.message:'Teacher verification failed. Please try again.')}
   finally{setTeacherVerifying(false)}
  }
