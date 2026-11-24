@@ -23,6 +23,8 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
   const [latitudeKey, setLatitudeKey] = useState('')
   const [longitudeKey, setLongitudeKey] = useState('')
   const [speedKey, setSpeedKey] = useState('')
+  const [headingKey, setHeadingKey] = useState('')
+  const [speedUnit, setSpeedUnit] = useState('kph')
   const [timestampKey, setTimestampKey] = useState('')
   const [imeiKey, setImeiKey] = useState('')
   const [modelName, setModelName] = useState('')
@@ -74,10 +76,10 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
       payload_format: protocolType === 'http_json' ? 'json' : protocolType === 'vendor_cloud' ? 'vendor_json' : 'custom_json',
       provider_device_id: providerDeviceId.trim() || null, device_imei: imei.trim().replace(/\D/g, ''),
       sim_number: simNumber.trim() || null, device_label: deviceLabel.trim() || null, status: 'pending', ingest_token_hash: tokenHash,
-      device_config: { field_mapping: { latitude: latitudeKey.trim() || null, longitude: longitudeKey.trim() || null, speed: speedKey.trim() || null, timestamp: timestampKey.trim() || null, imei: imeiKey.trim() || null } },
+      device_config: { field_mapping: { latitude: latitudeKey.trim() || null, longitude: longitudeKey.trim() || null, speed: speedKey.trim() || null, heading: headingKey.trim() || null, speed_unit: speedUnit, timestamp: timestampKey.trim() || null, imei: imeiKey.trim() || null } },
     })
     if (error) notify(error.message)
-    else { setNewDeviceToken(token); notify('GPS device registered. Copy its one-time token now.'); setBusId(''); setImei(''); setModelName(''); setProviderDeviceId(''); setSimNumber(''); setDeviceLabel(''); setCustomProvider(''); setLatitudeKey(''); setLongitudeKey(''); setSpeedKey(''); setTimestampKey(''); setImeiKey(''); await load() }
+    else { setNewDeviceToken(token); notify('GPS device registered. Copy its one-time token now.'); setBusId(''); setImei(''); setModelName(''); setProviderDeviceId(''); setSimNumber(''); setDeviceLabel(''); setCustomProvider(''); setLatitudeKey(''); setLongitudeKey(''); setSpeedKey(''); setHeadingKey(''); setSpeedUnit('kph'); setTimestampKey(''); setImeiKey(''); await load() }
     setSaving(false)
   }
   const updateStatus = async (device: DeviceRow, status: string) => {
@@ -108,6 +110,8 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
         <label>Latitude field <span className="field-hint">(optional)</span><input value={latitudeKey} onChange={e => setLatitudeKey(e.target.value)} placeholder="e.g. gps.latitude" /></label>
         <label>Longitude field <span className="field-hint">(optional)</span><input value={longitudeKey} onChange={e => setLongitudeKey(e.target.value)} placeholder="e.g. gps.longitude" /></label>
         <label>Speed field <span className="field-hint">(optional)</span><input value={speedKey} onChange={e => setSpeedKey(e.target.value)} placeholder="e.g. vehicleSpeed" /></label>
+        <label>Heading / course field <span className="field-hint">(optional)</span><input value={headingKey} onChange={e => setHeadingKey(e.target.value)} placeholder="e.g. course" /></label>
+        <label>Speed unit<select value={speedUnit} onChange={e => setSpeedUnit(e.target.value)}><option value="kph">km/h</option><option value="mph">mph</option><option value="knots">Knots</option><option value="m/s">m/s</option></select></label>
         <label>Timestamp field <span className="field-hint">(optional)</span><input value={timestampKey} onChange={e => setTimestampKey(e.target.value)} placeholder="e.g. gpsTime" /></label>
         <label>IMEI field <span className="field-hint">(optional)</span><input value={imeiKey} onChange={e => setImeiKey(e.target.value)} placeholder="e.g. terminal.imei" /></label>
       </div>
