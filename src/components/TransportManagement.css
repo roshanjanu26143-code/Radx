@@ -32,3 +32,37 @@
 .transport-live-loading{display:flex;align-items:center;gap:10px;padding:40px;color:#66756c}
 @media(max-width:1050px){.transport-live{grid-template-columns:270px minmax(0,1fr)}.transport-live-tripbar{gap:12px}.transport-live-tripbus{min-width:125px}}
 @media(max-width:760px){.transport-live{grid-template-columns:1fr;height:auto;min-height:0;border-radius:11px;overflow:hidden}.transport-live-fleet{border-right:0;border-bottom:1px solid #e5ece6}.transport-live-bus-list{max-height:250px}.transport-live-map-panel{min-height:460px}.transport-live-map{min-height:350px}.transport-live-tripbar{flex-wrap:wrap;gap:12px}.transport-live-tripbus{flex-basis:100%}.transport-live-map-toolbar{height:42px}.transport-live-map-toolbar>span{font-size:9px}}
+
+
+/* Complete transport workspace redesign */
+.transport-page{display:flex;flex-direction:column;gap:16px;min-width:0}
+.transport-page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:2px 0 0}
+.transport-page-heading h2{margin:5px 0 6px;font-size:24px;line-height:1.2;letter-spacing:-.035em;color:#1c3828}
+.transport-page-heading p{margin:0;max-width:660px;color:#758379;font-size:13px;line-height:1.55}
+.transport-module-nav{display:flex;align-items:center;gap:6px;padding:5px;border:1px solid #e3ece5;border-radius:11px;background:#f7faf7;overflow-x:auto}
+.transport-module-nav button{flex:0 0 auto;border:1px solid transparent;border-radius:8px;background:transparent;padding:9px 14px;color:#66786b;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.transport-module-nav button:hover{background:#edf5ef;color:#236b3d}
+.transport-module-nav button.active{background:#fff;border-color:#dce9df;color:#19713d;box-shadow:0 1px 3px rgba(25,72,41,.07)}
+.transport-panel{display:flex;flex-direction:column;gap:17px;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.transport-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.transport-summary>div{position:relative;min-height:88px;grid-template-columns:38px 1fr;align-content:center;gap:3px 11px;padding:15px 16px;border:1px solid #e2ebe4;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(28,67,39,.035)}
+.transport-summary svg{grid-row:span 3;width:19px;height:19px;padding:9px;box-sizing:content-box;border-radius:10px;background:#edf7ef;color:#21834b}
+.transport-summary span{font-size:11px;color:#758379}.transport-summary b{font-size:21px;line-height:1.2;color:#1c3828}.transport-summary small{font-size:10px;color:#95a097}
+.transport-form{display:flex;flex-direction:column;gap:16px;padding:19px!important;border:1px solid #e1eae3!important;border-radius:13px!important;background:#fff!important;box-shadow:0 2px 9px rgba(28,67,39,.035)}
+.transport-form label{color:#526457;font-size:11px;font-weight:650}
+.transport-form input,.transport-form select,.transport-form textarea{min-height:39px;border:1px solid #dfe8e1;border-radius:8px;background:#fff;padding:9px 11px;color:#2d4434;font:inherit;font-size:12px;outline:none}
+.transport-form input:focus,.transport-form select:focus,.transport-form textarea:focus{border-color:#76b88a;box-shadow:0 0 0 3px rgba(39,131,77,.09)}
+.transport-form .primary-action{align-self:flex-start;border-radius:8px;background:#21834b;padding:10px 15px;font-size:12px;font-weight:700}
+.transport-route-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.transport-card{border-color:#e2ebe4;border-radius:12px;box-shadow:0 2px 8px rgba(28,67,39,.03)}
+.transport-card header b{font-size:14px;color:#274331}
+.transport-table-wrap{border-color:#e2ebe4;border-radius:12px;background:#fff}
+.transport-table{min-width:700px}
+.transport-table th{padding:13px 15px;background:#f6faf7;color:#728176;font-size:10px;letter-spacing:.04em;text-transform:uppercase}
+.transport-table td{padding:13px 15px;font-size:12px}
+.transport-table tbody tr:hover{background:#f9fcf9}
+.transport-student-list{background:#fff;border-color:#e2ebe4}
+.transport-list-heading{background:#f6faf7;color:#294533;font-weight:650}
+.transport-student-row:hover{background:#f9fcf9}
+.transport-page .transport-live{height:calc(100vh - 280px);min-height:500px}
+@media(max-width:760px){.transport-page-heading{flex-direction:column}.transport-page-heading h2{font-size:21px}.transport-summary{grid-template-columns:1fr}.transport-module-nav{margin:0 -2px}.transport-page .transport-live{height:auto;min-height:0}.transport-panel{gap:14px}}
