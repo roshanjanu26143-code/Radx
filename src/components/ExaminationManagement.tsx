@@ -99,7 +99,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  const exportResults=()=>{
   if(!resultSelected)return
   const rows=[['Admission no.','Student','Standard','Section','Exam','Obtained','Maximum','Percentage','Grade','Status'],...filteredResults.map(r=>[r.student.person_id,r.student.full_name,resultSelected.standard_name,resultSelected.section_name,resultSelected.exam_name,r.obtained,r.maximum,r.allEntered?r.percentage.toFixed(2):'',r.allEntered?grade(r.percentage):'Pending',r.allEntered?(r.failed?'Needs improvement':'Completed'):'Marks pending'])]
-  const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n')
+  const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n')
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a');a.href=url;a.download='exam-results-'+resultSelected.exam_name.replace(/\W+/g,'-')+'.csv';a.click();URL.revokeObjectURL(url)
  }
  const heading=page==='Exam Schedules'?'Exam schedules':page==='Marks Entry'?'Marks entry':page==='Student Results'?'Student results':'Academic performance'
