@@ -74,7 +74,7 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
   const subject=activeSubjects.find(s=>s.id===slot.subject_id)
   if(!subject||subject.standard_name!==slot.standard_name){notify('Selected subject does not belong to this standard.');return}
   if(slot.teacher_person_id){
-   const conflict=timetable.find(r=>r.teacher_person_id===slot.teacher_person_id&&r.day_of_week===Number(slot.day_of_week)&&r.start_time<slot.end_time&&r.end_time>slot.start_time)
+   const conflict=timetable.find(r=>r.id!==editingSlotId&&r.teacher_person_id===slot.teacher_person_id&&r.day_of_week===Number(slot.day_of_week)&&r.start_time<slot.end_time&&r.end_time>slot.start_time)
    if(conflict){notify('Teacher has an overlapping period on '+days.find(d=>d.id===conflict.day_of_week)?.label+'.');return}
   }
   setSaving(true)
