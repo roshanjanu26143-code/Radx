@@ -46,7 +46,7 @@ export default function FeesFinance({schoolId,schoolName,page,userRole,notify}:P
  const activeStructures=structures.filter(x=>x.is_active)
  const collected=payments.reduce((sum,p)=>sum+Number(p.paid_amount),0)
  const expected=activeStructures.reduce((sum,fee)=>sum+students.filter(student=>fee.standard_name==='All Standards'||student.details.joining_standard===fee.standard_name).length*Number(fee.amount),0)
- const outstanding=Math.max(0,expected-collected)
+ const outstanding=activeStructures.reduce((sum,fee)=>sum+students.filter(student=>fee.standard_name==='All Standards'||student.details.joining_standard===fee.standard_name).reduce((total,student)=>total+Math.max(0,Number(fee.amount)-(paymentTotals.get(fee.id+'|'+student.person_id)||0)),0),0)
  const selectedFee=structureById.get(collection.fee_structure_id)
  const eligibleStudents=selectedFee?students.filter(s=>selectedFee.standard_name==='All Standards'||s.details.joining_standard===selectedFee.standard_name):students
  const selectedPaid=collection.fee_structure_id&&collection.student_person_id?(paymentTotals.get(collection.fee_structure_id+'|'+collection.student_person_id)||0):0
@@ -108,7 +108,7 @@ export default function FeesFinance({schoolId,schoolName,page,userRole,notify}:P
   <div className="fee-stat"><span><AlertCircle size={15}/> Outstanding</span><strong>{money(outstanding)}</strong><small>Estimated active fee balances</small></div>
   <div className="fee-stat"><span><Users size={15}/> Students</span><strong>{students.length}</strong><small>Student records visible to this account</small></div>
  </div>
- {page==='Finance'&&<div className="fee-panel"><h3>Finance quick actions</h3><div className="fee-actions no-print"><button className="fee-btn" onClick={()=>window.history.pushState({},'', '?tab=Finance&page=Fees%20Structure')}><Plus size={15}/> Configure fee structure</button><button className="fee-btn secondary" onClick={()=>window.history.pushState({},'', '?tab=Finance&page=Fees')}><ReceiptText size={15}/> Collect a fee</button><button className="fee-btn secondary" onClick={()=>window.history.pushState({},'', '?tab=Finance&page=Pending%20Fees')}><AlertCircle size={15}/> View pending dues</button></div><p className="fee-muted">Use the Finance sub-tabs to open each workflow. The figures above are calculated from saved database records, not sample dashboard values.</p></div>}
+ {page==='Finance'&&<div className="fee-panel"><h3>Finance overview</h3><p className="fee-muted">Open Fees to record a payment, Fees Structure to configure charges, or Pending Fees to review outstanding student balances. All totals are calculated from saved records.</p></div>}
  {page==='Fees Structure'&&<div className="fee-panel no-print"><h3><Plus size={17}/> Create fee structure</h3><form onSubmit={saveStructure}><div className="fee-form-grid">
   <label>Academic year<input value={form.academic_year} onChange={e=>setForm({...form,academic_year:e.target.value})} placeholder="2026-27" required/></label>
   <label>Standard<select value={form.standard_name} onChange={e=>setForm({...form,standard_name:e.target.value})} required><option value="">Select standard</option><option value="All Standards">All Standards</option>{Array.from({length:12},(_,i)=>'Standard '+(i+1)).map(v=><option key={v}>{v}</option>)}</select></label>
