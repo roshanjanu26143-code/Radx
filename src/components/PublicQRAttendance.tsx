@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronRight, GraduationCap, LockKeyhole, QrCode, ShieldCheck, Wifi, WifiOff } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import "./mobile-qr-attendance.css";
