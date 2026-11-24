@@ -16,6 +16,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  const [exams,setExams]=useState<Exam[]>([])
  const [students,setStudents]=useState<Student[]>([])
  const [marks,setMarks]=useState<Mark[]>([])
+ const [subjectCatalog,setSubjectCatalog]=useState<{id:string;standard_name:string;subject_name:string;is_active:boolean}[]>([])
  const [loading,setLoading]=useState(true)
  const [saving,setSaving]=useState(false)
  const [error,setError]=useState('')
@@ -28,14 +29,15 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
 
  const load=async()=>{
   setLoading(true);setError('')
-  const [examResult,studentResult,markResult]=await Promise.all([
+  const [examResult,studentResult,markResult,subjectResult]=await Promise.all([
    supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time,max_marks,pass_marks,instructions,is_published').eq('school_id',schoolId).order('exam_date',{ascending:false}),
    supabase.from('school_people').select('person_id,full_name,details').eq('school_id',schoolId).eq('record_type','Student').order('full_name'),
-   supabase.from('school_exam_marks').select('id,exam_schedule_id,student_person_id,marks_obtained,remarks').eq('school_id',schoolId)
+   supabase.from('school_exam_marks').select('id,exam_schedule_id,student_person_id,marks_obtained,remarks').eq('school_id',schoolId),
+   supabase.from('school_academic_subjects').select('id,standard_name,subject_name,is_active').eq('school_id',schoolId).eq('academic_year',academicYear).eq('is_active',true).order('subject_name')
   ])
-  if(examResult.error||studentResult.error||markResult.error){setError(examResult.error?.message||studentResult.error?.message||markResult.error?.message||'Could not load examination records.');setLoading(false);return}
+  if(examResult.error||studentResult.error||markResult.error||subjectResult.error){setError(examResult.error?.message||studentResult.error?.message||markResult.error?.message||subjectResult.error?.message||'Could not load examination records.');setLoading(false);return}
   const e=(examResult.data||[]) as Exam[],m=(markResult.data||[]) as Mark[]
-  setExams(e);setStudents((studentResult.data||[]) as Student[]);setMarks(m)
+  setExams(e);setStudents((studentResult.data||[]) as Student[]);setMarks(m);setSubjectCatalog((subjectResult.data||[]) as {id:string;standard_name:string;subject_name:string;is_active:boolean}[])
   if(!selectedExam&&e.length)setSelectedExam(e[0].id)
   if(!resultExam&&e.length)setResultExam(e[0].id)
   setLoading(false)
@@ -120,7 +122,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    <label>Exam date<input type="date" value={form.exam_date} onChange={e=>setForm({...form,exam_date:e.target.value})} required/></label>
    <label>Standard<select value={form.standard_name} onChange={e=>{const s=standards.find(x=>x.name===e.target.value);setForm({...form,standard_name:e.target.value,section_name:s?.sections[0]||''})}} required><option value="">Select standard</option>{standards.map(s=><option key={s.name}>{s.name}</option>)}</select></label>
    <label>Section<select value={form.section_name} onChange={e=>setForm({...form,section_name:e.target.value})} required disabled={!form.standard_name}><option value="">Select section</option>{(standards.find(s=>s.name===form.standard_name)?.sections||[]).map(s=><option key={s}>{s}</option>)}</select></label>
-   <label>Subject<input value={form.subject_name} onChange={e=>setForm({...form,subject_name:e.target.value})} placeholder="Mathematics" required/></label>
+   <label>Subject<select value={form.subject_name} onChange={e=>setForm({...form,subject_name:e.target.value})} required disabled={!form.standard_name}><option value="">Choose subject</option>{subjectCatalog.filter(s=>s.standard_name===form.standard_name).map(s=><option key={s.id} value={s.subject_name}>{s.subject_name}</option>)}</select></label>
    <label>Maximum marks<input type="number" min="1" step="0.5" value={form.max_marks} onChange={e=>setForm({...form,max_marks:e.target.value})} required/></label>
    <label>Passing marks<input type="number" min="0" step="0.5" value={form.pass_marks} onChange={e=>setForm({...form,pass_marks:e.target.value})} required/></label>
    <label>Start time<input type="time" value={form.start_time} onChange={e=>setForm({...form,start_time:e.target.value})}/></label>
