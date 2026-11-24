@@ -19,6 +19,12 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
   const [saving, setSaving] = useState(false)
   const [busId, setBusId] = useState('')
   const [provider, setProvider] = useState('Other')
+  const [customProvider, setCustomProvider] = useState('')
+  const [latitudeKey, setLatitudeKey] = useState('')
+  const [longitudeKey, setLongitudeKey] = useState('')
+  const [speedKey, setSpeedKey] = useState('')
+  const [timestampKey, setTimestampKey] = useState('')
+  const [imeiKey, setImeiKey] = useState('')
   const [modelName, setModelName] = useState('')
   const [protocolType, setProtocolType] = useState('http_json')
   const [providerDeviceId, setProviderDeviceId] = useState('')
@@ -63,14 +69,15 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
     const tokenHash = Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
     const { error } = await supabase.from('school_bus_gps_devices').insert({
-      school_id: schoolId, bus_id: busId, provider_name: provider, model_name: modelName.trim() || null, protocol_type: protocolType,
+      school_id: schoolId, bus_id: busId, provider_name: provider === 'Custom brand' ? customProvider.trim() : provider, model_name: modelName.trim() || null, protocol_type: protocolType,
       integration_mode: protocolType === 'vendor_cloud' ? 'vendor_cloud' : ['gt06_tcp','tk103_tcp'].includes(protocolType) ? 'tcp_gateway' : protocolType === 'custom_gateway' ? 'custom_gateway' : 'device_webhook',
       payload_format: protocolType === 'http_json' ? 'json' : protocolType === 'vendor_cloud' ? 'vendor_json' : 'custom_json',
       provider_device_id: providerDeviceId.trim() || null, device_imei: imei.trim().replace(/\D/g, ''),
       sim_number: simNumber.trim() || null, device_label: deviceLabel.trim() || null, status: 'pending', ingest_token_hash: tokenHash,
+      device_config: { field_mapping: { latitude: latitudeKey.trim() || null, longitude: longitudeKey.trim() || null, speed: speedKey.trim() || null, timestamp: timestampKey.trim() || null, imei: imeiKey.trim() || null } },
     })
     if (error) notify(error.message)
-    else { setNewDeviceToken(token); notify('GPS device registered. Copy its one-time token now.'); setBusId(''); setImei(''); setModelName(''); setProviderDeviceId(''); setSimNumber(''); setDeviceLabel(''); await load() }
+    else { setNewDeviceToken(token); notify('GPS device registered. Copy its one-time token now.'); setBusId(''); setImei(''); setModelName(''); setProviderDeviceId(''); setSimNumber(''); setDeviceLabel(''); setCustomProvider(''); setLatitudeKey(''); setLongitudeKey(''); setSpeedKey(''); setTimestampKey(''); setImeiKey(''); await load() }
     setSaving(false)
   }
   const updateStatus = async (device: DeviceRow, status: string) => {
@@ -87,16 +94,22 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
     <div className="workspace-heading bus-gps-heading"><div><span className="section-eyebrow">TRANSPORT CONNECTOR</span><h2>GPS Bus Tracking</h2><p>{schoolName} · Register GPS hardware and monitor the latest device locations.</p></div><span className="bus-preview-pill"><Radio size={13}/> Device integration</span></div>
     <div className="gps-summary-grid"><article><Bus/><span>Registered buses</span><b>{buses.length}</b></article><article><Wifi/><span>GPS devices</span><b>{devices.length}</b></article><article><Signal/><span>Recent GPS signals</span><b>{signalCount}</b></article></div>
     <form className="module-form gps-device-form" onSubmit={createDevice}>
-      <div className="gps-form-heading"><div><b>Register GPS device</b><p>Each bus can use a different brand, model and supported protocol. Register the hardware details separately.</p></div><span className="gps-pending-tag">Awaiting first signal</span></div>
+      <div className="gps-form-heading"><div><b>Register GPS device</b><p>Any brand/model can be entered. Add the tracker's field names when its JSON uses a non-standard format.</p></div><span className="gps-pending-tag">Awaiting first signal</span></div>
       <div className="form-three-col">
         <label>School bus<select value={busId} onChange={e => setBusId(e.target.value)} required><option value="">Choose bus</option>{buses.filter(bus => !registered.has(bus.id)).map(bus => <option key={bus.id} value={bus.id}>{bus.registration_number} · {routes.find(r => r.id === bus.route_id)?.route_name || 'Route not set'}</option>)}</select></label>
-        <label>GPS brand / provider<select value={provider} onChange={e => setProvider(e.target.value)}><option>Other</option><option>Teltonika</option><option>Concox</option><option>Queclink</option><option>Jimi IoT</option><option>Fleet management provider</option><option>Local GPS vendor</option><option>Custom / OEM</option></select></label>
+        <label>GPS brand / provider<select value={provider} onChange={e => setProvider(e.target.value)}><option>Other</option><option>Teltonika</option><option>Concox</option><option>Queclink</option><option>Jimi IoT</option><option>Fleet management provider</option><option>Local GPS vendor</option><option>Custom / OEM</option><option>Custom brand</option></select></label>
+        {provider === 'Custom brand' && <label>Enter GPS brand name<input value={customProvider} onChange={e => setCustomProvider(e.target.value)} placeholder="Manufacturer / vendor name" required /></label>}
         <label>Device model<input value={modelName} onChange={e => setModelName(e.target.value)} placeholder="e.g. FMC920, GT06N, JM-VL03" /></label>
         <label>Device protocol<select value={protocolType} onChange={e => setProtocolType(e.target.value)}><option value="http_json">HTTP JSON webhook</option><option value="vendor_cloud">Vendor cloud webhook</option><option value="gt06_tcp">GT06 / Concox TCP</option><option value="tk103_tcp">TK103 TCP</option><option value="custom_gateway">Other / custom gateway</option></select></label>
         <label>Provider device ID <span className="field-hint">(optional)</span><input value={providerDeviceId} onChange={e => setProviderDeviceId(e.target.value)} placeholder="ID in vendor portal" /></label>
         <label>Device IMEI<input value={imei} onChange={e => setImei(e.target.value)} inputMode="numeric" placeholder="15-digit device IMEI" minLength={10} maxLength={20} required/></label>
         <label>SIM mobile number <span className="field-hint">(optional)</span><input value={simNumber} onChange={e => setSimNumber(e.target.value)} placeholder="GPS SIM number"/></label>
         <label>Device label <span className="field-hint">(optional)</span><input value={deviceLabel} onChange={e => setDeviceLabel(e.target.value)} placeholder="Front dashboard tracker"/></label>
+        <label>Latitude field <span className="field-hint">(optional)</span><input value={latitudeKey} onChange={e => setLatitudeKey(e.target.value)} placeholder="e.g. gps.latitude" /></label>
+        <label>Longitude field <span className="field-hint">(optional)</span><input value={longitudeKey} onChange={e => setLongitudeKey(e.target.value)} placeholder="e.g. gps.longitude" /></label>
+        <label>Speed field <span className="field-hint">(optional)</span><input value={speedKey} onChange={e => setSpeedKey(e.target.value)} placeholder="e.g. vehicleSpeed" /></label>
+        <label>Timestamp field <span className="field-hint">(optional)</span><input value={timestampKey} onChange={e => setTimestampKey(e.target.value)} placeholder="e.g. gpsTime" /></label>
+        <label>IMEI field <span className="field-hint">(optional)</span><input value={imeiKey} onChange={e => setImeiKey(e.target.value)} placeholder="e.g. terminal.imei" /></label>
       </div>
       <p className="gps-protocol-help">{protocolType === 'gt06_tcp' || protocolType === 'tk103_tcp' ? 'This tracker speaks a raw TCP protocol. Connect it to a compatible GPS gateway first; the gateway decodes packets and forwards authenticated JSON to ACADAMIX.' : protocolType === 'vendor_cloud' ? 'Choose this when the GPS brand portal can send a webhook. Configure the provider to forward this device’s location with the ACADAMIX device token.' : protocolType === 'custom_gateway' ? 'Use a custom adapter or gateway to translate the vendor payload into the documented ACADAMIX JSON format.' : 'Use for devices or vendor platforms that can send HTTPS JSON with the device token in the Authorization header.'}</p>
       <button className="primary-action" type="submit" disabled={saving || !buses.some(bus => !registered.has(bus.id))}><Plus size={16}/> Register GPS device</button>
