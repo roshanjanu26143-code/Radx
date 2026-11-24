@@ -83,9 +83,9 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
         school_id: schoolId, route_id: data.id, stop_name, stop_order: index + 1,
       })))
       if (stopError) notify('Route saved, but stops could not be saved: ' + stopError.message)
-    }
+    else notify('Route and stops saved.')
+    } else notify('Route saved.') 
     setRouteName(''); setStartPoint(''); setEndPoint('School'); setStopLines('')
-    notify('Route and stops saved.')
     await load(); setSaving(false)
   }
 
@@ -136,7 +136,7 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
   return <section className="workspace-panel transport-panel">
     <div className="workspace-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>{page === 'Routes' ? 'Routes & Stops' : page === 'Buses' ? 'Bus Fleet' : 'Student Allotment'}</h2><p>{page === 'Routes' ? 'Create school routes and manage their pickup / drop stops.' : page === 'Buses' ? 'Register buses, assign drivers and cleaners, and track fleet status.' : 'Filter students by locality and assign them to a route, bus and pickup stop.'}</p></div><button className="transport-refresh" onClick={() => void load()}><RefreshCw size={15}/> Refresh</button></div>
     <div className="transport-summary">
-      <div><RouteIcon/><span>Routes</span><b>{routes.length}</b></div><div><Bus/><span>Active buses</span><b>{buses.filter(bus => bus.status === 'active').length}</b></div><div><Users/><span>Students allotted</span><b>{allotments.filter(row => row.status === 'active').length}</b></div>
+      <div><RouteIcon/><span>Routes</span><b>{routes.length}</b></div><div><Bus/><span>Active buses</span><b>{buses.filter(bus => bus.status === 'active').length}</b></div>{page === 'Allotment' && <div><Users/><span>Students allotted</span><b>{allotments.filter(row => row.status === 'active').length}</b></div>}
     </div>
 
     {page === 'Routes' && <>
