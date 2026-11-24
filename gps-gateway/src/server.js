@@ -6,6 +6,7 @@ const PORT = Number(process.env.GPS_GATEWAY_PORT || 5023);
 const HOST = process.env.GPS_GATEWAY_HOST || "0.0.0.0";
 const INGEST_URL = process.env.GPS_INGEST_URL;
 const DEVICE_TOKEN = process.env.GPS_GATEWAY_TOKEN;
+const DEVICE_TOKENS = process.env.GPS_DEVICE_TOKENS ? JSON.parse(process.env.GPS_DEVICE_TOKENS) : {};
 const PROTOCOL = (process.env.GPS_GATEWAY_PROTOCOL || "gt06").toLowerCase();
 
 if (!INGEST_URL || !DEVICE_TOKEN) {
@@ -15,16 +16,22 @@ if (PROTOCOL !== "gt06") {
   throw new Error(`Protocol "${PROTOCOL}" is not enabled. TK103 and vendor variants require a verified packet specification/adapter.`);
 }
 
-const tokenHash = createHash("sha256").update(DEVICE_TOKEN).digest();
-const safeTokenConfigured = tokenHash.length === 32;
-if (!safeTokenConfigured) throw new Error("Invalid gateway token configuration");
+if (!DEVICE_TOKEN && Object.keys(DEVICE_TOKENS).length === 0) {
+  throw new Error("Set GPS_GATEWAY_TOKEN for one tracker or GPS_DEVICE_TOKENS for multiple IMEI/token pairs");
+}
+
+function tokenForImei(imei) {
+  return DEVICE_TOKENS[imei] || DEVICE_TOKEN || null;
+}
 
 async function forwardTelemetry(imei, point) {
+  const token = tokenForImei(imei);
+  if (!token) throw new Error("No gateway token is configured for this tracker IMEI");
   const response = await fetch(INGEST_URL, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${DEVICE_TOKEN}`,
+      authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ imei, ...point }),
     signal: AbortSignal.timeout(10000),
@@ -67,6 +74,7 @@ const server = net.createServer((socket) => {
           if (!imei) throw new Error("Could not decode tracker IMEI from login packet");
           socket.write(gt06Ack(frame));
           lastAckAt = Date.now();
+          if (!tokenForImei(imei)) throw new Error("No ingest token configured for this tracker IMEI");
           console.info("GT06 tracker authenticated by IMEI mapping", imei);
         } else if (frame.protocol === 0x12) {
           if (!imei) throw new Error("Tracker must send a valid login packet before GPS data");
