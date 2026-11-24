@@ -13,6 +13,19 @@ create table if not exists public.school_teacher_attendance (
  constraint school_teacher_attendance_school_fk foreign key (school_id) references public.school_tenants(school_id) on update cascade on delete cascade,
  constraint school_teacher_attendance_person_fk foreign key (school_id,teacher_person_id) references public.school_people(school_id,person_id) on update cascade on delete restrict
 );
+do $constraints$
+begin
+ if not exists (select 1 from pg_constraint where conname='school_teacher_attendance_school_fk') then
+  alter table public.school_teacher_attendance add constraint school_teacher_attendance_school_fk
+   foreign key (school_id) references public.school_tenants(school_id) on update cascade on delete cascade;
+ end if;
+ if not exists (select 1 from pg_constraint where conname='school_teacher_attendance_person_fk') then
+  alter table public.school_teacher_attendance add constraint school_teacher_attendance_person_fk
+   foreign key (school_id,teacher_person_id) references public.school_people(school_id,person_id) on update cascade on delete restrict;
+ end if;
+end;
+$constraints$;
+
 create index if not exists school_teacher_attendance_report_idx
  on public.school_teacher_attendance (school_id,attendance_date desc,session_code);
 create index if not exists school_teacher_attendance_person_idx
