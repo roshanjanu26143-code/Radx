@@ -40,8 +40,8 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
  }
  useEffect(()=>{void load()},[schoolId,academicYear])
  useEffect(()=>{if(!sections.includes(sectionName))setSectionName(sections[0]||'')},[sections,sectionName])
- useEffect(()=>{const list=standards.find(s=>s.name===slot.standard_name)?.sections||[];if(!list.includes(slot.section_name))setSlot(current=>({...current,section_name:list[0]||''}))},[slot.standard_name,slot.section_name,standards])
- useEffect(()=>{if(!timetableSubjects.some(s=>s.id===slot.subject_id))setSlot(current=>({...current,subject_id:timetableSubjects[0]?.id||''}))},[timetableSubjects,slot.subject_id])
+ useEffect(()=>{const list=standards.find(s=>s.name===slot.standard_name)?.sections||[];const next=list[0]||'';if(!list.includes(slot.section_name)&&slot.section_name!==next)setSlot(current=>({...current,section_name:next}))},[slot.standard_name,slot.section_name,standards])
+ useEffect(()=>{const next=timetableSubjects[0]?.id||'';if(!timetableSubjects.some(s=>s.id===slot.subject_id)&&slot.subject_id!==next)setSlot(current=>({...current,subject_id:next}))},[timetableSubjects,slot.subject_id])
  const addSubject=async(e:FormEvent)=>{
   e.preventDefault()
   const name=subjectForm.subject_name.trim()
