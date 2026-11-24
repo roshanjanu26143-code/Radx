@@ -49,7 +49,7 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
 
   const latest = useMemo(() => { const map = new Map<string, PositionRow>(); positions.forEach(p => { if (!map.has(p.bus_id)) map.set(p.bus_id, p) }); return map }, [positions])
   const registered = new Set(devices.map(d => d.bus_id))
-  const signalCount = buses.filter(bus => { const p = latest.get(bus.id); return p && Date.now() - new Date(p.recorded_at).getTime() <= 300000 }).length
+  const signalCount = buses.filter(bus => { const device = devices.find(d => d.bus_id === bus.id); const p = latest.get(bus.id); return device?.status !== 'inactive' && p && Date.now() - new Date(p.recorded_at).getTime() <= 300000 }).length
 
   const createDevice = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -97,7 +97,7 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
     <div className="gps-bus-list">{buses.map(bus => {
       const device = devices.find(d => d.bus_id === bus.id)
       const position = latest.get(bus.id)
-      const fresh = Boolean(position && Date.now() - new Date(position.recorded_at).getTime() <= 300000)
+      const fresh = Boolean(device && device.status !== 'inactive' && position && Date.now() - new Date(position.recorded_at).getTime() <= 300000)
       return <article className="gps-bus-card" key={bus.id}>
         <div className="gps-bus-card-top"><div className="gps-bus-icon"><Bus size={20}/></div><div className="gps-bus-title"><b>{bus.registration_number}</b><span>{routes.find(r => r.id === bus.route_id)?.route_name || 'Route not assigned'} · {bus.capacity} seats</span></div><span className={fresh ? 'gps-signal-pill online' : 'gps-signal-pill'}>{fresh ? <><Signal size={12}/> GPS signal</> : <><WifiOff size={12}/> No live signal</>}</span></div>
         {device ? <div className="gps-device-details"><div><small>Device</small><b>{device.provider_name} · {device.device_imei}</b></div><div><small>Device status</small><b>{device.status === 'inactive' ? 'Inactive' : fresh ? 'Connected' : 'Awaiting telemetry'}</b></div><div><small>Last update</small><b>{position ? ago(position.recorded_at) : 'Never received'}</b></div></div> : <div className="gps-unregistered"><Radio size={16}/> No GPS device registered for this bus.</div>}
