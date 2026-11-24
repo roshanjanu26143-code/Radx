@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
-import { Wallet, IndianRupee, ReceiptText, Users, Plus, RefreshCw, Search, Download, Printer, CheckCircle2, AlertCircle, FileText } from 'lucide-react'
+import { IndianRupee, ReceiptText, Users, Plus, RefreshCw, Search, Download, Printer, AlertCircle, FileText } from 'lucide-react'
 
 type FeeStructure = { id:string; academic_year:string; standard_name:string; fee_name:string; amount:number; due_date:string|null; is_active:boolean; notes:string|null }
 type FeePayment = { id:string; fee_structure_id:string; student_person_id:string; academic_year:string; receipt_number:string; paid_amount:number; payment_method:string; transaction_reference:string|null; paid_on:string; notes:string|null }
@@ -54,7 +54,6 @@ export default function FeesFinance({schoolId,schoolName,page,userRole,notify}:P
  const pendingRows=useMemo(()=>activeStructures.flatMap(fee=>students.filter(student=>fee.standard_name==='All Standards'||student.details.joining_standard===fee.standard_name).map(student=>{const paid=paymentTotals.get(fee.id+'|'+student.person_id)||0;return {fee,student,paid,due:Math.max(0,Number(fee.amount)-paid)}}).filter(row=>row.due>0.009)),[activeStructures,students,paymentTotals])
  const filteredPending=pendingRows.filter(row=>(row.student.full_name+' '+row.student.person_id+' '+row.fee.fee_name+' '+row.fee.standard_name).toLowerCase().includes(search.toLowerCase()))
  const filteredPayments=payments.filter(p=>{const student=studentById.get(p.student_person_id);const fee=structureById.get(p.fee_structure_id);return (p.academic_year===year)&&(String(student?.full_name||'')+' '+p.receipt_number+' '+String(fee?.fee_name||'')).toLowerCase().includes(search.toLowerCase())})
- const visiblePayments=payments.filter(p=>p.academic_year===year)
  const saveStructure=async(event:FormEvent)=>{
   event.preventDefault();if(!form.standard_name||!form.amount||Number(form.amount)<=0){notify('Select a standard and enter a valid fee amount.');return}
   setSaving(true)
@@ -100,7 +99,7 @@ export default function FeesFinance({schoolId,schoolName,page,userRole,notify}:P
  @media(max-width:760px){.fee-module .fee-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.fee-module .fee-form-grid{grid-template-columns:1fr}.fee-module .fee-form-grid .wide{grid-column:auto}.fee-module .fee-toolbar>*{flex:1}.fee-module .fee-search{min-width:100%}}
  @media print{body *{visibility:hidden!important}.fee-module .fee-receipt,.fee-module .fee-receipt *{visibility:visible!important}.fee-module .fee-receipt{position:absolute;left:0;top:0;width:100%;border:0}.fee-module .no-print{display:none!important}}
  `}</style>
- <div className="workspace-heading"><div><span className="section-eyebrow">SCHOOL FINANCE</span><h2>{title}</h2><p>Manage fee plans, collect payments, track student balances and issue payment receipts.</p></div><button className="fee-btn secondary no-print" onClick={()=>void load()} disabled={loading}><RefreshCw size={15}/> Refresh</button></div>
+ <div className="workspace-heading"><div><span className="section-eyebrow">SCHOOL FINANCE</span><h2>{title}</h2><p>{userRole==='Cashier-Staff'?'Record collections, review dues and issue payment receipts.':'Manage fee plans, collect payments, track student balances and issue payment receipts.'}</p></div><button className="fee-btn secondary no-print" onClick={()=>void load()} disabled={loading}><RefreshCw size={15}/> Refresh</button></div>
  {error&&<div className="qr-error">{error}</div>}
  <div className="fee-stats">
   <div className="fee-stat"><span><IndianRupee size={15}/> Total collected</span><strong>{money(collected)}</strong><small>All recorded payments</small></div>
