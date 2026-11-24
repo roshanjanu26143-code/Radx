@@ -101,8 +101,7 @@ export default function MobileQRAttendance({schoolId,standards,people,notify,use
   const standard=availableStandards.find(s=>s.name===found.standard_name)
   if(!standard){setScanError('This classroom standard is no longer configured.');return}
   setScanned(standard)
-  const now=new Date().toTimeString().slice(0,5),session:SessionCode|null=now>='08:00'&&now<='10:00'?'MORNING':now>='13:00'&&now<='15:00'?'AFTERNOON':null
-  if(!session){setScanError('Attendance is closed. Allowed windows: 08:00–10:00 and 13:00–15:00.');return}
+  const now=new Date().toTimeString().slice(0,5),session:SessionCode=now<'12:00'?'MORNING':'AFTERNOON'
   setActiveSession(session);setLocation(null)
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>setLocation({lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy}),()=>setLocation(null),{enableHighAccuracy:true,timeout:8000,maximumAge:60000})
   setStep(2)
