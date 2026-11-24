@@ -62,7 +62,7 @@ type NavItem = { label: string; icon: typeof LayoutDashboard; children: string[]
 const schoolNavigation: NavItem[] = [
  {label:'Overview',icon:LayoutDashboard,children:['Dashboard']},
  {label:'Admission',icon:GraduationCap,children:['Create Student','Create Teacher','Create Staff','Create Driver & Cleaner','Students Data']},
- {label:'Academic',icon:BookOpen,children:['Standard','Attendance','Attendance Reports','Exam Schedules','Student Results','Performance']},
+ {label:'Academic',icon:BookOpen,children:['Standard','Attendance','Attendance Reports','Exam Schedules','Marks Entry','Student Results','Performance']},
  {label:'Transport',icon:Bus,children:['Routes','Buses','Allotment']},
  {label:'Peoples',icon:Users,children:['Teachers','Staff','Driver & Cleaner','Parent Book']},
  {label:'Finance',icon:Wallet,children:['Finance','Fees','Fees Structure','Pending Fees']},
@@ -76,8 +76,8 @@ type PeopleRecord={id:string;type:string;name:string;details:Record<string,strin
 type PeopleIdSettings={studentPrefix:string;teacherPrefix:string;staffPrefix:string;driverPrefix:string;studentNext:number;teacherNext:number;staffNext:number;driverNext:number}
 const rolePageDefaults:Record<string,string[]> = {
  'Cashier-Staff':['Finance','Fees','Fees Structure','Students Data','Pending Fees'],
- 'Academic Director':['Exam Schedules','Attendance','Student Results','Performance'],
- 'Teacher':['Attendance','Attendance Reports'],
+ 'Academic Director':['Exam Schedules','Marks Entry','Attendance','Student Results','Performance'],
+ 'Teacher':['Attendance','Attendance Reports','Marks Entry'],
 }
 const rolePageOptions = schoolNavigation.flatMap(group=>group.children
  .filter(child=>!(group.label==='Settings'&&(child==='Role Users'||child==='Audit Log')))
