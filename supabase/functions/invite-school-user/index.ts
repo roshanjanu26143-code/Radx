@@ -52,18 +52,38 @@ Deno.serve(async (req: Request) => {
   if (schoolError) return json({ error: "Could not verify the school." }, 500);
   if (!school || school.admin_user_id !== caller.id) return json({ error: "Only this school's Admin can invite role users." }, 403);
 
-  const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { invited_school_id: schoolId, invited_role: role },
-  });
-  if (inviteError || !invitation.user) return json({ error: inviteError?.message || "Invitation could not be sent." }, 400);
+  const initialPassword = typeof body?.initial_password === "string" ? body.initial_password : "";
+  if (role === "Teacher" && (initialPassword.length < 8 || initialPassword.length > 72)) {
+    return json({ error: "For a Teacher account, the Admin must enter an initial password of 8 to 72 characters." }, 400);
+  }
+
+  let accountUser: { id: string } | null = null;
+  let invited = false;
+  if (role === "Teacher") {
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
+      email,
+      password: initialPassword,
+      email_confirm: true,
+      user_metadata: { invited_school_id: schoolId, invited_role: role },
+    });
+    if (createError || !created.user) return json({ error: createError?.message || "Teacher account could not be created." }, 400);
+    accountUser = created.user;
+  } else {
+    const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { invited_school_id: schoolId, invited_role: role },
+    });
+    if (inviteError || !invitation.user) return json({ error: inviteError?.message || "Invitation could not be sent." }, 400);
+    accountUser = invitation.user;
+    invited = true;
+  }
 
   const { error: roleError } = await admin.from("school_user_roles").insert({
-    school_id: schoolId, user_id: invitation.user.id, email, role,
+    school_id: schoolId, user_id: accountUser.id, email, role,
     allowed_pages: pages, status: "active", created_by: caller.id, created_by_email: caller.email ?? null,
   });
   if (roleError) {
-    await admin.auth.admin.deleteUser(invitation.user.id);
+    await admin.auth.admin.deleteUser(accountUser.id);
     return json({ error: roleError.message }, 400);
   }
-  return json({ success: true, invited: true, email, role, allowed_pages: pages });
+  return json({ success: true, invited, email, role, allowed_pages: pages, password_set_by_admin: role === "Teacher" });
 });
