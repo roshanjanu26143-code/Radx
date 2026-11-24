@@ -13,6 +13,7 @@ type QrRow = { standard_name: string; qr_token: string; is_active: boolean }
 type AttendanceSession = { id: string; attendance_date: string; session_code: SessionCode; standard_name: string; section_name: string }
 type TeacherAssignment={standard_name:string;section_name:string;subject_name:string|null}
 const localDate = () => { const d=new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-') }
+const classroomQrUrl = (token:string) => window.location.origin + '/qr-attendance?token=' + encodeURIComponent(token)
 const queueKey = (schoolId:string) => 'acadamix-attendance-queue-'+schoolId
 const readQueue = (schoolId:string):QueueItem[] => { try{return JSON.parse(localStorage.getItem(queueKey(schoolId))||'[]') as QueueItem[]}catch{return []} }
 
@@ -146,7 +147,7 @@ export default function MobileQRAttendance({schoolId,standards,people,notify,use
 
  if(userRole!=='Teacher') return <section className="workspace-panel">
   <div className="workspace-heading"><div><span className="section-eyebrow">CLASSROOM QR MANAGEMENT</span><h2>Permanent classroom QR codes</h2><p>Only registered Teachers can scan these codes and submit attendance. Admin access is limited to viewing and printing the classroom codes.</p></div></div>
-  {dataLoading?<div className="empty-module">Loading classroom QR codes…</div>:dataError?<div className="qr-error">{dataError}</div>:qrRows.length===0?<div className="empty-module">No active classroom QR codes are available.</div>:<div className="qr-token-grid">{qrRows.map(r=><div className="qr-token-card" key={r.standard_name}><b>{r.standard_name}</b><QRCodeSVG value={r.qr_token} size={144} level="M" includeMargin/><code>{r.qr_token}</code><div><button type="button" onClick={()=>void copyToken(r.qr_token)}><Copy size={12}/> Copy token</button></div></div>)}</div>}
+  {dataLoading?<div className="empty-module">Loading classroom QR codes…</div>:dataError?<div className="qr-error">{dataError}</div>:qrRows.length===0?<div className="empty-module">No active classroom QR codes are available.</div>:<div className="qr-token-grid">{qrRows.map(r=><div className="qr-token-card" key={r.standard_name}><b>{r.standard_name}</b><QRCodeSVG value={classroomQrUrl(r.qr_token)} size={144} level="M" includeMargin/><code>{r.qr_token}</code><div><button type="button" onClick={()=>void copyToken(r.qr_token)}><Copy size={12}/> Copy token</button></div></div>)}</div>}
   <div className="qr-security-row"><span><ShieldCheck size={14}/> Attendance submission is teacher-only</span><span><Users size={14}/> Class allotment required</span></div>
  </section>
  return <div className="qr-attendance">
