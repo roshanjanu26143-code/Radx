@@ -34,15 +34,24 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
  const assignedTeachers=useMemo(()=>teachers.filter(t=>teacherAssignments.some(a=>a.teacher_person_id===t.id&&a.standard_name===slot.standard_name&&a.section_name===slot.section_name&&(!a.subject_name||a.subject_name===activeSubjects.find(s=>s.id===slot.subject_id)?.subject_name))),[teachers,teacherAssignments,slot.standard_name,slot.section_name,slot.subject_id,activeSubjects])
  const load=async()=>{
   setLoading(true);setError('')
-  const [subjectResult,timetableResult,assignmentResult]=await Promise.all([
-   supabase.from('school_academic_subjects').select('id,academic_year,standard_name,subject_code,subject_name,subject_type,is_active').eq('school_id',schoolId).eq('academic_year',academicYear).order('standard_name').order('subject_name'),
-   supabase.from('school_academic_timetable').select('id,academic_year,standard_name,section_name,day_of_week,period_number,start_time,end_time,subject_id,teacher_person_id,room_label').eq('school_id',schoolId).eq('academic_year',academicYear).order('day_of_week').order('period_number'),
-   supabase.from('school_teacher_class_assignments').select('teacher_person_id,standard_name,section_name,subject_name,is_active').eq('school_id',schoolId).eq('is_active',true)
-  ])
-  if(subjectResult.error||timetableResult.error||assignmentResult.error){setError(subjectResult.error?.message||timetableResult.error?.message||assignmentResult.error?.message||'Could not load academic data.');setLoading(false);return}
-  const rows=(subjectResult.data||[]) as Subject[]
-  setSubjects(rows);setTeacherAssignments((assignmentResult.data||[]) as TeacherAssignment[])
-  setTimetable((timetableResult.data||[]).map((row:any)=>({...row,subject:rows.find(s=>s.id===row.subject_id)})) as TimetableRow[])
+  const {data:subjectData,error:subjectError}=await supabase.from('school_academic_subjects')
+   .select('id,academic_year,standard_name,subject_code,subject_name,subject_type,is_active')
+   .eq('school_id',schoolId).eq('academic_year',academicYear).order('standard_name').order('subject_name')
+  if(subjectError){setError(subjectError.message);setLoading(false);return}
+  const rows=(subjectData||[]) as Subject[]
+  setSubjects(rows)
+  if(page==='Timetable'){
+   const [timetableResult,assignmentResult]=await Promise.all([
+    supabase.from('school_academic_timetable').select('id,academic_year,standard_name,section_name,day_of_week,period_number,start_time,end_time,subject_id,teacher_person_id,room_label').eq('school_id',schoolId).eq('academic_year',academicYear).order('day_of_week').order('period_number'),
+    supabase.from('school_teacher_class_assignments').select('teacher_person_id,standard_name,section_name,subject_name,is_active').eq('school_id',schoolId).eq('is_active',true)
+   ])
+   if(timetableResult.error||assignmentResult.error){setError(timetableResult.error?.message||assignmentResult.error?.message||'Could not load timetable data.');setLoading(false);return}
+   setTeacherAssignments((assignmentResult.data||[]) as TeacherAssignment[])
+   setTimetable((timetableResult.data||[]).map((row:any)=>({...row,subject:rows.find(s=>s.id===row.subject_id)})) as TimetableRow[])
+  }else{
+   setTeacherAssignments([])
+   setTimetable([])
+  }
   setLoading(false)
  }
  useEffect(()=>{void load()},[schoolId,academicYear])
