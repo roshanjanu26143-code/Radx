@@ -19,7 +19,7 @@ using (record_type='Teacher' and exists (select 1 from public.school_user_roles 
 
 create policy "Academic users read students for results"
 on public.school_people for select to authenticated
-using (record_type='Student' and exists (select 1 from public.school_user_roles r where r.school_id=school_people.school_id and r.user_id=(select auth.uid()) and r.status='active' and ((r.role<>'Teacher' and r.allowed_pages && array['Standard','Student Results','Performance']::text[]) or (r.role='Teacher' and r.allowed_pages && array['Student Results','Performance']::text[] and exists (select 1 from public.school_teacher_class_assignments a where a.school_id=r.school_id and a.teacher_person_id=r.person_id and a.is_active and a.standard_name=school_people.details->>'joining_standard' and a.section_name=coalesce(school_people.details->>'section',''))))));
+using (record_type='Student' and exists (select 1 from public.school_user_roles r where r.school_id=school_people.school_id and r.user_id=(select auth.uid()) and r.status='active' and ((r.role<>'Teacher' and r.allowed_pages && array['Standard','Exam Schedules','Marks Entry','Student Results','Performance']::text[]) or (r.role='Teacher' and r.allowed_pages && array['Student Results','Performance']::text[] and exists (select 1 from public.school_teacher_class_assignments a where a.school_id=r.school_id and a.teacher_person_id=r.person_id and a.is_active and a.standard_name=school_people.details->>'joining_standard' and a.section_name=coalesce(school_people.details->>'section',''))))));
 
 create or replace function private.enforce_school_timetable_rules()
 returns trigger language plpgsql security definer set search_path=''
