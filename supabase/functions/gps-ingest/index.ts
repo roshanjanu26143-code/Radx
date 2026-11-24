@@ -33,6 +33,7 @@ function readPath(input: unknown, path: unknown): unknown {
   if (typeof path !== "string" || !path.trim()) return undefined;
   return path.split(".").reduce<unknown>((value, key) => value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined, input);
 }
+function configSpeedUnit(mapping: Record<string, unknown>) { return mapping.speed_unit; }
 function normalizePoint(input: unknown, mapping: Record<string, unknown> = {}) {
   const data = flatten(input);
   const mapped = (field: string, aliases: string[]) => readPath(input, mapping[field]) ?? pick(data, aliases);
@@ -41,13 +42,13 @@ function normalizePoint(input: unknown, mapping: Record<string, unknown> = {}) {
   const longitude = Number(mapped("longitude", ["longitude", "lng", "lon", "long", "gps_lng", "gpsLongitude", "lon_x"]));
   const rawSpeed = mapped("speed", ["speed_kph", "speedKph", "speed", "velocity"]);
   let speed = rawSpeed === undefined ? null : Number(rawSpeed);
-  const unit = String(pick(data, ["speed_unit", "speedUnit", "unit"]) ?? "kph").toLowerCase();
+  const unit = String(readPath(input, mapping.speed_unit) ?? configSpeedUnit(mapping) ?? pick(data, ["speed_unit", "speedUnit", "unit"]) ?? "kph").toLowerCase();
   if (speed !== null && Number.isFinite(speed)) {
     if (unit === "mph" || unit === "mi/h") speed *= 1.609344;
     else if (unit === "knots" || unit === "knot" || unit === "kn") speed *= 1.852;
     else if (unit === "m/s" || unit === "mps") speed *= 3.6;
   }
-  const rawHeading = pick(data, ["heading", "course", "direction", "angle"]);
+  const rawHeading = readPath(input, mapping.heading) ?? pick(data, ["heading", "course", "direction", "angle"]);
   const heading = rawHeading === undefined ? null : Math.round(Number(rawHeading));
   const rawTime = mapped("timestamp", ["recorded_at", "recordedAt", "timestamp", "gps_time", "gpsTime", "device_time", "datetime", "time"]);
   let recordedAt = new Date().toISOString();
