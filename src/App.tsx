@@ -65,7 +65,7 @@ const schoolNavigation: NavItem[] = [
  {label:'Overview',icon:LayoutDashboard,children:['Dashboard']},
  {label:'Admission',icon:GraduationCap,children:['Create Student','Create Teacher','Create Staff','Create Driver & Cleaner','Students Data']},
  {label:'Academic',icon:BookOpen,children:['Standard','Subjects','Timetable','Attendance','Attendance Reports','Exam Schedules','Marks Entry','Student Results','Performance']},
- {label:'Transport',icon:Bus,children:['Routes','Buses','Allotment']},
+ {label:'Transport',icon:Bus,children:['Live tracking','Routes','Students','Buses']},
  {label:'Peoples',icon:Users,children:['Teachers','Staff','Driver & Cleaner','Parent Book']},
  {label:'Finance',icon:Wallet,children:['Finance','Fees','Fees Structure','Pending Fees']},
  {label:'Connectors',icon:Activity,children:['OpenCV','GPS - Bus']},
