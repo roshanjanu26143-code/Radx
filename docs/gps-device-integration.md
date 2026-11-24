@@ -28,7 +28,7 @@ Send the per-device one-time token as `Authorization: Bearer DEVICE_TOKEN`. The 
 }
 ```
 
-The receiver also recognizes common vendor aliases such as `device_imei`, `device_id`, `lat`, `lng`, `lon`, `speed`, `course`, `direction`, `gps_time`, and `timestamp`. Nested JSON objects and batches of up to 100 points for one device are accepted. Speed units can be supplied as `speed_unit` with `mph`, `knots`, or `m/s`; otherwise speed is treated as km/h. Form-encoded payloads are also accepted.
+The receiver also recognizes common vendor aliases such as `device_imei`, `device_id`, `lat`, `lng`, `lon`, `speed`, `course`, `direction`, `gps_time`, and `timestamp`. Nested JSON objects and batches of up to 100 points for one device are accepted. During device registration, configure custom nested field paths for IMEI, latitude, longitude, speed, heading/course and timestamp. Choose the device speed unit (km/h, mph, knots, or m/s); the ingestion function converts it to km/h. Form-encoded payloads are also accepted.
 
 ## Protocol boundaries
 
