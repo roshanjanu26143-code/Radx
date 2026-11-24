@@ -1,0 +1,4 @@
+alter table public.school_transport_buses drop constraint if exists school_transport_buses_school_id_driver_person_id_fkey;
+alter table public.school_transport_buses drop constraint if exists school_transport_buses_school_id_cleaner_person_id_fkey;
+alter table public.school_transport_buses add constraint school_transport_buses_driver_person_fk foreign key (school_id,driver_person_id) references public.school_people(school_id,person_id) on delete restrict;
+alter table public.school_transport_buses add constraint school_transport_buses_cleaner_person_fk foreign key (school_id,cleaner_person_id) references public.school_people(school_id,person_id) on delete restrict;
