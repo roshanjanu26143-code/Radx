@@ -13,7 +13,8 @@ type QrRow = { standard_name: string; qr_token: string; is_active: boolean }
 type AttendanceSession = { id: string; attendance_date: string; session_code: SessionCode; standard_name: string; section_name: string }
 type TeacherAssignment={standard_name:string;section_name:string;subject_name:string|null}
 const localDate = () => { const d=new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-') }
-const classroomQrUrl = (token:string) => window.location.origin + '/qr-attendance?token=' + encodeURIComponent(token)
+const PUBLIC_ATTENDANCE_ORIGIN = 'https://radx-os.vercel.app'
+const classroomQrUrl = (token:string) => PUBLIC_ATTENDANCE_ORIGIN + '/qr-attendance?token=' + encodeURIComponent(token)
 const queueKey = (schoolId:string) => 'acadamix-attendance-queue-'+schoolId
 const readQueue = (schoolId:string):QueueItem[] => { try{return JSON.parse(localStorage.getItem(queueKey(schoolId))||'[]') as QueueItem[]}catch{return []} }
 
