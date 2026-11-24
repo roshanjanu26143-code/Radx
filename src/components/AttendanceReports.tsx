@@ -68,8 +68,8 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
 
  useEffect(() => { void load() }, [schoolId, month])
 
- const standards = useMemo(() => ['All', ...new Set(sessions.map(row => row.standard_name))], [sessions])
- const sections = useMemo(() => ['All', ...new Set(sessions.filter(row => standard === 'All' || row.standard_name === standard).map(row => row.section_name))], [sessions, standard])
+ const standards = useMemo(() => ['All', ...new Set([...sessions.map(row => row.standard_name), ...teacherAttendance.map(row => row.checked_in_for_standard)])], [sessions, teacherAttendance])
+ const sections = useMemo(() => ['All', ...new Set([...sessions.filter(row => standard === 'All' || row.standard_name === standard).map(row => row.section_name), ...teacherAttendance.filter(row => standard === 'All' || row.checked_in_for_standard === standard).map(row => row.checked_in_for_section)])], [sessions, teacherAttendance, standard])
  const filteredSessions = useMemo(() => sessions.filter(row => (standard === 'All' || row.standard_name === standard) && (section === 'All' || row.section_name === section)), [sessions, standard, section])
  const filteredTeacherAttendance = useMemo(() => teacherAttendance.filter(row => (standard === 'All' || row.checked_in_for_standard === standard) && (section === 'All' || row.checked_in_for_section === section)), [teacherAttendance, standard, section])
  const filteredIds = useMemo(() => new Set(filteredSessions.map(row => row.id)), [filteredSessions])
