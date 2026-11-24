@@ -146,9 +146,9 @@ export default function MobileQRAttendance({schoolId,standards,people,notify,use
  const stepNames=['Scan QR','Verify teacher','Mark attendance','Complete']
 
  if(userRole!=='Teacher') return <section className="workspace-panel">
-  <div className="workspace-heading"><div><span className="section-eyebrow">CLASSROOM QR MANAGEMENT</span><h2>Permanent classroom QR codes</h2><p>Only registered Teachers can scan these codes and submit attendance. Admin access is limited to viewing and printing the classroom codes.</p></div></div>
+  <div className="workspace-heading"><div><span className="section-eyebrow">CLASSROOM QR MANAGEMENT</span><h2>Permanent classroom QR codes</h2><p>Teachers scan the printed code using their phone camera, then enter their school-issued Teacher ID and attendance password. No RADX app login is required.</p></div></div>
   {dataLoading?<div className="empty-module">Loading classroom QR codes…</div>:dataError?<div className="qr-error">{dataError}</div>:qrRows.length===0?<div className="empty-module">No active classroom QR codes are available.</div>:<div className="qr-token-grid">{qrRows.map(r=><div className="qr-token-card" key={r.standard_name}><b>{r.standard_name}</b><QRCodeSVG value={classroomQrUrl(r.qr_token)} size={144} level="M" includeMargin/><code>{r.qr_token}</code><div><button type="button" onClick={()=>void copyToken(r.qr_token)}><Copy size={12}/> Copy attendance link</button></div></div>)}</div>}
-  <div className="qr-security-row"><span><ShieldCheck size={14}/> Attendance submission is teacher-only</span><span><Users size={14}/> Class allotment required</span></div>
+  <div className="qr-security-row"><span><ShieldCheck size={14}/> Teacher ID + attendance password required</span><span><Users size={14}/> Class allotment required</span></div>
  </section>
  return <div className="qr-attendance">
   <div className="qr-attendance-head"><div><span className="section-eyebrow">SCHOOL ATTENDANCE · LIVE DATABASE</span><h2>QR Attendance</h2><p>Scan the school classroom QR, verify a registered teacher and submit the student register.</p></div><div className={'qr-network '+(online?'is-online':'is-offline')}>{online?<Wifi size={15}/>:<WifiOff size={15}/>} {online?'Online':'Offline'}</div></div>
