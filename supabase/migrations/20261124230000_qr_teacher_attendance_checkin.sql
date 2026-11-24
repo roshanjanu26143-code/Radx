@@ -15,26 +15,29 @@ create table if not exists public.school_teacher_attendance (
 );
 create index if not exists school_teacher_attendance_report_idx
  on public.school_teacher_attendance (school_id,attendance_date desc,session_code);
+create index if not exists school_teacher_attendance_person_idx
+ on public.school_teacher_attendance (school_id,teacher_person_id);
 
 alter table public.school_teacher_attendance enable row level security;
 grant select, insert on public.school_teacher_attendance to authenticated;
 drop policy if exists "Teachers read own attendance checkins" on public.school_teacher_attendance;
-create policy "Teachers read own attendance checkins"
- on public.school_teacher_attendance for select to authenticated
- using (exists (
-  select 1 from public.school_user_roles r
-  where r.school_id=school_teacher_attendance.school_id
-   and r.user_id=(select auth.uid()) and r.person_id=school_teacher_attendance.teacher_person_id
-   and r.role='Teacher' and r.status='active'
- ));
 drop policy if exists "School admins read teacher attendance checkins" on public.school_teacher_attendance;
-create policy "School admins read teacher attendance checkins"
+drop policy if exists "Teachers and admins read teacher attendance checkins" on public.school_teacher_attendance;
+create policy "Teachers and admins read teacher attendance checkins"
  on public.school_teacher_attendance for select to authenticated
- using (exists (
-  select 1 from public.school_tenants t
-  where t.school_id=school_teacher_attendance.school_id
-   and t.admin_user_id=(select auth.uid())
- ));
+ using (
+  exists (
+   select 1 from public.school_user_roles r
+   where r.school_id=school_teacher_attendance.school_id
+    and r.user_id=(select auth.uid()) and r.person_id=school_teacher_attendance.teacher_person_id
+    and r.role='Teacher' and r.status='active'
+  )
+  or exists (
+   select 1 from public.school_tenants t
+   where t.school_id=school_teacher_attendance.school_id
+    and t.admin_user_id=(select auth.uid())
+  )
+ );
 drop policy if exists "Assigned teachers check in once per session" on public.school_teacher_attendance;
 create policy "Assigned teachers check in once per session"
  on public.school_teacher_attendance for insert to authenticated
