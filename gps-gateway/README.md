@@ -34,7 +34,7 @@ Use a VPS/container host with inbound TCP support, firewall the port to the devi
 
 ## Device identity and tenancy
 
-The tracker login packet supplies its IMEI. Supabase resolves that IMEI against the registered device and validates the bearer token. The gateway token must be the same one-time token shown when the device is registered in the AcadAMIX GPS device screen. This means the token and registered IMEI must belong to the same school device record.
+The tracker login packet supplies its IMEI. Supabase resolves that IMEI against the registered device and validates the bearer token. The gateway token must be the same one-time token shown when the device is registered in the AcadAMIX GPS device screen. For one tracker, set `GPS_GATEWAY_TOKEN`. For multiple trackers/schools, set `GPS_DEVICE_TOKENS` to a JSON object mapping each registered IMEI to its own token. The token and IMEI must belong to the same school device record. Keep this mapping in the host's secret manager; do not commit real tokens to Git.
 
 ## Packet caveats
 
