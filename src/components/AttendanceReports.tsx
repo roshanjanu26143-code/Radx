@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Download, RefreshCw, Users, UserCheck, UserX, Percent, ChevronDown } from 'lucide-react'
+import { CalendarDays, Download, RefreshCw, Users, UserCheck, Percent } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 type AttendanceSession = {
@@ -18,7 +18,8 @@ type ReportRow = AttendanceMark & { student_name: string; roll_number: string }
 const monthStart = (value: string) => value + '-01'
 const monthEnd = (value: string) => {
  const [year, month] = value.split('-').map(Number)
- return new Date(year, month, 0).toISOString().slice(0, 10)
+ const lastDay = new Date(year, month, 0).getDate()
+ return year + '-' + String(month).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0')
 }
 const csvCell = (value: unknown) => '"' + String(value ?? '').replace(/"/g, '""') + '"'
 
@@ -123,7 +124,7 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
    .attendance-report .report-detail h3{margin:0 0 12px;color:#1c3829}
    @media(max-width:760px){.attendance-report .report-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.attendance-report .report-actions{margin-left:0}}
   `}</style>
-  <div className="workspace-heading"><div><span className="section-eyebrow">ATTENDANCE ANALYTICS</span><h2>Attendance reports</h2><p>Review recorded sessions, monthly attendance and student-level present / absent details. Access is limited by your school role.</p></div></div>
+  <div className="workspace-heading"><div><span className="section-eyebrow">ATTENDANCE ANALYTICS</span><h2>Attendance reports</h2><p>{userRole === 'Teacher' ? 'Review attendance for your assigned classes.' : 'Review school-wide attendance sessions and student-level present / absent details.'} Monthly totals update from saved attendance records.</p></div></div>
   <div className="report-toolbar">
    <label>Month<input type="month" value={month} onChange={event => setMonth(event.target.value)}/></label>
    <label>Standard<select value={standard} onChange={event => { setStandard(event.target.value); setSection('All') }}>{standards.map(value => <option key={value}>{value}</option>)}</select></label>
