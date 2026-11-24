@@ -45,7 +45,6 @@ const server = net.createServer((socket) => {
   socket.setTimeout(120000);
   let pending = Buffer.alloc(0);
   let imei = null;
-  let lastAckAt = 0;
   const peer = `${socket.remoteAddress}:${socket.remotePort}`;
   console.info("GPS device connected", peer);
 
@@ -72,17 +71,13 @@ const server = net.createServer((socket) => {
           imei = decodeGt06Imei(frame.payload);
           if (!imei) throw new Error("Could not decode tracker IMEI from login packet");
           socket.write(gt06Ack(frame));
-          lastAckAt = Date.now();
           if (!tokenForImei(imei)) throw new Error("No ingest token configured for this tracker IMEI");
           console.info("GT06 tracker authenticated by IMEI mapping", imei);
         } else if (frame.protocol === 0x12) {
           if (!imei) throw new Error("Tracker must send a valid login packet before GPS data");
           const point = decodeGt06Location(frame.payload);
           await forwardTelemetry(imei, point);
-          if (Date.now() - lastAckAt > 1000) {
-            socket.write(gt06Ack(frame));
-            lastAckAt = Date.now();
-          }
+          socket.write(gt06Ack(frame));
           console.info("GPS point forwarded", { imei, latitude: point.latitude, longitude: point.longitude });
         } else {
           // Preserve TCP session but do not claim support for unimplemented packet types.
