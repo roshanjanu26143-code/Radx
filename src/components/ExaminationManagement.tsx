@@ -6,13 +6,13 @@ type Standard={name:string;sections:string[]}
 type Exam={id:string;academic_year:string;exam_name:string;standard_name:string;section_name:string;subject_name:string;exam_date:string;start_time:string|null;end_time:string|null;max_marks:number;pass_marks:number;instructions:string|null;is_published:boolean}
 type Student={person_id:string;full_name:string;details:Record<string,any>}
 type Mark={id:string;exam_schedule_id:string;student_person_id:string;marks_obtained:number;remarks:string|null}
-type Props={schoolId:string;schoolName:string;academicYear:string;standards:Standard[];page:string;userRole:string;notify:(message:string)=>void}
+type Props={schoolId:string;schoolName:string;academicYear:string;standards:Standard[];page:string;userRole:string;allowedPages:string[];notify:(message:string)=>void}
 const yearNow=()=>{const d=new Date(),y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;return y+'-'+String(y+1).slice(-2)}
 const dateNow=()=>new Date().toISOString().slice(0,10)
 const grade=(pct:number)=>pct>=90?'A1':pct>=80?'A2':pct>=70?'B1':pct>=60?'B2':pct>=50?'C1':pct>=40?'C2':pct>=35?'D':'E'
 const pct=(got:number,max:number)=>max?got/max*100:0
 
-export default function ExaminationManagement({schoolId,schoolName,academicYear,standards,page,userRole,notify}:Props){
+export default function ExaminationManagement({schoolId,schoolName,academicYear,standards,page,userRole,allowedPages,notify}:Props){
  const [exams,setExams]=useState<Exam[]>([])
  const [students,setStudents]=useState<Student[]>([])
  const [marks,setMarks]=useState<Mark[]>([])
@@ -26,6 +26,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  const [reportCardStudentId,setReportCardStudentId]=useState('')
  const [form,setForm]=useState({academic_year:academicYear||yearNow(),exam_name:'Quarterly Examination',standard_name:'',section_name:'',subject_name:'',exam_date:dateNow(),start_time:'',end_time:'',max_marks:'100',pass_marks:'35',instructions:''})
  const [markDraft,setMarkDraft]=useState<Record<string,{marks:string;remarks:string}>>({})
+ const canEnterMarks=userRole==='Admin'||allowedPages.includes('Marks Entry')
 
  const load=async()=>{
   setLoading(true);setError('')
@@ -74,24 +75,25 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  }
  const saveMarks=async()=>{
   if(!exam){notify('Select an examination first.');return}
-  const user=await supabase.auth.getUser();if(!user.data.user){notify('Session expired. Sign in again.');return}
+  if(exam.is_published){notify('This exam is published. Unpublish it before changing marks.');return}
   const entries=examStudents.map(student=>({student,mark:markDraft[student.person_id]})).filter(x=>x.mark&&x.mark.marks.trim()!=='')
   if(!entries.length){notify('Enter marks for at least one student.');return}
   for(const x of entries){const n=Number(x.mark!.marks);if(!Number.isFinite(n)||n<0||n>Number(exam.max_marks)){notify('Marks must be between 0 and '+exam.max_marks+'.');return}}
+  const payload=entries.map(x=>({student_person_id:x.student.person_id,marks_obtained:Number(x.mark!.marks),remarks:x.mark!.remarks.trim()||null}))
   setSaving(true)
-  for(const x of entries){
-   const existing=markByStudent.get(x.student.person_id)
-   const payload={marks_obtained:Number(x.mark!.marks),remarks:x.mark!.remarks.trim()||null,updated_at:new Date().toISOString()}
-   const response=existing
-    ?await supabase.from('school_exam_marks').update(payload).eq('school_id',schoolId).eq('id',existing.id)
-    :await supabase.from('school_exam_marks').insert({school_id:schoolId,exam_schedule_id:exam.id,student_person_id:x.student.person_id,...payload,entered_by:user.data.user.id})
-   if(response.error){setSaving(false);notify('Marks saved only partially. '+response.error.message);await load();return}
-  }
-  setSaving(false);setMarkDraft({});notify('Marks saved successfully.');await load()
+  const {error}=await supabase.rpc('save_school_exam_marks',{p_school_id:schoolId,p_exam_schedule_id:exam.id,p_marks:payload})
+  setSaving(false)
+  if(error){notify('Marks were not saved: '+error.message);return}
+  setMarkDraft({});notify('All entered marks were saved in one transaction.');await load()
  }
  const togglePublish=async(e:Exam)=>{
+  if(!e.is_published){
+   const expected=students.filter(s=>s.details.joining_standard===e.standard_name&&(s.details.section||'')===e.section_name).length
+   const entered=marks.filter(m=>m.exam_schedule_id===e.id).length
+   if(!expected||entered<expected){notify('Enter marks for every student in this class before publishing this subject result.');return}
+  }
   const {error}=await supabase.from('school_exam_schedules').update({is_published:!e.is_published,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('id',e.id)
-  if(error){notify('Could not update publication status: '+error.message);return}notify(e.is_published?'Exam result unpublished.':'Exam schedule published.');await load()
+  if(error){notify('Could not update publication status: '+error.message);return}notify(e.is_published?'Exam result unpublished.':'Exam schedule published and marks locked.');await load()
  }
  const deleteExam=async(e:Exam)=>{
   if(!window.confirm('Delete '+e.exam_name+' - '+e.subject_name+' schedule? Existing marks for this schedule will also be deleted.'))return
@@ -129,8 +131,8 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    <label>End time<input type="time" value={form.end_time} onChange={e=>setForm({...form,end_time:e.target.value})}/></label>
    <label className="wide">Instructions<input value={form.instructions} onChange={e=>setForm({...form,instructions:e.target.value})} placeholder="Optional instructions"/></label>
   </div><div style={{marginTop:14}}><button className="ex-btn" disabled={saving||loading}>{saving?'Saving…':'Save exam schedule'}</button></div></form></div>}
-  <div className="ex-panel"><h3>Exam timetable</h3><div className="ex-table"><table><thead><tr><th>Date</th><th>Exam</th><th>Class / Section</th><th>Subject</th><th>Time</th><th>Marks</th><th>Status</th><th>Actions</th></tr></thead><tbody>{loading?<tr><td colSpan={8} className="empty">Loading…</td></tr>:exams.length?exams.map(e=><tr key={e.id}><td>{e.exam_date}</td><td><b>{e.exam_name}</b><br/><small>{e.academic_year}</small></td><td>{e.standard_name} · {e.section_name}</td><td>{e.subject_name}</td><td>{e.start_time?.slice(0,5)||'—'}{e.end_time?' – '+e.end_time.slice(0,5):''}</td><td>{e.max_marks} / pass {e.pass_marks}</td><td className={e.is_published?'good':'muted'}>{e.is_published?'Published':'Draft'}</td><td><div className="ex-actions"><button className="ex-btn secondary" onClick={()=>{setSelectedExam(e.id);setMarkDraft({})}}>Marks</button>{userRole==='Admin'&&<><button className="ex-btn secondary" onClick={()=>void togglePublish(e)}>{e.is_published?'Unpublish':'Publish'}</button><button className="ex-btn secondary" onClick={()=>void deleteExam(e)} aria-label="Delete exam"><Trash2 size={14}/></button></>}</div></td></tr>):<tr><td colSpan={8} className="empty">No exams scheduled yet.</td></tr>}</tbody></table></div></div>
-  <div className="ex-panel"><h3><ClipboardList size={17}/> Marks entry</h3><div className="ex-toolbar"><label>Choose exam<select value={selectedExam} onChange={e=>{setSelectedExam(e.target.value);setMarkDraft({})}}><option value="">Select exam</option>{exams.map(e=><option key={e.id} value={e.id}>{e.exam_name} · {e.standard_name}-{e.section_name} · {e.subject_name}</option>)}</select></label><span className="muted">Maximum: {exam?.max_marks??'—'} marks</span></div><div className="ex-table"><table><thead><tr><th>Admission no.</th><th>Student</th><th>Marks / {exam?.max_marks??'—'}</th><th>Remarks</th><th>Saved</th></tr></thead><tbody>{!exam?<tr><td colSpan={5} className="empty">Select an exam to enter marks.</td></tr>:examStudents.length?examStudents.map(student=>{const saved=markByStudent.get(student.person_id),draft=markDraft[student.person_id];return <tr key={student.person_id}><td>{student.person_id}</td><td>{student.full_name}</td><td><input type="number" min="0" max={exam.max_marks} step="0.5" value={draft?.marks??(saved?String(saved.marks_obtained):'')} onChange={e=>setMarkDraft(cur=>({...cur,[student.person_id]:{marks:e.target.value,remarks:draft?.remarks??saved?.remarks??''}}))}/></td><td><input value={draft?.remarks??saved?.remarks??''} placeholder="Optional" onChange={e=>setMarkDraft(cur=>({...cur,[student.person_id]:{marks:draft?.marks??(saved?String(saved.marks_obtained):''),remarks:e.target.value}}))}/></td><td className={saved?'good':'muted'}>{saved?'Saved':'Not entered'}</td></tr>}):<tr><td colSpan={5} className="empty">No students found in {exam.standard_name} · {exam.section_name}. Check student joining standard and section.</td></tr>}</tbody></table></div><div style={{marginTop:14}}><button className="ex-btn" onClick={()=>void saveMarks()} disabled={saving||!exam||!examStudents.length}><Save size={15}/>{saving?'Saving marks…':'Save marks'}</button></div></div>
+  <div className="ex-panel"><h3>Exam timetable</h3><div className="ex-table"><table><thead><tr><th>Date</th><th>Exam</th><th>Class / Section</th><th>Subject</th><th>Time</th><th>Marks</th><th>Status</th><th>Actions</th></tr></thead><tbody>{loading?<tr><td colSpan={8} className="empty">Loading…</td></tr>:exams.length?exams.map(e=><tr key={e.id}><td>{e.exam_date}</td><td><b>{e.exam_name}</b><br/><small>{e.academic_year}</small></td><td>{e.standard_name} · {e.section_name}</td><td>{e.subject_name}</td><td>{e.start_time?.slice(0,5)||'—'}{e.end_time?' – '+e.end_time.slice(0,5):''}</td><td>{e.max_marks} / pass {e.pass_marks}</td><td className={e.is_published?'good':'muted'}>{e.is_published?'Published':'Draft'}</td><td><div className="ex-actions">{canEnterMarks&&<button className="ex-btn secondary" onClick={()=>{setSelectedExam(e.id);setMarkDraft({})}}>Marks</button>}{userRole==='Admin'&&<><button className="ex-btn secondary" onClick={()=>void togglePublish(e)}>{e.is_published?'Unpublish':'Publish'}</button><button className="ex-btn secondary" onClick={()=>void deleteExam(e)} aria-label="Delete exam"><Trash2 size={14}/></button></>}</div></td></tr>):<tr><td colSpan={8} className="empty">No exams scheduled yet.</td></tr>}</tbody></table></div></div>
+  {canEnterMarks&&<div className="ex-panel"><h3><ClipboardList size={17}/> Marks entry</h3><div className="ex-toolbar"><label>Choose exam<select value={selectedExam} onChange={e=>{setSelectedExam(e.target.value);setMarkDraft({})}}><option value="">Select exam</option>{exams.map(e=><option key={e.id} value={e.id}>{e.exam_name} · {e.standard_name}-{e.section_name} · {e.subject_name}</option>)}</select></label><span className="muted">Maximum: {exam?.max_marks??'—'} marks</span></div><div className="ex-table"><table><thead><tr><th>Admission no.</th><th>Student</th><th>Marks / {exam?.max_marks??'—'}</th><th>Remarks</th><th>Saved</th></tr></thead><tbody>{!exam?<tr><td colSpan={5} className="empty">Select an exam to enter marks.</td></tr>:examStudents.length?examStudents.map(student=>{const saved=markByStudent.get(student.person_id),draft=markDraft[student.person_id];return <tr key={student.person_id}><td>{student.person_id}</td><td>{student.full_name}</td><td><input type="number" min="0" max={exam.max_marks} step="0.5" value={draft?.marks??(saved?String(saved.marks_obtained):'')} disabled={!!exam.is_published} onChange={e=>setMarkDraft(cur=>({...cur,[student.person_id]:{marks:e.target.value,remarks:draft?.remarks??saved?.remarks??''}}))}/></td><td><input value={draft?.remarks??saved?.remarks??''} placeholder="Optional" disabled={!!exam.is_published} onChange={e=>setMarkDraft(cur=>({...cur,[student.person_id]:{marks:draft?.marks??(saved?String(saved.marks_obtained):''),remarks:e.target.value}}))}/></td><td className={saved?'good':'muted'}>{saved?'Saved':'Not entered'}</td></tr>}):<tr><td colSpan={5} className="empty">No students found in {exam.standard_name} · {exam.section_name}. Check student joining standard and section.</td></tr>}</tbody></table></div><div style={{marginTop:14}}><button className="ex-btn" onClick={()=>void saveMarks()} disabled={saving||!exam||!examStudents.length||!!exam.is_published}><Save size={15}/>{exam?.is_published?'Published · marks locked':saving?'Saving marks…':'Save marks'}</button></div></div>}
  </>}
  {(page==='Student Results'||page==='Performance')&&<div className="ex-panel"><div className="ex-toolbar"><label>Exam / class<select value={resultExam} onChange={e=>setResultExam(e.target.value)}><option value="">Select exam</option>{exams.map(e=><option key={e.id} value={e.id}>{e.exam_name} · {e.standard_name}-{e.section_name} · {e.subject_name}</option>)}</select></label><div className="ex-search"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search student"/></div><button className="ex-btn secondary" onClick={exportResults}>Export CSV</button></div>
   {!resultSelected?<div className="empty">No exam selected.</div>:<><div className="muted" style={{marginBottom:12}}>Results are grouped by {resultSelected.exam_name}, {resultSelected.standard_name} · {resultSelected.section_name}. Grades: A1 (90%+), A2 (80%+), B1 (70%+), B2 (60%+), C1 (50%+), C2 (40%+), D (35%+), E (below 35%).</div><div className="ex-table"><table><thead><tr><th>Admission no.</th><th>Student</th><th>Subjects entered</th><th>Marks</th><th>Percentage</th><th>Grade</th><th>Status</th><th>Report card</th></tr></thead><tbody>{filteredResults.length?filteredResults.map(r=><tr key={r.student.person_id}><td>{r.student.person_id}</td><td>{r.student.full_name}</td><td>{r.rows.filter(x=>x.mark).length}/{r.rows.length}</td><td>{r.obtained}/{r.maximum}</td><td>{r.allEntered?r.percentage.toFixed(1)+'%':'—'}</td><td>{r.allEntered?grade(r.percentage):'—'}</td><td className={r.allEntered?(r.failed?'bad':'good'):'muted'}>{r.allEntered?(r.failed?'Needs improvement':'Complete'):'Marks pending'}</td><td><button className="ex-btn secondary" onClick={()=>setReportCardStudentId(r.student.person_id)}>View</button></td></tr>):<tr><td colSpan={8} className="empty">No students found for this exam.</td></tr>}</tbody></table></div></>}
