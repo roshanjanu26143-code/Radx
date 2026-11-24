@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Activity, Bus, Clock3, MapPin, Plus, Radio, RefreshCw, Signal, Wifi, WifiOff, Trash2 } from 'lucide-react'
+import { Activity, Bus, Clock3, Copy, MapPin, Plus, Radio, RefreshCw, Signal, Wifi, WifiOff, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import './bus-gps-tracker.css'
 
@@ -21,6 +21,7 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
   const [imei, setImei] = useState('')
   const [simNumber, setSimNumber] = useState('')
   const [deviceLabel, setDeviceLabel] = useState('')
+  const [newDeviceToken, setNewDeviceToken] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -54,12 +55,15 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
     event.preventDefault()
     if (!busId || !imei.trim()) return
     setSaving(true)
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(byte => byte.toString(16).padStart(2, '0')).join('')
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
+    const tokenHash = Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
     const { error } = await supabase.from('school_bus_gps_devices').insert({
-      school_id: schoolId, bus_id: busId, provider_name: provider, device_imei: imei.trim().replace(/\s/g, ''),
-      sim_number: simNumber.trim() || null, device_label: deviceLabel.trim() || null, status: 'pending',
+      school_id: schoolId, bus_id: busId, provider_name: provider, device_imei: imei.trim().replace(/\\D/g, ''),
+      sim_number: simNumber.trim() || null, device_label: deviceLabel.trim() || null, status: 'pending', ingest_token_hash: tokenHash,
     })
     if (error) notify(error.message)
-    else { notify('GPS device registered. Waiting for its first telemetry update.'); setBusId(''); setImei(''); setSimNumber(''); setDeviceLabel(''); await load() }
+    else { setNewDeviceToken(token); notify('GPS device registered. Copy its one-time token now.'); setBusId(''); setImei(''); setSimNumber(''); setDeviceLabel(''); await load() }
     setSaving(false)
   }
   const updateStatus = async (device: DeviceRow, status: string) => {
@@ -88,6 +92,7 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
       {!buses.length && <p className="gps-empty-note">Register a bus under Transport → Buses before adding its GPS device.</p>}
       {!!buses.length && registered.size === buses.length && <p className="gps-empty-note">Every registered bus already has a GPS device record.</p>}
     </form>
+    {newDeviceToken && <div className="gps-token-panel"><div><b>One-time device token</b><p>Copy this token now. Only its hash is stored; it cannot be shown again after leaving this screen.</p></div><code>{newDeviceToken}</code><button type="button" className="transport-refresh" onClick={() => { void navigator.clipboard.writeText(newDeviceToken).then(() => notify('GPS device token copied.')).catch(() => notify('Clipboard access is unavailable.')) }}><Copy size={15}/> Copy token</button><div className="gps-endpoint"><b>Telemetry endpoint</b><code>https://rofbsjdsxqwbccnoyvyp.supabase.co/functions/v1/gps-ingest</code><b>Required JSON body</b><pre>{'{"imei":"DEVICE_IMEI","latitude":12.3456,"longitude":78.9012,"speed_kph":32,"heading":180,"recorded_at":"2026-11-24T08:30:00Z"}'}</pre><span>Send the token as Authorization: Bearer YOUR_DEVICE_TOKEN. Configure this endpoint in your GPS provider or gateway.</span></div><button type="button" className="notice-text-button" onClick={() => setNewDeviceToken('')}>I have saved the token</button></div>}
     <div className="gps-section-heading"><div><b>Bus location status</b><span>Live status is based on received device telemetry, not generated sample coordinates.</span></div><button className="transport-refresh" type="button" onClick={() => void load()}><RefreshCw size={15}/> Refresh</button></div>
     <div className="gps-bus-list">{buses.map(bus => {
       const device = devices.find(d => d.bus_id === bus.id)
