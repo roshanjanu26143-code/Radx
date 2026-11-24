@@ -365,6 +365,7 @@ function AuthScreen() {
         .maybeSingle()
       if (adminError) throw adminError
       if (adminSchool) {
+        window.localStorage.setItem(ACTIVE_SCHOOL_STORAGE_KEY, normalizedSchoolId)
         if (mounted) {
           setSessionRole('Admin')
           setSessionPages([])
@@ -393,6 +394,7 @@ function AuthScreen() {
         .maybeSingle()
       if (memberSchoolError) throw memberSchoolError
       if (!memberSchool) return false
+      window.localStorage.setItem(ACTIVE_SCHOOL_STORAGE_KEY, normalizedSchoolId)
       if (mounted) {
         setSessionRole(membership.role)
         setSessionPages(membership.allowed_pages || [])
