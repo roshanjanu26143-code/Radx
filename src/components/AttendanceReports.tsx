@@ -104,7 +104,7 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
    .attendance-report .report-toolbar input,.attendance-report .report-toolbar select{min-height:42px;border:1px solid #dce7e0;border-radius:10px;padding:0 12px;background:#fff;color:#20352a}
    .attendance-report .report-actions{display:flex;gap:8px;margin-left:auto}
    .attendance-report .report-actions button,.attendance-report .report-select-button{border:1px solid #dce7e0;background:#fff;border-radius:10px;padding:10px 13px;color:#234333;font-weight:700;display:inline-flex;align-items:center;gap:7px;cursor:pointer}
-   .attendance-report .report-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}
+   .attendance-report .report-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:18px 0}
    .attendance-report .report-stat{border:1px solid #e4ece7;border-radius:14px;padding:16px;background:#fff}
    .attendance-report .report-stat span{display:flex;align-items:center;gap:7px;color:#68776f;font-size:12px;font-weight:700}
    .attendance-report .report-stat strong{display:block;font-size:26px;color:#183d2b;margin-top:9px}
@@ -126,7 +126,7 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
    <label>Month<input type="month" value={month} onChange={event => setMonth(event.target.value)}/></label>
    <label>Standard<select value={standard} onChange={event => { setStandard(event.target.value); setSection('All') }}>{standards.map(value => <option key={value}>{value}</option>)}</select></label>
    <label>Section<select value={section} onChange={event => setSection(event.target.value)}>{sections.map(value => <option key={value}>{value}</option>)}</select></label>
-   <div className="report-actions"><button type="button" onClick={() => void load()} disabled={refreshing}><RefreshCw size={15}/>{refreshing ? 'Refreshing…' : 'Refresh'}</button><button type="button" onClick={exportCsv} disabled={!filteredMarks.length}><Download size={15}/> Export CSV</button></div>
+   <div className="report-actions"><button type="button" onClick={() => void load()} disabled={refreshing}><RefreshCw size={15}/>{refreshing ? 'Refreshing…' : 'Refresh'}</button><button type="button" onClick={exportCsv} disabled={!filteredMarks.length&&!filteredTeacherAttendance.length}><Download size={15}/> Export CSV</button></div>
   </div>
   <div className="report-stats">
    <div className="report-stat"><span><CalendarDays size={15}/> Sessions</span><strong>{filteredSessions.length}</strong><small>Recorded attendance sessions</small></div>
