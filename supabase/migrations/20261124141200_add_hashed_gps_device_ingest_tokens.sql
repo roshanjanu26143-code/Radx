@@ -1,0 +1,2 @@
+alter table public.school_bus_gps_devices add column if not exists ingest_token_hash text;
+create unique index if not exists school_bus_gps_devices_ingest_token_hash_uidx on public.school_bus_gps_devices(ingest_token_hash) where ingest_token_hash is not null;
