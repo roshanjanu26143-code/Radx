@@ -1,141 +1,106 @@
-import { useMemo, useState } from 'react'
-import { ArrowLeft, Bus, Check, Clock3, Copy, MapPin, Navigation, Radio, Share2, Signal, Timer, Wifi } from 'lucide-react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Activity, Bus, Clock3, MapPin, Plus, Radio, RefreshCw, Signal, Wifi, WifiOff, Trash2 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import './bus-gps-tracker.css'
 
-type RouteInput = { name: string; start: string; stops: string[]; end: string }
-type BusInput = { number: string; driver: string; cleaner: string; route: string }
-type StopStatus = 'passed' | 'current' | 'upcoming'
-type TrackingStop = { name: string; status: StopStatus; expected: string; actual?: string; minutes?: number }
-export type BusTrackingPayload = {
-  routeName: string
-  busNumber: string
-  driver: string
-  schoolName: string
-  updatedAt: string
-  currentLocation: string
-  stops: TrackingStop[]
-}
+type BusRow = { id: string; registration_number: string; route_id: string; status: string; capacity: number }
+type RouteRow = { id: string; route_name: string }
+type DeviceRow = { id: string; bus_id: string; provider_name: string; device_imei: string; sim_number: string | null; device_label: string | null; status: string; last_seen_at: string | null }
+type PositionRow = { id: number; bus_id: string; device_id: string; latitude: number; longitude: number; speed_kph: number | null; recorded_at: string; source: string }
+const ago = (value: string) => { const mins = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000)); return mins < 1 ? 'Just now' : mins < 60 ? mins + ' min ago' : mins < 1440 ? Math.floor(mins / 60) + ' hr ago' : new Date(value).toLocaleString('en-IN') }
 
-const sampleRoute: RouteInput = {
-  name: 'Route 01 · Ambur – School',
-  start: 'Ambur Bus Stand',
-  stops: ['Sugarmill', 'Vengili', 'Zameen', 'Madhanur', 'School Gate'],
-  end: 'Smart Valley School',
-}
+export default function BusGpsTracker({ schoolId, schoolName, notify }: { schoolId: string; schoolName: string; notify: (message: string) => void }) {
+  const [buses, setBuses] = useState<BusRow[]>([])
+  const [routes, setRoutes] = useState<RouteRow[]>([])
+  const [devices, setDevices] = useState<DeviceRow[]>([])
+  const [positions, setPositions] = useState<PositionRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [busId, setBusId] = useState('')
+  const [provider, setProvider] = useState('Other')
+  const [imei, setImei] = useState('')
+  const [simNumber, setSimNumber] = useState('')
+  const [deviceLabel, setDeviceLabel] = useState('')
 
-function makeTrackingPayload(route: RouteInput, bus: BusInput | undefined, schoolName: string): BusTrackingPayload {
-  const points = [route.start, ...route.stops, route.end].filter(Boolean)
-  const now = new Date()
-  const currentIndex = Math.min(2, Math.max(0, points.length - 1))
-  const stops = points.map((name, index): TrackingStop => {
-    const expected = new Date(now.getTime() + (index - currentIndex) * 8 * 60000)
-    const format = (date: Date) => date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-    if (index < currentIndex) return { name, status: 'passed', expected: format(expected), actual: format(new Date(now.getTime() - (currentIndex - index) * 7 * 60000)) }
-    if (index === currentIndex) return { name, status: 'current', expected: 'Now', actual: 'Bus is here' }
-    return { name, status: 'upcoming', expected: format(expected), minutes: (index - currentIndex) * 8 }
-  })
-  return {
-    routeName: route.name,
-    busNumber: bus?.number || 'TN 23 AB 1234',
-    driver: bus?.driver || 'R. Kumar',
-    schoolName: schoolName || 'AI ACADAMIX School',
-    updatedAt: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-    currentLocation: points[currentIndex] || 'On route',
-    stops,
-  }
-}
-
-function createShareUrl(payload: BusTrackingPayload) {
-  return window.location.origin + window.location.pathname + '?busTrack=' + encodeURIComponent(JSON.stringify(payload))
-}
-
-export default function BusGpsTracker({ routes, buses, schoolName, notify }: {
-  routes: RouteInput[]
-  buses: BusInput[]
-  schoolName: string
-  notify: (message: string) => void
-}) {
-  const [routeIndex, setRouteIndex] = useState(0)
-  const [selectedBusNumber, setSelectedBusNumber] = useState('')
-  const availableRoutes = routes.length ? routes : [sampleRoute]
-  const route = availableRoutes[Math.min(routeIndex, availableRoutes.length - 1)]
-  const routeBuses = buses.filter(bus => !bus.route || bus.route === route.name)
-  const bus = routeBuses.find(item => item.number === selectedBusNumber) || routeBuses[0] || buses[0]
-  const payload = useMemo(() => makeTrackingPayload(route, bus, schoolName), [route, bus, schoolName])
-  const shareUrl = createShareUrl(payload)
-  const message = `🚌 ${schoolName || 'School'} Bus Live Tracking\nRoute: ${payload.routeName}\nBus: ${payload.busNumber}\nTrack the bus and check stop-wise arrival time here:\n${shareUrl}\n\nETA is a frontend preview until live GPS is connected.`
-  const shareWhatsApp = () => window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank', 'noopener,noreferrer')
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      notify('Bus tracking link copied.')
-    } catch {
-      notify('Copy is not available in this browser. Use Share on WhatsApp instead.')
-    }
+  const load = async () => {
+    setLoading(true)
+    const [b, r, d, p] = await Promise.all([
+      supabase.from('school_transport_buses').select('id,registration_number,route_id,status,capacity').eq('school_id', schoolId).order('registration_number'),
+      supabase.from('school_transport_routes').select('id,route_name').eq('school_id', schoolId).order('route_name'),
+      supabase.from('school_bus_gps_devices').select('id,bus_id,provider_name,device_imei,sim_number,device_label,status,last_seen_at').eq('school_id', schoolId).order('created_at', { ascending: false }),
+      supabase.from('school_bus_gps_positions').select('id,bus_id,device_id,latitude,longitude,speed_kph,recorded_at,source').eq('school_id', schoolId).order('recorded_at', { ascending: false }).limit(250),
+    ])
+    const error = b.error || r.error || d.error || p.error
+    if (error) notify('GPS data could not be loaded: ' + error.message)
+    setBuses((b.data || []) as BusRow[]); setRoutes((r.data || []) as RouteRow[])
+    setDevices((d.data || []) as DeviceRow[]); setPositions((p.data || []) as PositionRow[])
+    setLoading(false)
   }
 
+  useEffect(() => {
+    void load()
+    const channel = supabase.channel('school-bus-gps-' + schoolId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'school_bus_gps_positions', filter: 'school_id=eq.' + schoolId }, () => { void load() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'school_bus_gps_devices', filter: 'school_id=eq.' + schoolId }, () => { void load() })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [schoolId])
+
+  const latest = useMemo(() => { const map = new Map<string, PositionRow>(); positions.forEach(p => { if (!map.has(p.bus_id)) map.set(p.bus_id, p) }); return map }, [positions])
+  const registered = new Set(devices.map(d => d.bus_id))
+  const signalCount = buses.filter(bus => { const p = latest.get(bus.id); return p && Date.now() - new Date(p.recorded_at).getTime() <= 300000 }).length
+
+  const createDevice = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!busId || !imei.trim()) return
+    setSaving(true)
+    const { error } = await supabase.from('school_bus_gps_devices').insert({
+      school_id: schoolId, bus_id: busId, provider_name: provider, device_imei: imei.trim().replace(/\s/g, ''),
+      sim_number: simNumber.trim() || null, device_label: deviceLabel.trim() || null, status: 'pending',
+    })
+    if (error) notify(error.message)
+    else { notify('GPS device registered. Waiting for its first telemetry update.'); setBusId(''); setImei(''); setSimNumber(''); setDeviceLabel(''); await load() }
+    setSaving(false)
+  }
+  const updateStatus = async (device: DeviceRow, status: string) => {
+    const { error } = await supabase.from('school_bus_gps_devices').update({ status, updated_at: new Date().toISOString() }).eq('school_id', schoolId).eq('id', device.id)
+    if (error) notify(error.message); else { notify('Device status updated.'); await load() }
+  }
+  const removeDevice = async (device: DeviceRow) => {
+    const { error } = await supabase.from('school_bus_gps_devices').delete().eq('school_id', schoolId).eq('id', device.id)
+    if (error) notify(error.message); else { notify('GPS device removed.'); await load() }
+  }
+
+  if (loading) return <section className="workspace-panel bus-gps-admin"><div className="bus-gps-loading"><RefreshCw size={17}/> Loading GPS devices and telemetry…</div></section>
   return <section className="workspace-panel bus-gps-admin">
-    <div className="workspace-heading bus-gps-heading">
-      <div><span className="section-eyebrow">PARENT LIVE TRACKING</span><h2>Bus GPS & Route Sharing</h2><p>Share a route-specific tracking page directly to the parents’ WhatsApp group.</p></div>
-      <span className="bus-preview-pill"><Radio size={13}/> Preview mode</span>
-    </div>
-    <div className="bus-share-controls">
-      <label>Choose route<select value={routeIndex} onChange={event => setRouteIndex(Number(event.target.value))}>{availableRoutes.map((item, index) => <option value={index} key={item.name + index}>{item.name}</option>)}</select></label>
-      <label>Choose route bus<select value={bus?.number || ''} onChange={event => setSelectedBusNumber(event.target.value)}>{(routeBuses.length ? routeBuses : buses).length ? (routeBuses.length ? routeBuses : buses).map((item, index) => <option value={item.number} key={item.number + index}>{item.number} · {item.driver || 'Driver not assigned'}</option>) : <option value="">Demo bus · TN 23 AB 1234</option>}</select></label>
-      <div className="bus-share-meta"><span><Bus size={15}/> {payload.busNumber}</span><span><Navigation size={14}/> {payload.currentLocation}</span></div>
-    </div>
-    <div className="bus-gps-preview">
-      <div className="bus-gps-map-top"><div><span className="live-dot"/> BUS ROUTE STATUS <small>DEMO LOCATION</small></div><span><Wifi size={13}/> GPS not connected</span></div>
-      <div className="bus-live-summary"><div className="bus-live-icon"><Bus size={23}/></div><div><small>Current bus location</small><b>{payload.currentLocation}</b><span>Bus {payload.busNumber} · Driver {payload.driver}</span></div><div className="bus-live-eta"><small>Next stop ETA</small><b>{payload.stops.find(stop => stop.status === 'upcoming')?.minutes ?? 0} min</b></div></div>
-      <div className="bus-route-track">
-        <div className="bus-track-line"/>
-        {payload.stops.map((stop, index) => <div className={'bus-track-stop ' + stop.status} key={stop.name + index}>
-          <div className="bus-track-marker">{stop.status === 'passed' ? <Check size={12}/> : stop.status === 'current' ? <Bus size={15}/> : <span/>}</div>
-          <div className="bus-track-stop-copy"><b>{stop.name}</b><span>{stop.status === 'passed' ? 'Bus passed' : stop.status === 'current' ? 'Current bus location' : 'Upcoming stop'}</span></div>
-          <div className="bus-track-stop-time">{stop.status === 'passed' ? <><b>{stop.actual}</b><span>Actual</span></> : stop.status === 'current' ? <><b>Now</b><span>Live point</span></> : <><b>{stop.expected}</b><span>Expected · {stop.minutes} min</span></>}</div>
-        </div>)}
+    <div className="workspace-heading bus-gps-heading"><div><span className="section-eyebrow">TRANSPORT CONNECTOR</span><h2>GPS Bus Tracking</h2><p>{schoolName} · Register GPS hardware and monitor the latest device locations.</p></div><span className="bus-preview-pill"><Radio size={13}/> Device integration</span></div>
+    <div className="gps-summary-grid"><article><Bus/><span>Registered buses</span><b>{buses.length}</b></article><article><Wifi/><span>GPS devices</span><b>{devices.length}</b></article><article><Signal/><span>Recent GPS signals</span><b>{signalCount}</b></article></div>
+    <form className="module-form gps-device-form" onSubmit={createDevice}>
+      <div className="gps-form-heading"><div><b>Register GPS device</b><p>Link one physical GPS tracker to a registered bus using its IMEI.</p></div><span className="gps-pending-tag">Awaiting first signal</span></div>
+      <div className="form-three-col">
+        <label>School bus<select value={busId} onChange={e => setBusId(e.target.value)} required><option value="">Choose bus</option>{buses.filter(bus => !registered.has(bus.id)).map(bus => <option key={bus.id} value={bus.id}>{bus.registration_number} · {routes.find(r => r.id === bus.route_id)?.route_name || 'Route not set'}</option>)}</select></label>
+        <label>GPS provider<select value={provider} onChange={e => setProvider(e.target.value)}><option>Other</option><option>Teltonika</option><option>Concox</option><option>Queclink</option><option>Jimi IoT</option><option>Fleet management provider</option></select></label>
+        <label>Device IMEI<input value={imei} onChange={e => setImei(e.target.value)} inputMode="numeric" placeholder="15-digit device IMEI" minLength={10} maxLength={20} required/></label>
+        <label>SIM mobile number <span className="field-hint">(optional)</span><input value={simNumber} onChange={e => setSimNumber(e.target.value)} placeholder="GPS SIM number"/></label>
+        <label>Device label <span className="field-hint">(optional)</span><input value={deviceLabel} onChange={e => setDeviceLabel(e.target.value)} placeholder="Front dashboard tracker"/></label>
       </div>
-      <div className="bus-gps-foot"><span><Clock3 size={13}/> Last updated {payload.updatedAt}</span><span>Arrival times are sample data</span></div>
-    </div>
-    <div className="bus-share-panel">
-      <div><b>Share with parents</b><p>Send this route’s tracking link to its WhatsApp group. Parents can open it without an ACADAMIX login.</p></div>
-      <div className="bus-share-link"><span>{shareUrl}</span><button type="button" onClick={copyLink} aria-label="Copy tracking link"><Copy size={16}/></button></div>
-      <div className="bus-share-actions"><button type="button" className="bus-whatsapp-button" onClick={shareWhatsApp}><Share2 size={16}/> Share to WhatsApp group</button><span>Link is a shareable demo snapshot; live GPS needs backend integration.</span></div>
-    </div>
+      <button className="primary-action" type="submit" disabled={saving || !buses.some(bus => !registered.has(bus.id))}><Plus size={16}/> Register GPS device</button>
+      {!buses.length && <p className="gps-empty-note">Register a bus under Transport → Buses before adding its GPS device.</p>}
+      {!!buses.length && registered.size === buses.length && <p className="gps-empty-note">Every registered bus already has a GPS device record.</p>}
+    </form>
+    <div className="gps-section-heading"><div><b>Bus location status</b><span>Live status is based on received device telemetry, not generated sample coordinates.</span></div><button className="transport-refresh" type="button" onClick={() => void load()}><RefreshCw size={15}/> Refresh</button></div>
+    <div className="gps-bus-list">{buses.map(bus => {
+      const device = devices.find(d => d.bus_id === bus.id)
+      const position = latest.get(bus.id)
+      const fresh = Boolean(position && Date.now() - new Date(position.recorded_at).getTime() <= 300000)
+      return <article className="gps-bus-card" key={bus.id}>
+        <div className="gps-bus-card-top"><div className="gps-bus-icon"><Bus size={20}/></div><div className="gps-bus-title"><b>{bus.registration_number}</b><span>{routes.find(r => r.id === bus.route_id)?.route_name || 'Route not assigned'} · {bus.capacity} seats</span></div><span className={fresh ? 'gps-signal-pill online' : 'gps-signal-pill'}>{fresh ? <><Signal size={12}/> GPS signal</> : <><WifiOff size={12}/> No live signal</>}</span></div>
+        {device ? <div className="gps-device-details"><div><small>Device</small><b>{device.provider_name} · {device.device_imei}</b></div><div><small>Device status</small><b>{device.status === 'inactive' ? 'Inactive' : fresh ? 'Connected' : 'Awaiting telemetry'}</b></div><div><small>Last update</small><b>{position ? ago(position.recorded_at) : 'Never received'}</b></div></div> : <div className="gps-unregistered"><Radio size={16}/> No GPS device registered for this bus.</div>}
+        {position && <div className="gps-position-row"><div><MapPin size={15}/><span>{Number(position.latitude).toFixed(5)}, {Number(position.longitude).toFixed(5)}</span></div><span>{position.speed_kph == null ? 'Speed unavailable' : Number(position.speed_kph).toFixed(0) + ' km/h'}</span><a href={'https://www.google.com/maps?q=' + position.latitude + ',' + position.longitude} target="_blank" rel="noreferrer">Open map</a></div>}
+        {device && <div className="gps-device-actions"><label>Device state<select value={device.status} onChange={e => void updateStatus(device, e.target.value)}><option value="pending">Pending</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label><button className="transport-icon-button" type="button" onClick={() => void removeDevice(device)} aria-label="Remove GPS device"><Trash2 size={15}/> Remove</button></div>}
+      </article>
+    })}{!buses.length && <div className="empty-module"><Bus size={24}/><b>No buses registered</b><span>Register buses before setting up GPS tracking.</span></div>}</div>
+    <div className="gps-integration-note"><Activity size={17}/><div><b>Live device feed is not connected yet</b><p>Registering a device stores its IMEI and bus mapping. Actual coordinates appear only after the GPS provider sends authenticated telemetry to the school backend. Provider API credentials must be configured server-side; never paste GPS secrets into this browser form.</p></div></div>
+    <div className="gps-last-sync"><Clock3 size={13}/> {positions.length} location update(s) available · This screen listens for new Supabase GPS updates</div>
   </section>
-}
-
-export function PublicBusTrackingPage({ payload }: { payload: BusTrackingPayload }) {
-  return <main className="public-bus-page">
-    <header className="public-bus-header"><div className="public-bus-brand"><div><Bus size={20}/></div><span>AI <b>ACADAMIX</b><small>BUS TRACKING</small></span></div><span className="public-demo-tag"><Signal size={12}/> DEMO TRACKING</span></header>
-    <section className="public-bus-content">
-      <button className="public-back-link" onClick={() => { window.location.href = window.location.pathname }}><ArrowLeft size={15}/> School portal</button>
-      <div className="public-route-title"><span className="section-eyebrow">PARENT BUS TRACKER</span><h1>{payload.routeName}</h1><p>{payload.schoolName}</p></div>
-      <div className="public-bus-status"><div className="public-bus-icon"><Bus size={25}/></div><div><small>Bus number · {payload.busNumber}</small><b>{payload.currentLocation}</b><span>Driver: {payload.driver || 'Not provided'}</span></div><div className="public-bus-status-chip"><i/> On route</div></div>
-      <div className="public-eta-card"><div><small>Next stop arrival</small><b>{payload.stops.find(stop => stop.status === 'upcoming')?.minutes ?? 0} min</b><span>Estimated time remaining</span></div><div className="public-eta-icon"><Timer size={22}/></div></div>
-      <section className="public-stop-card"><div className="public-stop-heading"><div><h2>Route journey</h2><p>Stops passed and upcoming stops</p></div><span>Updated {payload.updatedAt}</span></div>
-        <div className="public-stop-timeline"><div className="public-stop-line"/>
-          {payload.stops.map((stop, index) => <article className={'public-stop-row ' + stop.status} key={stop.name + index}>
-            <div className="public-stop-dot">{stop.status === 'passed' ? <Check size={13}/> : stop.status === 'current' ? <Bus size={16}/> : <MapPin size={13}/>}</div>
-            <div className="public-stop-name"><b>{stop.name}</b><span>{stop.status === 'passed' ? 'Bus passed this stop' : stop.status === 'current' ? 'Bus is currently here' : 'Bus is on the way'}</span></div>
-            <div className="public-stop-time"><b>{stop.status === 'passed' ? stop.actual : stop.status === 'current' ? 'Now' : stop.expected}</b><span>{stop.status === 'passed' ? 'Actual arrival' : stop.status === 'current' ? 'Current location' : `Expected · ${stop.minutes} min`}</span></div>
-          </article>)}
-        </div>
-      </section>
-      <div className="public-bus-disclaimer"><Radio size={15}/><span><b>Demo tracking view.</b> The route and arrival times shown here are sample data. Live location, actual arrival detection and automatic ETA updates will be enabled after the school connects its GPS device and backend.</span></div>
-      <footer className="public-bus-footer">Powered by AI ACADAMIX · RADX</footer>
-    </section>
-  </main>
-}
-
-export function readBusTrackingPayload(): BusTrackingPayload | null {
-  try {
-    const raw = new URLSearchParams(window.location.search).get('busTrack')
-    if (!raw) return null
-    const data = JSON.parse(raw) as BusTrackingPayload
-    if (!data.routeName || !Array.isArray(data.stops)) return null
-    return data
-  } catch {
-    return null
-  }
 }
