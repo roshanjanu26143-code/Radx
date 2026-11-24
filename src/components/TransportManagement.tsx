@@ -39,8 +39,8 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
 
   const students = useMemo(() => peopleRecords.filter(person => person.type === 'Student'), [peopleRecords])
-  const drivers = useMemo(() => peopleRecords.filter(person => person.type === 'Driver & Cleaner' && (person.details.role || 'Driver') === 'Driver'), [peopleRecords])
-  const cleaners = useMemo(() => peopleRecords.filter(person => person.type === 'Driver & Cleaner' && (person.details.role || 'Driver') === 'Cleaner'), [peopleRecords])
+  const drivers = useMemo(() => peopleRecords.filter(person => person.type === 'Driver & Cleaner' && (person.details.work_role || 'Driver') === 'Driver'), [peopleRecords])
+  const cleaners = useMemo(() => peopleRecords.filter(person => person.type === 'Driver & Cleaner' && (person.details.work_role || 'Driver') === 'Cleaner'), [peopleRecords])
   const activeRoute = routes.find(route => route.id === selectedRoute)
   const filteredStudents = useMemo(() => students.filter(student => {
     const details = student.details
