@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { BookOpen, CalendarDays, Plus, RefreshCw, Trash2, Clock3 } from 'lucide-react'
+import { BookOpen, CalendarDays, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 type Standard = { name: string; sections: string[] }
@@ -24,8 +24,8 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
  const isAdmin=userRole==='Admin'
  const sections=useMemo(()=>standards.find(s=>s.name===standardName)?.sections||[],[standards,standardName])
  const slotSections=useMemo(()=>standards.find(s=>s.name===slot.standard_name)?.sections||[],[standards,slot.standard_name])
- const activeSubjects=subjects.filter(s=>s.is_active)
- const timetableSubjects=activeSubjects.filter(s=>s.standard_name===slot.standard_name)
+ const activeSubjects=useMemo(()=>subjects.filter(s=>s.is_active),[subjects])
+ const timetableSubjects=useMemo(()=>activeSubjects.filter(s=>s.standard_name===slot.standard_name),[activeSubjects,slot.standard_name])
  const load=async()=>{
   setLoading(true);setError('')
   const [subjectResult,timetableResult]=await Promise.all([
