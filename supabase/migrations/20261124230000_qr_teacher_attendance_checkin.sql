@@ -9,7 +9,9 @@ create table if not exists public.school_teacher_attendance (
  attendance_status text not null default 'PRESENT' check (attendance_status='PRESENT'),
  checked_in_by uuid not null,
  checked_in_at timestamptz not null default now(),
- constraint school_teacher_attendance_once unique (school_id,attendance_date,session_code,teacher_person_id)
+ constraint school_teacher_attendance_once unique (school_id,attendance_date,session_code,teacher_person_id),
+ constraint school_teacher_attendance_school_fk foreign key (school_id) references public.school_tenants(school_id) on update cascade on delete cascade,
+ constraint school_teacher_attendance_person_fk foreign key (school_id,teacher_person_id) references public.school_people(school_id,person_id) on update cascade on delete restrict
 );
 create index if not exists school_teacher_attendance_report_idx
  on public.school_teacher_attendance (school_id,attendance_date desc,session_code);
