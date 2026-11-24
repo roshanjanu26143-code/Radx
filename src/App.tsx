@@ -78,8 +78,8 @@ type PeopleRecord={id:string;type:string;name:string;details:Record<string,strin
 type PeopleIdSettings={studentPrefix:string;teacherPrefix:string;staffPrefix:string;driverPrefix:string;studentNext:number;teacherNext:number;staffNext:number;driverNext:number}
 const rolePageDefaults:Record<string,string[]> = {
  'Cashier-Staff':['Finance','Fees','Fees Structure','Students Data','Pending Fees'],
- 'Academic Director':['Exam Schedules','Marks Entry','Attendance','Student Results','Performance'],
- 'Teacher':['Attendance','Attendance Reports','Marks Entry'],
+ 'Academic Director':['Subjects','Timetable','Exam Schedules','Marks Entry','Attendance','Student Results','Performance'],
+ 'Teacher':['Timetable','Attendance','Attendance Reports','Marks Entry'],
 }
 const rolePageOptions = schoolNavigation.flatMap(group=>group.children
  .filter(child=>!(group.label==='Settings'&&(child==='Role Users'||child==='Audit Log')))
