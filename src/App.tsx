@@ -287,6 +287,8 @@ const accessRoles = [
   'Staff',
 ]
 
+const ACTIVE_SCHOOL_STORAGE_KEY = 'radx_active_school_id'
+
 function AuthScreen() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [schoolId, setSchoolId] = useState('')
@@ -337,26 +339,124 @@ function AuthScreen() {
   }, [notice])
 
   useEffect(() => {
-    let mounted=true
-    const restoreAdminSession=async()=>{
-      try{
-        const {data:{user},error:userError}=await supabase.auth.getUser()
-        if(userError)throw userError
-        if(user){
-          const {data:school,error:schoolError}=await supabase.from('school_tenants').select('school_id,school_name').eq('admin_user_id',user.id).maybeSingle()
-          if(schoolError)throw schoolError
-          if(school){if(mounted){setSessionRole('Admin');setSessionPages([]);setSessionTeacherPersonId(null);setSchoolId(school.school_id);setSchoolName(school.school_name);setSchoolStatus('verified');setAuthenticated(true)}}
-          else{const {data:membership,error:membershipError}=await supabase.from('school_user_roles').select('school_id,role,allowed_pages,status,person_id').eq('user_id',user.id).maybeSingle();if(membershipError)throw membershipError;if(membership&&membership.status==='active'){const {data:memberSchool,error:memberSchoolError}=await supabase.from('school_tenants').select('school_id,school_name').eq('school_id',membership.school_id).maybeSingle();if(memberSchoolError)throw memberSchoolError;if(memberSchool&&mounted){setSessionRole(membership.role);setSessionPages(membership.allowed_pages||[]);setSessionTeacherPersonId(membership.person_id||null);setSchoolId(memberSchool.school_id);setSchoolName(memberSchool.school_name);setSchoolStatus('verified');setAuthenticated(true)}}else await supabase.auth.signOut()}
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        window.localStorage.removeItem(ACTIVE_SCHOOL_STORAGE_KEY)
+        setAuthenticated(false)
+        setSessionRole('Admin')
+        setSessionPages([])
+        setSessionTeacherPersonId(null)
+        setSchoolStatus('idle')
+        setPassword('')
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const activateSchool = async (userId: string, selectedSchoolId: string) => {
+      const normalizedSchoolId = selectedSchoolId.trim().toUpperCase()
+      const { data: adminSchool, error: adminError } = await supabase
+        .from('school_tenants')
+        .select('school_id,school_name')
+        .eq('school_id', normalizedSchoolId)
+        .eq('admin_user_id', userId)
+        .maybeSingle()
+      if (adminError) throw adminError
+      if (adminSchool) {
+        if (mounted) {
+          setSessionRole('Admin')
+          setSessionPages([])
+          setSessionTeacherPersonId(null)
+          setSchoolId(adminSchool.school_id)
+          setSchoolName(adminSchool.school_name)
+          setSchoolStatus('verified')
+          setAuthenticated(true)
         }
-      }catch(error){
-        if(mounted)setNotice(error instanceof Error?'Could not restore your Admin session: '+error.message:'Could not restore your Admin session.')
-      }finally{
-        if(mounted)setAuthLoading(false)
+        return true
+      }
+
+      const { data: membership, error: membershipError } = await supabase
+        .from('school_user_roles')
+        .select('school_id,role,allowed_pages,status,person_id')
+        .eq('school_id', normalizedSchoolId)
+        .eq('user_id', userId)
+        .maybeSingle()
+      if (membershipError) throw membershipError
+      if (!membership || membership.status !== 'active') return false
+
+      const { data: memberSchool, error: memberSchoolError } = await supabase
+        .from('school_tenants')
+        .select('school_id,school_name')
+        .eq('school_id', membership.school_id)
+        .maybeSingle()
+      if (memberSchoolError) throw memberSchoolError
+      if (!memberSchool) return false
+      if (mounted) {
+        setSessionRole(membership.role)
+        setSessionPages(membership.allowed_pages || [])
+        setSessionTeacherPersonId(membership.person_id || null)
+        setSchoolId(memberSchool.school_id)
+        setSchoolName(memberSchool.school_name)
+        setSchoolStatus('verified')
+        setAuthenticated(true)
+      }
+      return true
+    }
+
+    const restoreSession = async () => {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (userError) throw userError
+        if (!user) return
+
+        const savedSchoolId = window.localStorage.getItem(ACTIVE_SCHOOL_STORAGE_KEY)
+        if (savedSchoolId) {
+          const restored = await activateSchool(user.id, savedSchoolId)
+          if (!restored) {
+            window.localStorage.removeItem(ACTIVE_SCHOOL_STORAGE_KEY)
+            await supabase.auth.signOut()
+            if (mounted) setNotice('Your saved school access is no longer active. Verify your School ID and sign in again.')
+          }
+          return
+        }
+
+        const { data: adminSchool, error: adminError } = await supabase
+          .from('school_tenants')
+          .select('school_id')
+          .eq('admin_user_id', user.id)
+          .maybeSingle()
+        if (adminError) throw adminError
+        if (adminSchool) {
+          await activateSchool(user.id, adminSchool.school_id)
+          return
+        }
+
+        const { data: memberships, error: membershipsError } = await supabase
+          .from('school_user_roles')
+          .select('school_id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+        if (membershipsError) throw membershipsError
+        if (memberships?.length === 1) {
+          await activateSchool(user.id, memberships[0].school_id)
+        } else {
+          await supabase.auth.signOut()
+          if (mounted && (memberships?.length || 0) > 1) {
+            setNotice('This account belongs to more than one school. Enter the School ID for the school you want to access, then log in.')
+          }
+        }
+      } catch (error) {
+        if (mounted) setNotice(error instanceof Error ? 'Could not restore your session: ' + error.message : 'Could not restore your session.')
+      } finally {
+        if (mounted) setAuthLoading(false)
       }
     }
-    void restoreAdminSession()
-    return ()=>{mounted=false}
-  },[])
+
+    void restoreSession()
+    return () => { mounted = false }
+  }, [])
 
 
   const verifySchool = async () => {
@@ -390,6 +490,8 @@ function AuthScreen() {
     setIsLoggingIn(true)
     setNotice('')
     const cleanEmail = email.trim().toLowerCase()
+    const cleanSchoolId = schoolId.trim().toUpperCase()
+    let sessionEstablished = false
     try {
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
@@ -399,22 +501,49 @@ function AuthScreen() {
         if (authError?.message.toLowerCase().includes('email not confirmed')) setShowResendConfirmation(true)
         throw new Error(authError?.message || 'Login failed. Check your email and password.')
       }
+      sessionEstablished = true
       setShowResendConfirmation(false)
 
-      const {data:school,error:schoolError}=await supabase.from('school_tenants').select('admin_user_id,admin_email,school_id,school_name').eq('school_id',schoolId.trim().toUpperCase()).maybeSingle()
-      if(schoolError)throw schoolError
-      if(!school){await supabase.auth.signOut();throw new Error('The verified school could not be found.')}
-      if(role==='Admin'){
-        if(school.admin_user_id!==authData.user.id||school.admin_email?.toLowerCase()!==cleanEmail){await supabase.auth.signOut();throw new Error('This email is not the Admin account registered for the verified School ID.')}
-        setSessionRole('Admin');setSessionPages([]);setSessionTeacherPersonId(null)
-      }else{
-        const {data:membership,error:membershipError}=await supabase.from('school_user_roles').select('role,allowed_pages,status,person_id').eq('school_id',schoolId.trim().toUpperCase()).eq('user_id',authData.user.id).maybeSingle()
-        if(membershipError)throw membershipError
-        if(!membership||membership.status!=='active'||membership.role!==role){await supabase.auth.signOut();throw new Error('This account does not have an active '+role+' assignment for this School ID.')}
-        setSessionRole(membership.role);setSessionPages(membership.allowed_pages||[]);setSessionTeacherPersonId(membership.person_id||null)
+      const { data: school, error: schoolError } = await supabase
+        .from('school_tenants')
+        .select('admin_user_id,admin_email,school_id,school_name')
+        .eq('school_id', cleanSchoolId)
+        .maybeSingle()
+      if (schoolError) throw schoolError
+      if (!school) throw new Error('The verified school could not be found.')
+
+      if (role === 'Admin') {
+        if (school.admin_user_id !== authData.user.id || school.admin_email?.toLowerCase() !== cleanEmail) {
+          throw new Error('This email is not the Admin account registered for the verified School ID.')
+        }
+        setSessionRole('Admin')
+        setSessionPages([])
+        setSessionTeacherPersonId(null)
+      } else {
+        const { data: membership, error: membershipError } = await supabase
+          .from('school_user_roles')
+          .select('role,allowed_pages,status,person_id')
+          .eq('school_id', cleanSchoolId)
+          .eq('user_id', authData.user.id)
+          .maybeSingle()
+        if (membershipError) throw membershipError
+        if (!membership || membership.status !== 'active' || membership.role !== role) {
+          throw new Error('This account does not have an active ' + role + ' assignment for this School ID.')
+        }
+        setSessionRole(membership.role)
+        setSessionPages(membership.allowed_pages || [])
+        setSessionTeacherPersonId(membership.person_id || null)
       }
-      setSchoolName(school.school_name);setSchoolId(school.school_id);setAuthenticated(true)
+
+      window.localStorage.setItem(ACTIVE_SCHOOL_STORAGE_KEY, cleanSchoolId)
+      setSchoolName(school.school_name)
+      setSchoolId(school.school_id)
+      setAuthenticated(true)
     } catch (error) {
+      if (sessionEstablished) {
+        try { await supabase.auth.signOut() } catch { /* Keep the original login error visible. */ }
+      }
+      setAuthenticated(false)
       setNotice(error instanceof Error ? error.message : 'Login failed. Please try again.')
     } finally {
       setIsLoggingIn(false)
@@ -594,6 +723,7 @@ function AuthScreen() {
   if (authenticated) {
     return <Dashboard schoolName={schoolName} schoolId={schoolId} userRole={sessionRole} allowedPages={sessionPages} teacherPersonId={sessionTeacherPersonId} onSignOut={async () => {
       await supabase.auth.signOut()
+      window.localStorage.removeItem(ACTIVE_SCHOOL_STORAGE_KEY)
       setAuthenticated(false)
       setSessionRole('Admin');setSessionPages([]);setSessionTeacherPersonId(null)
       setPassword('')
