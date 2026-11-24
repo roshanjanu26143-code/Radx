@@ -10,7 +10,7 @@ type Props = { schoolId:string; schoolName:string; page:string; userRole:string;
 const money=(value:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(value||0)
 const today=()=>new Date().toISOString().slice(0,10)
 const currentAcademicYear=()=>{const d=new Date();const y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;return y+'-'+String(y+1).slice(-2)}
-const receiptCode=()=> 'ACX-'+today().replaceAll('-','')+'-'+Date.now().toString().slice(-6)+'-'+Math.floor(Math.random()*90+10)
+const receiptCode=()=> 'ACX-'+today().replace(/-/g,'')+'-'+Date.now().toString().slice(-6)+'-'+Math.floor(Math.random()*90+10)
 
 export default function FeesFinance({schoolId,schoolName,page,userRole,notify}:Props){
  const [structures,setStructures]=useState<FeeStructure[]>([])
@@ -79,7 +79,7 @@ export default function FeesFinance({schoolId,schoolName,page,userRole,notify}:P
  }
  const exportPending=()=>{
   const rows=[['Student ID','Student','Standard','Fee','Academic year','Fee amount','Paid','Outstanding'],...filteredPending.map(row=>[row.student.person_id,row.student.full_name,row.fee.standard_name,row.fee.fee_name,row.fee.academic_year,row.fee.amount,row.paid,row.due])]
-  const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n')
+  const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n')
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download='pending-fees-'+year+'.csv';a.click();URL.revokeObjectURL(url)
  }
  const printReceipt=()=>{window.print()}
