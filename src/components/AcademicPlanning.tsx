@@ -54,7 +54,7 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
   }
   setLoading(false)
  }
- useEffect(()=>{void load()},[schoolId,academicYear])
+ useEffect(()=>{void load()},[schoolId,academicYear,page])
  useEffect(()=>{if(!sections.includes(sectionName))setSectionName(sections[0]||'')},[sections,sectionName])
  useEffect(()=>{const list=standards.find(s=>s.name===slot.standard_name)?.sections||[];const next=list[0]||'';if(!list.includes(slot.section_name)&&slot.section_name!==next)setSlot(current=>({...current,section_name:next}))},[slot.standard_name,slot.section_name,standards])
  useEffect(()=>{const next=timetableSubjects[0]?.id||'';if(!timetableSubjects.some(s=>s.id===slot.subject_id)&&slot.subject_id!==next)setSlot(current=>({...current,subject_id:next}))},[timetableSubjects,slot.subject_id])
