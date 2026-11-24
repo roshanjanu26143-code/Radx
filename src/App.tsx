@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 import MobileQRAttendance from './components/MobileQRAttendance'
 import TeacherClassAllotment from './components/TeacherClassAllotment'
+import AttendanceReports from './components/AttendanceReports'
 import BusGpsTracker, { PublicBusTrackingPage, readBusTrackingPayload } from './components/BusGpsTracker'
 import {
   Activity, AlarmClock, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpen,
@@ -59,7 +60,7 @@ type NavItem = { label: string; icon: typeof LayoutDashboard; children: string[]
 const schoolNavigation: NavItem[] = [
  {label:'Overview',icon:LayoutDashboard,children:['Dashboard']},
  {label:'Admission',icon:GraduationCap,children:['Create Student','Create Teacher','Create Staff','Create Driver & Cleaner','Students Data']},
- {label:'Academic',icon:BookOpen,children:['Standard','Attendance','Exam Schedules','Student Results','Performance']},
+ {label:'Academic',icon:BookOpen,children:['Standard','Attendance','Attendance Reports','Exam Schedules','Student Results','Performance']},
  {label:'Transport',icon:Bus,children:['Routes','Buses','Allotment']},
  {label:'Peoples',icon:Users,children:['Teachers','Staff','Driver & Cleaner','Parent Book']},
  {label:'Finance',icon:Wallet,children:['Finance','Fees','Fees Structure','Pending Fees']},
@@ -74,7 +75,7 @@ type PeopleIdSettings={studentPrefix:string;teacherPrefix:string;staffPrefix:str
 const rolePageDefaults:Record<string,string[]> = {
  'Cashier-Staff':['Finance','Fees','Fees Structure','Students Data','Pending Fees'],
  'Academic Director':['Exam Schedules','Attendance','Student Results','Performance'],
- 'Teacher':['Attendance'],
+ 'Teacher':['Attendance','Attendance Reports'],
 }
 const rolePageOptions = schoolNavigation.flatMap(group=>group.children
  .filter(child=>!(group.label==='Settings'&&(child==='Role Users'||child==='Audit Log')))
@@ -173,6 +174,7 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages,t
   if(activeParent==='Overview')return dashboard()
   if(activeParent==='Academic'&&activeChild==='Standard')return <section className="workspace-panel"><div className="workspace-heading"><div><span className="section-eyebrow">ACADEMIC STRUCTURE</span><h2>Standards & Sections</h2><p>12 standards are created by default. Maximum 10 sections per standard.</p></div></div><div className="standard-layout"><div className="standard-list"><b>Standards</b>{standards.map(row=><button key={row.name} className={selectedStandard===row.name?'chosen':''} onClick={()=>setSelectedStandard(row.name)}>{row.name}<span>{row.sections.length}/10</span></button>)}</div><div className="section-editor"><div className="section-editor-head"><div><span className="section-eyebrow">SELECTED STANDARD</span><h3>{selectedStandard}</h3></div><span className="count-pill">{standards.find(row=>row.name===selectedStandard)?.sections.length||0}/10 sections</span></div><form className="inline-create-form" onSubmit={addSection}><input value={newSection} onChange={e=>setNewSection(e.target.value)} placeholder="Section name (A, B, C...)" required/><button type="submit" disabled={(standards.find(row=>row.name===selectedStandard)?.sections.length||0)>=10}>+ Add section</button></form><div className="section-chip-list">{(standards.find(row=>row.name===selectedStandard)?.sections||[]).length?standards.find(row=>row.name===selectedStandard)?.sections.map(section=><span className="section-chip" key={section}>{section}</span>):<div className="empty-module"><BookOpen size={24}/><b>No sections created</b><span>Add the first section for this standard.</span></div>}</div></div></div><StandardStudentAllocation standard={selectedStandard} standards={standards} records={peopleRecords} onAssign={assignStudentSection}/>{userRole==='Admin'&&<TeacherClassAllotment schoolId={schoolId} teachers={peopleRecords.filter(p=>p.type==='Teacher').map(p=>({id:p.id,name:p.name}))} standards={standards}/>}</section>
   if(activeParent==='Academic'&&activeChild==='Attendance')return <MobileQRAttendance schoolId={schoolId} standards={standards} people={peopleRecords} notify={notify} userRole={userRole} teacherPersonId={teacherPersonId}/>
+   if(activeParent==='Academic'&&activeChild==='Attendance Reports')return <AttendanceReports schoolId={schoolId} userRole={userRole}/>
   if(activeParent==='Academic'&&activeChild==='Exam Schedules')return <ModulePlaceholder title="Exam schedules" subtitle="Exam schedules will be allotted by AI. AI implementation will be done later." icon={<CalendarDays/>} details={['AI scheduling is planned','No AI schedules are generated yet']}/>
   if(activeParent==='Academic'&&activeChild==='Student Results')return <ModulePlaceholder title="Student Results" subtitle="Student result records and academic outcomes." icon={<ChartNoAxesCombined/>} details={['Select a standard','Student results will appear when marks are available']}/>
   if(activeParent==='Academic'&&activeChild==='Performance')return <ModulePlaceholder title="Performance" subtitle="Performance overview of each standard." icon={<ChartNoAxesCombined/>} details={['Select a standard','Performance data will appear when marks are available']}/>
