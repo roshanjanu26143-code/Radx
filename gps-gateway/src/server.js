@@ -1,5 +1,4 @@
 import net from "node:net";
-import { createHash, timingSafeEqual } from "node:crypto";
 import { decodeGt06Imei, decodeGt06Location, gt06Ack, parseGt06Frames } from "./gt06.js";
 
 const PORT = Number(process.env.GPS_GATEWAY_PORT || 5023);
