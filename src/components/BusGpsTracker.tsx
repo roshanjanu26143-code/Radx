@@ -104,3 +104,38 @@ export default function BusGpsTracker({ schoolId, schoolName, notify }: { school
     <div className="gps-last-sync"><Clock3 size={13}/> {positions.length} location update(s) available · This screen listens for new Supabase GPS updates</div>
   </section>
 }
+
+export type BusTrackingPayload = {
+  routeName: string
+  busNumber: string
+  driver: string
+  schoolName: string
+  updatedAt: string
+  currentLocation: string
+  stops: { name: string; status: 'passed' | 'current' | 'upcoming'; expected: string; actual?: string; minutes?: number }[]
+}
+
+export function readBusTrackingPayload(): BusTrackingPayload | null {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('busTrack')
+    if (!raw) return null
+    const value = JSON.parse(raw) as BusTrackingPayload
+    if (!value.routeName || !value.busNumber || !Array.isArray(value.stops)) return null
+    return value
+  } catch { return null }
+}
+
+export function PublicBusTrackingPage({ payload }: { payload: BusTrackingPayload }) {
+  return <main className="public-bus-page">
+    <header className="public-bus-header"><div className="public-bus-brand"><div><Bus size={20}/></div><span>AI <b>ACADAMIX</b><small>BUS TRACKING</small></span></div><span className="public-demo-tag"><Signal size={12}/> SHARED TRACKING</span></header>
+    <section className="public-bus-content">
+      <div className="public-route-title"><span className="section-eyebrow">PARENT BUS TRACKER</span><h1>{payload.routeName}</h1><p>{payload.schoolName}</p></div>
+      <div className="public-bus-status"><div className="public-bus-icon"><Bus size={25}/></div><div><small>Bus number · {payload.busNumber}</small><b>{payload.currentLocation}</b><span>Driver: {payload.driver || 'Not provided'}</span></div></div>
+      <section className="public-stop-card"><div className="public-stop-heading"><div><h2>Route journey</h2><p>Shared location snapshot</p></div><span>Updated {payload.updatedAt}</span></div>
+        {payload.stops.map((stop,index)=><article className={'public-stop-row '+stop.status} key={stop.name+index}><div className="public-stop-name"><b>{stop.name}</b><span>{stop.status==='passed'?'Passed':stop.status==='current'?'Current point':'Upcoming'}</span></div><div className="public-stop-time"><b>{stop.status==='passed'?stop.actual:stop.status==='current'?'Now':stop.expected}</b></div></article>)}
+      </section>
+      <div className="public-bus-disclaimer"><Radio size={15}/><span>This is a previously shared route snapshot. Real-time coordinates require an active GPS device feed.</span></div>
+      <footer className="public-bus-footer">Powered by AI ACADAMIX · RADX</footer>
+    </section>
+  </main>
+}
