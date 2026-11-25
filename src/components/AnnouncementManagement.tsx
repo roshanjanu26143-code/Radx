@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
-import { CalendarClock, CheckCircle2, ChevronDown, Clock3, FileText, Megaphone, MessageCircle, Send } from 'lucide-react'
+import { CalendarClock, CheckCircle2, ChevronDown, Clock3, FileText, Megaphone, MessageCircle, Send, X } from 'lucide-react'
 import './AnnouncementManagement.css'
 
 type Standard = { name: string; sections: string[] }
