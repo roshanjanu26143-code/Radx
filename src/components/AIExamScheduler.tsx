@@ -6,6 +6,7 @@ type Exam = { id:string; academic_year:string; exam_name:string; standard_name:s
 type Room = { id:string; room_name:string; room_type:'classroom'|'lab'|'computer_lab'; capacity:number; is_active:boolean }
 type Teacher = { person_id:string; full_name:string }
 type Assignment = { teacher_person_id:string; standard_name:string; section_name:string; subject_name:string|null }
+type ResourceBlock = { id:string; resource_type:'room'|'teacher'; resource_id:string; blocked_date:string; start_time:string; end_time:string; reason:string|null }
 type Slot = { date:string; start:string; end:string }
 type Allocation = { exam_schedule_id:string; exam_name:string; standard_name:string; section_name:string; subject_name:string; exam_date:string; start_time:string; end_time:string; room_id:string; room_name:string; invigilator_person_id:string; invigilator_name:string }
 type Props = { schoolId:string; academicYear:string; notify:(message:string)=>void }
@@ -20,6 +21,8 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
  const [rooms,setRooms]=useState<Room[]>([])
  const [teachers,setTeachers]=useState<Teacher[]>([])
  const [assignments,setAssignments]=useState<Assignment[]>([])
+ const [blocks,setBlocks]=useState<ResourceBlock[]>([])
+ const [blockForm,setBlockForm]=useState({resource_type:'room' as 'room'|'teacher',resource_id:'',blocked_date:new Date().toISOString().slice(0,10),start_time:'09:00',end_time:'12:00',reason:''})
  const [allocations,setAllocations]=useState<Allocation[]>([])
  const [runId,setRunId]=useState('')
  const [runStatus,setRunStatus]=useState('')
@@ -39,17 +42,18 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
 
  const load=async()=>{
   setLoading(true);setError('')
-  const [examRes,roomRes,teacherRes,assignRes,runRes]=await Promise.all([
+  const [examRes,roomRes,teacherRes,assignRes,runRes,blockRes]=await Promise.all([
    supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time,duration_minutes,is_ai_locked,is_published').eq('school_id',schoolId).eq('academic_year',academicYear).order('exam_date'),
    supabase.from('school_exam_rooms').select('id,room_name,room_type,capacity,is_active').eq('school_id',schoolId).order('capacity'),
    supabase.from('school_people').select('person_id,full_name').eq('school_id',schoolId).eq('record_type','Teacher').order('full_name'),
    supabase.from('school_teacher_class_assignments').select('teacher_person_id,standard_name,section_name,subject_name').eq('school_id',schoolId).eq('is_active',true),
-   supabase.from('school_exam_plan_runs').select('id,exam_name,status').eq('school_id',schoolId).eq('academic_year',academicYear).order('created_at',{ascending:false}).limit(1)
+   supabase.from('school_exam_plan_runs').select('id,exam_name,status').eq('school_id',schoolId).eq('academic_year',academicYear).order('created_at',{ascending:false}).limit(1),
+   supabase.from('school_exam_resource_blocks').select('id,resource_type,resource_id,blocked_date,start_time,end_time,reason').eq('school_id',schoolId).order('blocked_date')
   ])
-  const failed=[examRes,roomRes,teacherRes,assignRes,runRes].find(x=>x.error)
+  const failed=[examRes,roomRes,teacherRes,assignRes,runRes,blockRes].find(x=>x.error)
   if(failed?.error){setError(failed.error.message);setLoading(false);return}
   const e=(examRes.data||[]) as Exam[],r=(roomRes.data||[]) as Room[]
-  setExams(e);setRooms(r);setTeachers((teacherRes.data||[]) as Teacher[]);setAssignments((assignRes.data||[]) as Assignment[])
+  setExams(e);setRooms(r);setTeachers((teacherRes.data||[]) as Teacher[]);setAssignments((assignRes.data||[]) as Assignment[]);setBlocks((blockRes.data||[]) as ResourceBlock[])
   const names=[...new Set(e.map(x=>x.exam_name))]
   setExamName(current=>names.includes(current)?current:(names[0]||''))
   const latest=(runRes.data||[])[0]
@@ -77,6 +81,18 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
   if(error){notify('Could not update room: '+error.message);return}await load()
  }
 
+ const addResourceBlock=async()=>{
+  if(!blockForm.resource_id){notify('Choose the room or teacher to block.');return}
+  if(blockForm.end_time<=blockForm.start_time){notify('Availability block end time must be after its start time.');return}
+  const {error}=await supabase.from('school_exam_resource_blocks').insert({school_id:schoolId,...blockForm,reason:blockForm.reason.trim()||null})
+  if(error){notify('Could not save resource availability: '+error.message);return}
+  notify('Resource availability block saved.');await load()
+ }
+ const removeResourceBlock=async(block:ResourceBlock)=>{
+  const {error}=await supabase.from('school_exam_resource_blocks').delete().eq('school_id',schoolId).eq('id',block.id)
+  if(error){notify('Could not remove availability block: '+error.message);return}
+  notify('Availability block removed.');await load()
+ }
  const generate=async()=>{
   if(!examName||!selectedExams.length){notify('Create subject exam schedules first.');return}
   const activeRooms=rooms.filter(r=>r.is_active)
@@ -110,7 +126,7 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
     const needed=studentCount.get(cohort(e))||0
     const catalog=awaitSubjectType.get(e.id)||''
     const lab=/lab|practical/i.test(catalog)
-    const available=activeRooms.filter(r=>!chosen.some(a=>a.room_id===r.id&&a.exam_date===slot.date&&overlaps({start_time:slot.start,end_time:slot.end},a))&&(!lab||r.room_type==='lab'||r.room_type==='computer_lab')).sort((a,b)=>a.capacity-b.capacity)
+    const available=activeRooms.filter(r=>!chosen.some(a=>a.room_id===r.id&&a.exam_date===slot.date&&overlaps({start_time:slot.start,end_time:slot.end},a))&&!blocks.some(b=>b.resource_type==='room'&&b.resource_id===r.id&&b.blocked_date===slot.date&&overlaps({start_time:slot.start,end_time:slot.end},b))&&(!lab||r.room_type==='lab'||r.room_type==='computer_lab')).sort((a,b)=>a.capacity-b.capacity)
     const single=available.filter(r=>r.capacity>=needed).sort((a,b)=>a.capacity-b.capacity)[0]
     if(single)return [single]
     const selected:Room[]=[];let capacity=0
@@ -119,7 +135,7 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
    }
    const teacherOptions=(e:Exam,slot:Slot,roomList:Room[])=>{
     const subjectTeachers=new Set(assignments.filter(a=>a.standard_name===e.standard_name&&a.section_name===e.section_name&&a.subject_name===e.subject_name).map(a=>a.teacher_person_id))
-    const available=teachers.filter(t=>!subjectTeachers.has(t.person_id)&&!chosen.some(a=>a.invigilator_person_id===t.person_id&&a.exam_date===slot.date&&overlaps({start_time:slot.start,end_time:slot.end},a))).sort((a,b)=>(teacherLoad.get(a.person_id)||0)-(teacherLoad.get(b.person_id)||0))
+    const available=teachers.filter(t=>!subjectTeachers.has(t.person_id)&&!chosen.some(a=>a.invigilator_person_id===t.person_id&&a.exam_date===slot.date&&overlaps({start_time:slot.start,end_time:slot.end},a))&&!blocks.some(b=>b.resource_type==='teacher'&&b.resource_id===t.person_id&&b.blocked_date===slot.date&&overlaps({start_time:slot.start,end_time:slot.end},b))).sort((a,b)=>(teacherLoad.get(a.person_id)||0)-(teacherLoad.get(b.person_id)||0))
     if(available.length<roomList.length)return []
     return available.slice(0,roomList.length)
    }
@@ -192,8 +208,8 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
  const splits=new Set(allocations.filter(a=>allocations.filter(b=>b.exam_schedule_id===a.exam_schedule_id).length>1).map(a=>a.exam_schedule_id)).size
  return <section className="workspace-panel ai-exam-scheduler">
   <style>{`
-   .ai-exam-scheduler .ai-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.ai-exam-scheduler label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#52665a}.ai-exam-scheduler input,.ai-exam-scheduler select{border:1px solid #dce7e0;border-radius:9px;padding:10px;background:#fff;color:#213b2c;min-height:40px;min-width:0}.ai-exam-scheduler .ai-card{border:1px solid #e2ebe5;border-radius:14px;padding:16px;background:#fff;margin-top:14px}.ai-exam-scheduler .ai-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}.ai-exam-scheduler .ai-stat{border:1px solid #e2ebe5;border-radius:12px;padding:13px}.ai-exam-scheduler .ai-stat span{display:block;color:#718078;font-size:11px;font-weight:700}.ai-exam-scheduler .ai-stat b{display:block;color:#19432e;font-size:22px;margin-top:5px}.ai-exam-scheduler .ai-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.ai-exam-scheduler .ai-btn{border:0;border-radius:9px;background:#19764a;color:white;padding:10px 13px;font-weight:750;display:inline-flex;align-items:center;gap:7px;cursor:pointer}.ai-exam-scheduler .ai-btn.secondary{background:#fff;color:#28533c;border:1px solid #dce7e0}.ai-exam-scheduler .ai-btn:disabled{opacity:.5;cursor:not-allowed}.ai-exam-scheduler .ai-table{overflow:auto;border:1px solid #e5ece7;border-radius:12px;margin-top:12px}.ai-exam-scheduler table{width:100%;border-collapse:collapse;min-width:780px}.ai-exam-scheduler th,.ai-exam-scheduler td{padding:10px 12px;text-align:left;border-bottom:1px solid #edf1ee;font-size:12px}.ai-exam-scheduler th{background:#f7faf8;color:#66766d;text-transform:uppercase;font-size:10px}.ai-exam-scheduler .ai-warning{padding:12px;border-radius:10px;background:#fff7e8;color:#875b13;margin-top:12px}.ai-exam-scheduler .ai-error{padding:12px;border-radius:10px;background:#fff1ef;color:#a33f35;margin-top:12px}.ai-exam-scheduler .ai-muted{color:#748278}.ai-exam-scheduler .ai-room-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #edf1ee}.ai-exam-scheduler .ai-room-row span{color:#6c7b72;font-size:12px}.ai-exam-scheduler .ai-room-form{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:9px;align-items:end;margin-top:12px}
-   @media(max-width:760px){.ai-exam-scheduler .ai-grid{grid-template-columns:1fr 1fr}.ai-exam-scheduler .ai-stats{grid-template-columns:1fr 1fr}.ai-exam-scheduler .ai-room-form{grid-template-columns:1fr 1fr}}@media(max-width:480px){.ai-exam-scheduler .ai-grid{grid-template-columns:1fr}.ai-exam-scheduler .ai-room-form{grid-template-columns:1fr}}
+   .ai-exam-scheduler .ai-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.ai-exam-scheduler label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#52665a}.ai-exam-scheduler input,.ai-exam-scheduler select{border:1px solid #dce7e0;border-radius:9px;padding:10px;background:#fff;color:#213b2c;min-height:40px;min-width:0}.ai-exam-scheduler .ai-card{border:1px solid #e2ebe5;border-radius:14px;padding:16px;background:#fff;margin-top:14px}.ai-exam-scheduler .ai-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}.ai-exam-scheduler .ai-stat{border:1px solid #e2ebe5;border-radius:12px;padding:13px}.ai-exam-scheduler .ai-stat span{display:block;color:#718078;font-size:11px;font-weight:700}.ai-exam-scheduler .ai-stat b{display:block;color:#19432e;font-size:22px;margin-top:5px}.ai-exam-scheduler .ai-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.ai-exam-scheduler .ai-btn{border:0;border-radius:9px;background:#19764a;color:white;padding:10px 13px;font-weight:750;display:inline-flex;align-items:center;gap:7px;cursor:pointer}.ai-exam-scheduler .ai-btn.secondary{background:#fff;color:#28533c;border:1px solid #dce7e0}.ai-exam-scheduler .ai-btn:disabled{opacity:.5;cursor:not-allowed}.ai-exam-scheduler .ai-table{overflow:auto;border:1px solid #e5ece7;border-radius:12px;margin-top:12px}.ai-exam-scheduler table{width:100%;border-collapse:collapse;min-width:780px}.ai-exam-scheduler th,.ai-exam-scheduler td{padding:10px 12px;text-align:left;border-bottom:1px solid #edf1ee;font-size:12px}.ai-exam-scheduler th{background:#f7faf8;color:#66766d;text-transform:uppercase;font-size:10px}.ai-exam-scheduler .ai-warning{padding:12px;border-radius:10px;background:#fff7e8;color:#875b13;margin-top:12px}.ai-exam-scheduler .ai-error{padding:12px;border-radius:10px;background:#fff1ef;color:#a33f35;margin-top:12px}.ai-exam-scheduler .ai-muted{color:#748278}.ai-exam-scheduler .ai-room-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #edf1ee}.ai-exam-scheduler .ai-room-row span{color:#6c7b72;font-size:12px}.ai-exam-scheduler .ai-room-form{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:9px;align-items:end;margin-top:12px}.ai-exam-scheduler .ai-resource-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;align-items:end;margin-top:12px}
+   @media(max-width:760px){.ai-exam-scheduler .ai-grid{grid-template-columns:1fr 1fr}.ai-exam-scheduler .ai-stats{grid-template-columns:1fr 1fr}.ai-exam-scheduler .ai-room-form,.ai-exam-scheduler .ai-resource-form{grid-template-columns:1fr 1fr}}@media(max-width:480px){.ai-exam-scheduler .ai-grid{grid-template-columns:1fr}.ai-exam-scheduler .ai-room-form,.ai-exam-scheduler .ai-resource-form{grid-template-columns:1fr}}
   `}</style>
   <div className="workspace-heading"><div><span className="section-eyebrow">CONSTRAINT-BASED OPTIMIZATION</span><h2><Sparkles size={18}/> AI Exam Scheduler</h2><p>Generate a clash-free timetable, allocate rooms by capacity and balance invigilator loads.</p></div><button className="ai-btn secondary" onClick={()=>void load()} disabled={loading}><RefreshCw size={14}/> Refresh</button></div>
   {error&&<div className="ai-error" role="alert">{error}</div>}
@@ -208,6 +224,17 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
    <label>Slots per day<input type="number" min="1" max="6" value={slotsPerDay} onChange={e=>setSlotsPerDay(e.target.value)}/></label>
   </div><div className="ai-actions"><button className="ai-btn" onClick={()=>void generate()} disabled={loading||generating||!selectedExams.length}><Sparkles size={15}/>{generating?'Optimizing constraints…':'Generate AI timetable'}</button><button className="ai-btn secondary" onClick={()=>setShowRooms(v=>!v)}><DoorOpen size={15}/> {showRooms?'Hide':'Manage'} rooms</button></div><p className="ai-muted">Hard constraints: no same-class exam overlap, no room or invigilator double-booking, sufficient room capacity, and lab-room matching for practical subjects. Soft objectives: fewer room splits and balanced invigilator loads.</p></div>
   {showRooms&&<div className="ai-card"><h3><DoorOpen size={17}/> Exam rooms & labs</h3><form className="ai-room-form" onSubmit={e=>{e.preventDefault();void addRoom()}}><label>Room name<input value={roomForm.room_name} onChange={e=>setRoomForm(v=>({...v,room_name:e.target.value}))} placeholder="Room 101" required/></label><label>Room type<select value={roomForm.room_type} onChange={e=>setRoomForm(v=>({...v,room_type:e.target.value as Room['room_type']}))}><option value="classroom">Classroom</option><option value="lab">Science lab</option><option value="computer_lab">Computer lab</option></select></label><label>Capacity<input type="number" min="1" value={roomForm.capacity} onChange={e=>setRoomForm(v=>({...v,capacity:e.target.value}))} required/></label><button className="ai-btn" type="submit"><Plus size={14}/> Add room</button></form>{rooms.map(room=><div className="ai-room-row" key={room.id}><div><b>{room.room_name}</b><span> · {room.room_type.replace('_',' ')} · {room.capacity} seats</span></div><button className="ai-btn secondary" onClick={()=>void toggleRoom(room)}>{room.is_active?'Deactivate':'Activate'}</button></div>)}{!rooms.length&&<p className="ai-muted">No rooms configured. Add classrooms and labs before generating.</p>}</div>}
+  <div className="ai-card"><h3><CalendarClock size={17}/> Resource availability</h3><p className="ai-muted">Block a room or teacher for a date and time. The scheduler will not allocate unavailable resources.</p><form className="ai-resource-form" onSubmit={e=>{e.preventDefault();void addResourceBlock()}}>
+   <label>Resource type<select value={blockForm.resource_type} onChange={e=>setBlockForm(v=>({...v,resource_type:e.target.value as 'room'|'teacher',resource_id:''}))}><option value="room">Room / lab</option><option value="teacher">Teacher</option></select></label>
+   <label>Resource<select value={blockForm.resource_id} onChange={e=>setBlockForm(v=>({...v,resource_id:e.target.value}))} required><option value="">Choose resource</option>{(blockForm.resource_type==='room'?rooms.filter(r=>r.is_active).map(r=>({id:r.id,name:r.room_name})):teachers.map(t=>({id:t.person_id,name:t.full_name+' · '+t.person_id}))).map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+   <label>Date<input type="date" value={blockForm.blocked_date} onChange={e=>setBlockForm(v=>({...v,blocked_date:e.target.value}))} required/></label>
+   <label>Unavailable from<input type="time" value={blockForm.start_time} onChange={e=>setBlockForm(v=>({...v,start_time:e.target.value}))} required/></label>
+   <label>Unavailable until<input type="time" value={blockForm.end_time} onChange={e=>setBlockForm(v=>({...v,end_time:e.target.value}))} required/></label>
+   <label>Reason<input value={blockForm.reason} onChange={e=>setBlockForm(v=>({...v,reason:e.target.value}))} placeholder="Optional"/></label>
+   <button className="ai-btn" type="submit"><Plus size={14}/> Add block</button>
+  </form>
+  {blocks.map(block=><div className="ai-room-row" key={block.id}><div><b>{block.resource_type==='room'?rooms.find(r=>r.id===block.resource_id)?.room_name:teachers.find(t=>t.person_id===block.resource_id)?.full_name||block.resource_id}</b><span> · {block.blocked_date} · {block.start_time.slice(0,5)}–{block.end_time.slice(0,5)}{block.reason?' · '+block.reason:''}</span></div><button className="ai-btn secondary" onClick={()=>void removeResourceBlock(block)}>Remove</button></div>)}
+  {!blocks.length&&<p className="ai-muted">No room or teacher unavailability is registered.</p>}</div>
   <div className="ai-card"><div className="workspace-heading"><div><h3><CheckCircle2 size={17}/> Generated plan review</h3><p>{runStatus?('Latest plan · '+runStatus.toUpperCase()):'Generate a plan to review the proposed dates, rooms and invigilators.'}</p></div>{runStatus==='draft'&&<button className="ai-btn" onClick={()=>void publish()} disabled={publishing||!allocations.length}><Send size={14}/>{publishing?'Publishing…':'Publish timetable'}</button>}</div>
    {allocations.length?<div className="ai-table"><table><thead><tr><th>Date</th><th>Time</th><th>Class</th><th>Subject</th><th>Room</th><th>Invigilator</th></tr></thead><tbody>{allocations.map((a,i)=><tr key={a.exam_schedule_id+'-'+a.room_id+'-'+i}><td>{a.exam_date}</td><td>{a.start_time.slice(0,5)} – {a.end_time.slice(0,5)}</td><td>{a.standard_name} · {a.section_name}</td><td>{a.exam_name} · {a.subject_name}</td><td>{a.room_name}</td><td>{a.invigilator_name}</td></tr>)}</tbody></table></div>:<div className="ai-warning"><AlertTriangle size={16}/> {loading?'Loading saved plan…':'No AI plan saved for this academic year yet.'}</div>}
    {runStatus==='published'&&<p className="ai-muted">Published plan is locked. Generate a new draft to propose changes; published plans remain in the audit history.</p>}
