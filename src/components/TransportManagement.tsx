@@ -134,20 +134,19 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
 
   const pageTitle = page === 'Routes' ? 'Routes & Stops' : page === 'Buses' ? 'Bus Fleet' : 'Student Transport'
   const pageDescription = page === 'Routes' ? 'Plan pickup and drop routes, organise stops and keep every journey structured.' : page === 'Buses' ? 'Manage your school fleet, vehicle capacity, drivers, cleaners and service status.' : 'Assign students to the right route, bus and pickup stop using their locality details.'
-  const pageNav = <nav className="transport-module-nav" aria-label="Transport pages">{[['Live tracking','Live fleet'],['Routes','Routes & stops'],['Students','Student allotment'],['Buses','Bus fleet']].map(([key,label])=><button type="button" key={key} className={page===key?'active':''} onClick={()=>window.dispatchEvent(new CustomEvent('radx-transport-navigate',{detail:key}))}>{label}</button>)}</nav>
   const pageSummary = <div className="transport-summary">
     <div><RouteIcon/><span>Routes configured</span><b>{routes.length}</b><small>Pickup & drop networks</small></div>
     <div><Bus/><span>Active fleet</span><b>{buses.filter(bus => bus.status === 'active').length} / {buses.length}</b><small>{buses.filter(bus => bus.status === 'maintenance').length} in maintenance</small></div>
     <div><Users/><span>Students allotted</span><b>{allotments.filter(row => row.status === 'active').length}</b><small>Active transport users</small></div>
   </div>
 
-  if (page === 'Live tracking') return <section className="transport-page"><div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>Live fleet tracking</h2><p>Monitor school buses, GPS signals and route progress in one place.</p></div><button className="transport-refresh" onClick={() => void load()}><RefreshCw size={15}/> Refresh data</button></div>{pageNav}{pageSummary}<TransportLiveTracking schoolId={schoolId} schoolName="" peopleRecords={peopleRecords} notify={notify}/></section>
+  if (page === 'Live tracking') return <section className="transport-page"><div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>Live fleet tracking</h2><p>Monitor school buses, GPS signals and route progress in one place.</p></div><button className="transport-refresh" onClick={() => void load()}><RefreshCw size={15}/> Refresh data</button></div>{pageSummary}<TransportLiveTracking schoolId={schoolId} schoolName="" peopleRecords={peopleRecords} notify={notify}/></section>
 
-  if (loading) return <section className="workspace-panel transport-panel"><div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>{pageTitle}</h2><p>{pageDescription}</p></div></div>{pageNav}<div className="transport-loading"><RefreshCw size={18}/> Loading transport records…</div></section>
+  if (loading) return <section className="workspace-panel transport-panel"><div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>{pageTitle}</h2><p>{pageDescription}</p></div></div><div className="transport-loading"><RefreshCw size={18}/> Loading transport records…</div></section>
 
   return <section className="workspace-panel transport-panel">
     <div className="transport-page-heading"><div><span className="section-eyebrow">TRANSPORT MANAGEMENT</span><h2>{pageTitle}</h2><p>{pageDescription}</p></div><button className="transport-refresh" onClick={() => void load()}><RefreshCw size={15}/> Refresh data</button></div>
-    {pageNav}
+    
     {pageSummary}
 
     {page === 'Routes' && <>
