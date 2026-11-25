@@ -8,6 +8,7 @@ type Assignment={id:string;teacher_person_id:string;standard_name:string;section
 type SubjectOption={standard_name:string;subject_name:string;is_active:boolean}
 const standardNumber=(name:string)=>Number((name.match(/\d+/)||[])[0]||0)
 const standardsForRange=(range:string,standards:Standard[])=>{
+ if(!range)return standards
  if(range==='KG - UKG')return standards.filter(s=>/kg|lkg|ukg|kindergarten/i.test(s.name))
  const [min,max]=range.split('-').map(v=>Number(v.trim()))
  return standards.filter(s=>{const n=standardNumber(s.name);return n>=min&&n<=max})
@@ -62,14 +63,14 @@ export default function TeacherClassAllotment({schoolId,teachers,standards}:{sch
   <div className="workspace-heading"><div><span className="section-eyebrow">ACADEMIC WORKLOAD</span><h2>Teacher Allotment</h2><p>Teacher eligibility is limited by the teaching range selected during teacher creation.</p></div><span className="count-pill">{teachers.length} teachers</span></div>
   {error&&<div className="qr-error">{error}</div>}
   <div className="ex-table"><table><thead><tr><th>Teacher</th><th>Teacher ID</th><th>Teaching range</th><th>Assigned classes</th><th>Subjects</th></tr></thead><tbody>
-   {teachers.map(t=>{const assigned=activeRows.filter(a=>a.teacher_person_id===t.id);return <tr key={t.id}><td><b>{t.name}</b></td><td>{t.id}</td><td>{t.range||'Not set'}</td><td>{assigned.length?assigned.map(a=>a.standard_name+'-'+a.section_name).join(', '):'Not allotted'}</td><td>{assigned.length?[...new Set(assigned.map(a=>a.subject_name||'Class teacher'))].join(', '):'—'}</td></tr>})}
+   {teachers.map(t=>{const assigned=activeRows.filter(a=>a.teacher_person_id===t.id);return <tr key={t.id}><td><b>{t.name}</b></td><td>{t.id}</td><td>{t.range||'Not set · legacy teacher'}</td><td>{assigned.length?assigned.map(a=>a.standard_name+'-'+a.section_name).join(', '):'Not allotted'}</td><td>{assigned.length?[...new Set(assigned.map(a=>a.subject_name||'Class teacher'))].join(', '):'—'}</td></tr>})}
    {!teachers.length&&<tr><td colSpan={5} className="empty">Create teacher profiles first. Set the teaching range in Admission → Create Teacher.</td></tr>}
   </tbody></table></div>
   <form className="people-form" onSubmit={save}>
    <div className="workspace-heading"><div><span className="section-eyebrow">NEW ALLOTMENT</span><h3>Assign teacher to standard</h3><p>Only standards inside the teacher’s range are available.</p></div></div>
    <div className="people-form-grid">
     <label>Teacher<select value={teacherId} onChange={e=>{setTeacherId(e.target.value);setStandardName('');setSectionName('')}} required><option value="">Select teacher</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.name} · {t.id}</option>)}</select></label>
-    <label>Teaching range<input value={selectedTeacher?.range||'Choose a teacher'} readOnly/></label>
+    <label>Teaching range<input value={selectedTeacher?.range||'Not set — legacy teacher (all standards available)'} readOnly/></label>
     <label>Standard<select value={standardName} onChange={e=>setStandardName(e.target.value)} required disabled={!eligibleStandards.length}><option value="">Select eligible standard</option>{eligibleStandards.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}</select></label>
     <label>Section<select value={sectionName} onChange={e=>setSectionName(e.target.value)} required disabled={!sections.length}><option value="">Select section</option>{sections.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
     <label>Subject (optional)<select value={subjectName} onChange={e=>setSubjectName(e.target.value)}><option value="">All subjects / Class teacher</option>{subjects.filter(s=>s.standard_name===standardName).map(s=><option key={s.standard_name+':'+s.subject_name} value={s.subject_name}>{s.subject_name}</option>)}</select></label>
