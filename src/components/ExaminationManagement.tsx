@@ -4,7 +4,7 @@ import AIExamScheduler from './AIExamScheduler'
 import { CalendarDays,Plus,RefreshCw,ClipboardList,GraduationCap,Search,Save,Trash2 } from 'lucide-react'
 
 type Standard={name:string;sections:string[]}
-type Exam={id:string;academic_year:string;exam_name:string;standard_name:string;section_name:string;subject_name:string;exam_date:string;start_time:string|null;end_time:string|null;max_marks:number;pass_marks:number;instructions:string|null;is_published:boolean}
+type Exam={id:string;academic_year:string;exam_name:string;standard_name:string;section_name:string;subject_name:string;exam_date:string;start_time:string|null;end_time:string|null;duration_minutes:number;max_marks:number;pass_marks:number;instructions:string|null;is_published:boolean}
 type Student={person_id:string;full_name:string;details:Record<string,any>}
 type Mark={id:string;exam_schedule_id:string;student_person_id:string;marks_obtained:number;remarks:string|null}
 type Props={schoolId:string;schoolName:string;academicYear:string;standards:Standard[];page:string;userRole:string;allowedPages:string[];notify:(message:string)=>void}
@@ -25,7 +25,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  const [selectedExam,setSelectedExam]=useState('')
  const [resultExam,setResultExam]=useState('')
  const [reportCardStudentId,setReportCardStudentId]=useState('')
- const [form,setForm]=useState({academic_year:academicYear||yearNow(),exam_name:'Quarterly Examination',standard_name:'',section_name:'',subject_name:'',exam_date:dateNow(),start_time:'',end_time:'',max_marks:'100',pass_marks:'35',instructions:''})
+ const [form,setForm]=useState({academic_year:academicYear||yearNow(),exam_name:'Quarterly Examination',standard_name:'',section_name:'',subject_name:'',exam_date:dateNow(),start_time:'',end_time:'',duration_minutes:'180',max_marks:'100',pass_marks:'35',instructions:''})
  const [markDraft,setMarkDraft]=useState<Record<string,{marks:string;remarks:string}>>({})
  const [showAiScheduler,setShowAiScheduler]=useState(false)
  const canEnterMarks=userRole==='Admin'||allowedPages.includes('Marks Entry')
@@ -71,7 +71,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   if(max<=0||pass<0||pass>max){notify('Check maximum and passing marks.');return}
   setSaving(true)
   const user=await supabase.auth.getUser()
-  const {error}=await supabase.from('school_exam_schedules').insert({school_id:schoolId,academic_year:form.academic_year,exam_name:form.exam_name.trim(),standard_name:form.standard_name,section_name:form.section_name,subject_name:form.subject_name.trim(),exam_date:form.exam_date,start_time:form.start_time||null,end_time:form.end_time||null,max_marks:max,pass_marks:pass,instructions:form.instructions.trim()||null,created_by:user.data.user?.id})
+  const {error}=await supabase.from('school_exam_schedules').insert({school_id:schoolId,academic_year:form.academic_year,exam_name:form.exam_name.trim(),standard_name:form.standard_name,section_name:form.section_name,subject_name:form.subject_name.trim(),exam_date:form.exam_date,start_time:form.start_time||null,end_time:form.end_time||null,duration_minutes:Number(form.duration_minutes),max_marks:max,pass_marks:pass,instructions:form.instructions.trim()||null,created_by:user.data.user?.id})
   setSaving(false)
   if(error){notify('Could not save exam schedule: '+error.message);return}
   notify('Exam schedule created.');setForm({...form,subject_name:'',instructions:''});await load()
@@ -129,6 +129,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    <label>Standard<select value={form.standard_name} onChange={e=>{const s=standards.find(x=>x.name===e.target.value);setForm({...form,standard_name:e.target.value,section_name:s?.sections[0]||''})}} required><option value="">Select standard</option>{standards.map(s=><option key={s.name}>{s.name}</option>)}</select></label>
    <label>Section<select value={form.section_name} onChange={e=>setForm({...form,section_name:e.target.value})} required disabled={!form.standard_name}><option value="">Select section</option>{(standards.find(s=>s.name===form.standard_name)?.sections||[]).map(s=><option key={s}>{s}</option>)}</select></label>
    <label>Subject<select value={form.subject_name} onChange={e=>setForm({...form,subject_name:e.target.value})} required disabled={!form.standard_name}><option value="">Choose subject</option>{subjectCatalog.filter(s=>s.academic_year===form.academic_year&&s.standard_name===form.standard_name).map(s=><option key={s.id} value={s.subject_name}>{s.subject_name}</option>)}</select></label>
+   <label>Duration (minutes)<input type="number" min="15" max="600" step="15" value={form.duration_minutes} onChange={e=>setForm({...form,duration_minutes:e.target.value})} required/></label>
    <label>Maximum marks<input type="number" min="1" step="0.5" value={form.max_marks} onChange={e=>setForm({...form,max_marks:e.target.value})} required/></label>
    <label>Passing marks<input type="number" min="0" step="0.5" value={form.pass_marks} onChange={e=>setForm({...form,pass_marks:e.target.value})} required/></label>
    <label>Start time<input type="time" value={form.start_time} onChange={e=>setForm({...form,start_time:e.target.value})}/></label>
