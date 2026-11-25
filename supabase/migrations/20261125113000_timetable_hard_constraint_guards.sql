@@ -108,6 +108,12 @@ begin
     (select s.subject_name from public.school_academic_subjects s where s.school_id=p_school_id and s.id=v_req.subject_id),
     v_req.weekly_periods,v_count;
   end if;
+  if exists(select 1 from public.school_academic_timetable t
+   where t.school_id=p_school_id and t.academic_year=v_req.academic_year
+    and t.standard_name=v_req.standard_name and t.section_name=v_req.section_name
+    and t.subject_id=v_req.subject_id and (t.teacher_person_id is null or t.room_id is null or t.room_type<>v_req.room_type)) then
+   raise exception 'Every published lesson must have a qualified teacher and a matching registered room';
+  end if;
   select count(distinct t.double_group_id) into v_doubles from public.school_academic_timetable t
    where t.school_id=p_school_id and t.academic_year=v_req.academic_year
     and t.standard_name=v_req.standard_name and t.section_name=v_req.section_name
@@ -115,6 +121,27 @@ begin
   if v_doubles<>v_req.double_periods then
    raise exception 'Double-period quota mismatch for % %: expected %, found %',
     v_req.standard_name,v_req.section_name,v_req.double_periods,v_doubles;
+  end if;
+  if exists(
+   select 1 from public.school_academic_timetable first_period
+   where first_period.school_id=p_school_id and first_period.academic_year=v_req.academic_year
+    and first_period.standard_name=v_req.standard_name and first_period.section_name=v_req.section_name
+    and first_period.subject_id=v_req.subject_id and first_period.is_double_period
+    and (first_period.double_group_id is null or
+     (select count(*) from public.school_academic_timetable pair_period
+      where pair_period.school_id=first_period.school_id and pair_period.double_group_id=first_period.double_group_id)<>2
+     or not exists(select 1 from public.school_academic_timetable second_period
+      where second_period.school_id=first_period.school_id and second_period.double_group_id=first_period.double_group_id
+       and second_period.id<>first_period.id and second_period.day_of_week=first_period.day_of_week
+       and second_period.period_number=first_period.period_number+1
+       and second_period.start_time=first_period.end_time
+       and second_period.standard_name=first_period.standard_name and second_period.section_name=first_period.section_name
+       and second_period.subject_id=first_period.subject_id
+       and second_period.teacher_person_id=first_period.teacher_person_id
+       and second_period.room_id=first_period.room_id
+       and not second_period.is_double_period))
+  ) then
+   raise exception 'A double lesson must be exactly two adjacent periods with the same teacher and room';
   end if;
  end loop;
  update public.school_academic_timetable set is_locked=true
