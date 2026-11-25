@@ -113,7 +113,7 @@ begin
   if exists (
     select 1 from public.school_exam_plan_allocations a
     join public.school_exam_schedules e on e.id=a.exam_schedule_id and e.school_id=a.school_id
-    where a.plan_run_id=v_run_id and e.is_ai_locked
+    where a.plan_run_id=v_run_id and (e.is_ai_locked or e.is_published)
       and (a.exam_date<>e.exam_date or a.start_time<>e.start_time or a.end_time<>e.end_time)
   ) then raise exception 'A manually locked exam slot cannot be changed by the AI scheduler.'; end if;
 
