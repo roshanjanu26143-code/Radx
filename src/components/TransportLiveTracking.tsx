@@ -8,7 +8,11 @@ type RouteItem = { id: string; route_name: string; start_point: string; end_poin
 type DeviceItem = { id: string; bus_id: string; status: string; provider_name: string; last_seen_at: string | null }
 type PositionItem = { id: number; bus_id: string; latitude: number; longitude: number; speed_kph: number | null; recorded_at: string }
 
-const isLive = (position?: PositionItem) => Boolean(position && Date.now() - new Date(position.recorded_at).getTime() <= 5 * 60 * 1000)
+const isLive = (position?: PositionItem) => {
+  if (!position) return false
+  const age = Date.now() - new Date(position.recorded_at).getTime()
+  return Number.isFinite(age) && age >= -60_000 && age <= 5 * 60 * 1000
+}
 const timeAgo = (value?: string) => {
   if (!value) return 'No signal'
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000))
@@ -47,11 +51,14 @@ export default function TransportLiveTracking({ schoolId, peopleRecords, notify 
   useEffect(() => {
     let active = true
     void load()
+    // Realtime is the fast path; polling keeps the dashboard fresh if a project's
+    // Realtime publication is not enabled for GPS tables.
+    const poll = window.setInterval(() => { if (active) void load() }, 30_000)
     const channel = supabase.channel('transport-live-' + schoolId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'school_bus_gps_positions', filter: 'school_id=eq.' + schoolId }, () => { if (active) void load() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'school_bus_gps_devices', filter: 'school_id=eq.' + schoolId }, () => { if (active) void load() })
       .subscribe()
-    return () => { active = false; void supabase.removeChannel(channel) }
+    return () => { active = false; window.clearInterval(poll); void supabase.removeChannel(channel) }
   }, [schoolId])
 
   const latestByBus = useMemo(() => {
@@ -59,11 +66,11 @@ export default function TransportLiveTracking({ schoolId, peopleRecords, notify 
     positions.forEach(position => { if (!result.has(position.bus_id)) result.set(position.bus_id, position) })
     return result
   }, [positions])
-  const liveCount = buses.filter(bus => isLive(latestByBus.get(bus.id)) && devices.find(device => device.bus_id === bus.id)?.status !== 'inactive').length
+  const liveCount = buses.filter(bus => bus.status === 'active' && isLive(latestByBus.get(bus.id)) && devices.find(device => device.bus_id === bus.id)?.status !== 'inactive').length
   const delayedCount = buses.length - liveCount
   const filteredBuses = buses.filter(bus => {
     const position = latestByBus.get(bus.id)
-    const live = isLive(position) && devices.find(device => device.bus_id === bus.id)?.status !== 'inactive'
+    const live = bus.status === 'active' && isLive(position) && devices.find(device => device.bus_id === bus.id)?.status !== 'inactive'
     const matchesFilter = filter === 'all' || (filter === 'live' ? live : !live)
     const route = routes.find(item => item.id === bus.route_id)?.route_name || ''
     return matchesFilter && (bus.registration_number.toLowerCase().includes(search.toLowerCase()) || route.toLowerCase().includes(search.toLowerCase()))
@@ -74,7 +81,7 @@ export default function TransportLiveTracking({ schoolId, peopleRecords, notify 
   const selectedDevice = selectedBus ? devices.find(device => device.bus_id === selectedBus.id) : undefined
   const driver = selectedBus ? peopleRecords.find(person => person.id === selectedBus.driver_person_id) : undefined
   const driverPhone = driver?.details.phone || driver?.details.mobile || driver?.details.phone_number || ''
-  const selectedLive = isLive(selectedPosition) && selectedDevice?.status !== 'inactive'
+  const selectedLive = selectedBus?.status === 'active' && isLive(selectedPosition) && selectedDevice?.status !== 'inactive'
   const mapUrl = selectedPosition
     ? 'https://www.openstreetmap.org/export/embed.html?bbox=' + (Number(selectedPosition.longitude) - 0.012) + '%2C' + (Number(selectedPosition.latitude) - 0.008) + '%2C' + (Number(selectedPosition.longitude) + 0.012) + '%2C' + (Number(selectedPosition.latitude) + 0.008) + '&layer=mapnik&marker=' + selectedPosition.latitude + '%2C' + selectedPosition.longitude
     : ''
@@ -93,7 +100,7 @@ export default function TransportLiveTracking({ schoolId, peopleRecords, notify 
       <div className="transport-live-bus-list">
         {filteredBuses.map((bus, index) => {
           const position = latestByBus.get(bus.id)
-          const live = isLive(position) && devices.find(device => device.bus_id === bus.id)?.status !== 'inactive'
+          const live = bus.status === 'active' && isLive(position) && devices.find(device => device.bus_id === bus.id)?.status !== 'inactive'
           const route = routes.find(item => item.id === bus.route_id)
           const busDriver = peopleRecords.find(person => person.id === bus.driver_person_id)
           return <button type="button" className={'transport-live-bus-card ' + (selectedBusId === bus.id ? 'chosen' : '')} key={bus.id} onClick={() => setSelectedBusId(bus.id)}>
