@@ -67,7 +67,13 @@ Deno.serve(async (req: Request) => {
         const params = new URLSearchParams();
         params.set("To", item.channel === "whatsapp" ? "whatsapp:" + item.recipient_phone : item.recipient_phone);
         params.set("From", item.channel === "whatsapp" && !from.startsWith("whatsapp:") ? "whatsapp:" + from : from);
-        params.set("Body", message);
+        const whatsappTemplate = item.channel === "whatsapp" ? Deno.env.get("TWILIO_WHATSAPP_CONTENT_SID") : null;
+        if (whatsappTemplate) {
+          params.set("ContentSid", whatsappTemplate);
+          params.set("ContentVariables", JSON.stringify({ "1": announcement.title, "2": announcement.body.slice(0, 900), "3": links.join("\\n").slice(0, 900) }));
+        } else {
+          params.set("Body", message);
+        }
         const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + twilioSid + "/Messages.json", {
           method: "POST",
           headers: {
