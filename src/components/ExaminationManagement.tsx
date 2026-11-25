@@ -143,11 +143,11 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    headers,
    ...uploadClassStudents.map((student,index)=>{
     const rowNumber=firstStudentRow+index
-    const subjectCells=uploadSchedules.flatMap((e,subjectIndex)=>['',`=IF(${excelColumn(markColumnIndexes[subjectIndex])}${rowNumber}>40%*${Number(e.max_marks)},\"P\",\"F\")`])
+    const subjectCells=uploadSchedules.flatMap(()=>['',''])
     const totalFormula=`=SUM(${markColumnIndexes.map(column=>excelColumn(column)+rowNumber).join(',')})`
     const maxTotal=uploadSchedules.reduce((n,e)=>n+Number(e.max_marks),0)
-    const rankFormula=`=RANK.EQ(${excelColumn(totalColumn)}${rowNumber},${excelColumn(totalColumn)}${firstStudentRow}:${excelColumn(totalColumn)}${lastStudentRow},0)`
-    const statusFormula=`=IF(COUNTIF(${gradeColumnIndexes.map(column=>excelColumn(column)+rowNumber).join(',')},\"F\")>0,\"FAIL\",\"PASS\")`
+    const rankFormula=''
+    const statusFormula=''
     return [student.person_id,student.full_name,...subjectCells,totalFormula,maxTotal,rankFormula,statusFormula]
    })
   ]
