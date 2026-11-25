@@ -76,7 +76,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   return classResults
  },[resultSelected,exams,students,marks])
  const filteredResults=results.filter(r=>(r.student.full_name+' '+r.student.person_id).toLowerCase().includes(search.toLowerCase()))
- const uploadSchedules=exams.filter(e=>e.exam_name===uploadExamName&&e.standard_name===uploadStandard&&e.section_name===uploadSection).sort((a,b)=>a.subject_name.localeCompare(b.subject_name))
+ const uploadSchedules=exams.filter(e=>e.academic_year===academicYear&&e.exam_name===uploadExamName&&e.standard_name===uploadStandard&&e.section_name===uploadSection).sort((a,b)=>a.subject_name.localeCompare(b.subject_name))
  const uploadClassStudents=students.filter(s=>s.details.joining_standard===uploadStandard&&(s.details.section||'')===uploadSection).sort((a,b)=>a.full_name.localeCompare(b.full_name))
  const reportCard=filteredResults.find(r=>r.student.person_id===reportCardStudentId)
  const saveExam=async(e:FormEvent)=>{
@@ -158,7 +158,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    const csvRows=parseCsv(await marksFile.text())
    if(csvRows.length<6)throw new Error('The template is incomplete. Download a fresh marks template.')
    const metadata=(label:string)=>csvRows.find(row=>(row[0]||'').trim().toLowerCase()===label.toLowerCase())?.[1]?.trim()||''
-   const expectedYear=uploadSchedules[0].academic_year
+   const expectedYear=academicYear
    if(metadata('Current Academic Year')!==expectedYear)throw new Error('Academic year mismatch. Expected '+expectedYear+'.')
    if(metadata('Examination')!==uploadExamName)throw new Error('Examination name does not match the selected exam.')
    if(metadata('Standard')!==uploadStandard)throw new Error('Standard does not match the selected standard.')
@@ -187,7 +187,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
     seen.add(student.person_id)
     for(const examRow of uploadSchedules){
      const cols=subjectColumns.get(examRow.id)!,raw=row[cols.marks]?.trim()
-     if(!raw)continue
+     if(!raw)throw new Error('Marks are missing for '+student.full_name+' · '+examRow.subject_name+'. Complete every subject column before uploading.')
      const value=Number(raw)
      if(!Number.isFinite(value)||value<0||value>cols.max)throw new Error('Invalid marks for '+student.full_name+' · '+examRow.subject_name+'. Maximum is '+cols.max+'.')
      const passed=value/cols.max*100>40
@@ -196,9 +196,11 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
      grouped.get(examRow.id)!.push({student_person_id:student.person_id,marks_obtained:value,remarks:passed?'P':'F'})
     }
    }
-   let total=0
-   for(const [examId,entries] of grouped){if(!entries.length)continue;const {error}=await supabase.rpc('save_school_exam_marks',{p_school_id:schoolId,p_exam_schedule_id:examId,p_marks:entries});if(error)throw error;total+=entries.length}
-   if(!total)throw new Error('No subject marks were filled in the CSV file.')
+   if(seen.size!==uploadClassStudents.length)throw new Error('The CSV must include every enrolled student. Expected '+uploadClassStudents.length+' rows; found '+seen.size+'. Download a fresh template and complete all rows.')
+   const subjectMarks=[...grouped.entries()].map(([exam_schedule_id,marks])=>({exam_schedule_id,marks}))
+   const {data:total,error:batchError}=await supabase.rpc('save_school_exam_marks_batch',{p_school_id:schoolId,p_subject_marks:subjectMarks})
+   if(batchError)throw batchError
+   if(!total)throw new Error('No subject marks were saved.')
    const {data:userData}=await supabase.auth.getUser()
    const submissionPayload={status:'submitted',submitted_by:userData.user?.id,submitted_at:new Date().toISOString(),reviewed_by:null,reviewed_at:null,review_note:null,file_name:marksFile.name,record_count:total,updated_at:new Date().toISOString()}
    const {data:existingSubmission,error:lookupError}=await supabase.from('school_academic_submissions').select('id').eq('school_id',schoolId).eq('submission_type','student_performance').eq('academic_year',uploadSchedules[0].academic_year).eq('exam_name',uploadExamName).eq('standard_name',uploadStandard).eq('section_name',uploadSection).maybeSingle()
