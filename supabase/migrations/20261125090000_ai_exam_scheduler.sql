@@ -42,6 +42,9 @@ create index if not exists school_exam_rooms_school_active_idx on public.school_
 create index if not exists school_exam_plan_runs_school_year_idx on public.school_exam_plan_runs(school_id,academic_year,exam_name,created_at desc);
 create index if not exists school_exam_plan_allocations_run_idx on public.school_exam_plan_allocations(school_id,plan_run_id);
 create index if not exists school_exam_plan_allocations_slot_idx on public.school_exam_plan_allocations(school_id,exam_date,start_time,end_time);
+create index if not exists school_exam_plan_allocations_exam_idx on public.school_exam_plan_allocations(exam_schedule_id);
+create index if not exists school_exam_plan_allocations_run_fk_idx on public.school_exam_plan_allocations(plan_run_id);
+create index if not exists school_exam_plan_allocations_room_idx on public.school_exam_plan_allocations(room_id);
 alter table public.school_exam_rooms enable row level security;
 alter table public.school_exam_plan_runs enable row level security;
 alter table public.school_exam_plan_allocations enable row level security;
@@ -51,33 +54,55 @@ grant select,insert,update,delete on public.school_exam_plan_allocations to auth
 
 drop policy if exists "Exam managers manage exam rooms" on public.school_exam_rooms;
 drop policy if exists "Exam managers read exam rooms" on public.school_exam_rooms;
-create policy "Exam managers manage exam rooms" on public.school_exam_rooms for all to authenticated
+create policy "Exam managers read exam rooms" on public.school_exam_rooms for select to authenticated
+using (private.can_manage_exam_schedule(school_exam_rooms.school_id));
+create policy "Exam managers insert exam rooms" on public.school_exam_rooms for insert to authenticated
+with check (private.can_manage_exam_schedule(school_exam_rooms.school_id));
+create policy "Exam managers update exam rooms" on public.school_exam_rooms for update to authenticated
 using (private.can_manage_exam_schedule(school_exam_rooms.school_id))
 with check (private.can_manage_exam_schedule(school_exam_rooms.school_id));
+create policy "Exam managers delete exam rooms" on public.school_exam_rooms for delete to authenticated
+using (private.can_manage_exam_schedule(school_exam_rooms.school_id));
 
 drop policy if exists "Exam managers manage exam plan runs" on public.school_exam_plan_runs;
 drop policy if exists "Exam managers read exam plan runs" on public.school_exam_plan_runs;
-create policy "Exam managers manage exam plan runs" on public.school_exam_plan_runs for all to authenticated
-using (private.can_manage_exam_schedule(school_exam_plan_runs.school_id) and status = 'draft')
-with check (private.can_manage_exam_schedule(school_exam_plan_runs.school_id));
 create policy "Exam managers read exam plan runs" on public.school_exam_plan_runs for select to authenticated
 using (private.can_manage_exam_schedule(school_exam_plan_runs.school_id));
+create policy "Exam managers insert exam plan runs" on public.school_exam_plan_runs for insert to authenticated
+with check (private.can_manage_exam_schedule(school_exam_plan_runs.school_id));
+create policy "Exam managers update draft exam plan runs" on public.school_exam_plan_runs for update to authenticated
+using (private.can_manage_exam_schedule(school_exam_plan_runs.school_id) and status='draft')
+with check (private.can_manage_exam_schedule(school_exam_plan_runs.school_id));
+create policy "Exam managers delete draft exam plan runs" on public.school_exam_plan_runs for delete to authenticated
+using (private.can_manage_exam_schedule(school_exam_plan_runs.school_id) and status='draft');
 
 drop policy if exists "Exam managers manage draft allocations" on public.school_exam_plan_allocations;
 drop policy if exists "Exam managers read allocations" on public.school_exam_plan_allocations;
-create policy "Exam managers manage draft allocations" on public.school_exam_plan_allocations for all to authenticated
+create policy "Exam managers read allocations" on public.school_exam_plan_allocations for select to authenticated
+using (private.can_manage_exam_schedule(school_exam_plan_allocations.school_id));
+create policy "Exam managers insert draft allocations" on public.school_exam_plan_allocations for insert to authenticated
+with check (private.can_manage_exam_schedule(school_exam_plan_allocations.school_id) and exists (
+  select 1 from public.school_exam_plan_runs r
+  where r.id=school_exam_plan_allocations.plan_run_id
+    and r.school_id=school_exam_plan_allocations.school_id and r.status='draft'
+));
+create policy "Exam managers update draft allocations" on public.school_exam_plan_allocations for update to authenticated
 using (private.can_manage_exam_schedule(school_exam_plan_allocations.school_id) and exists (
   select 1 from public.school_exam_plan_runs r
-  where r.id = school_exam_plan_allocations.plan_run_id
-    and r.school_id = school_exam_plan_allocations.school_id and r.status = 'draft'
+  where r.id=school_exam_plan_allocations.plan_run_id
+    and r.school_id=school_exam_plan_allocations.school_id and r.status='draft'
 ))
 with check (private.can_manage_exam_schedule(school_exam_plan_allocations.school_id) and exists (
   select 1 from public.school_exam_plan_runs r
-  where r.id = school_exam_plan_allocations.plan_run_id
-    and r.school_id = school_exam_plan_allocations.school_id and r.status = 'draft'
+  where r.id=school_exam_plan_allocations.plan_run_id
+    and r.school_id=school_exam_plan_allocations.school_id and r.status='draft'
 ));
-create policy "Exam managers read allocations" on public.school_exam_plan_allocations for select to authenticated
-using (private.can_manage_exam_schedule(school_exam_plan_allocations.school_id));
+create policy "Exam managers delete draft allocations" on public.school_exam_plan_allocations for delete to authenticated
+using (private.can_manage_exam_schedule(school_exam_plan_allocations.school_id) and exists (
+  select 1 from public.school_exam_plan_runs r
+  where r.id=school_exam_plan_allocations.plan_run_id
+    and r.school_id=school_exam_plan_allocations.school_id and r.status='draft'
+));
 
 create or replace function public.save_school_ai_exam_plan(
   p_school_id text,p_academic_year text,p_exam_name text,p_allocations jsonb,p_score jsonb default '{}'::jsonb
