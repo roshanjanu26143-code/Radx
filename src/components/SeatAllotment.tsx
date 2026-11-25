@@ -11,6 +11,7 @@ type DutySlot={key:string;room_id:string;room_name:string;exam_name:string;exam_
 const band=(name:string)=>{const n=Number((name.match(/\d+/)||[])[0]||0);return n<=5?0:n<=8?1:n<=10?2:3}
 const slotKey=(s:{room_id:string;exam_date:string;start_time:string;end_time:string})=>[s.room_id,s.exam_date,s.start_time,s.end_time].join('|')
 const emptyDuty=():Duty=>({invigilator_person_id:'',standard_coordinator_person_id:'',exam_supervisor_person_id:'',rounds_staff_person_id:'',cleaner_person_id:''})
+const today=()=>new Date().toISOString().slice(0,10)
 
 export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:string;academicYear:string;notify:(message:string)=>void}){
  const [exams,setExams]=useState<Exam[]>([])
@@ -44,7 +45,7 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
   const examRows=(examRes.data||[]) as Exam[]
   const studentRows=(studentRes.data||[]) as Person[]
   setExams(examRows);setRooms((roomRes.data||[]) as Room[]);setPeople((peopleRes.data||[]) as Person[]);setStudents(studentRows);setOtherBookings((bookingRes.data||[]) as any[])
-  const names=[...new Set(examRows.map(e=>e.exam_name))]
+  const names=[...new Set(examRows.filter(e=>e.exam_date>=today()).map(e=>e.exam_name))]
   setExamName(current=>names.includes(current)?current:(names[0]||''))
   const seats=(seatRes.data||[]) as any[]
   if(seats.length){
@@ -56,10 +57,10 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
   setDuties(dutyMap);setLoading(false)
  }
  useEffect(()=>{void load()},[schoolId,academicYear])
- const examNames=useMemo(()=>[...new Set(exams.map(e=>e.exam_name))],[exams])
- const availableStandards=useMemo(()=>[...new Set(exams.filter(e=>e.exam_name===examName).map(e=>e.standard_name))].sort((a,b)=>band(a)-band(b)||a.localeCompare(b)),[exams,examName])
+ const examNames=useMemo(()=>[...new Set(exams.filter(e=>e.exam_date>=today()).map(e=>e.exam_name))],[exams])
+ const availableStandards=useMemo(()=>[...new Set(exams.filter(e=>e.exam_name===examName&&e.exam_date>=today()).map(e=>e.standard_name))].sort((a,b)=>band(a)-band(b)||a.localeCompare(b)),[exams,examName])
  useEffect(()=>{setSelectedStandards(current=>current.filter(s=>availableStandards.includes(s)).length?current.filter(s=>availableStandards.includes(s)):availableStandards)},[availableStandards])
- const sessions=useMemo(()=>{const selected=exams.filter(e=>e.exam_name===examName&&selectedStandards.includes(e.standard_name));const map=new Map<string,{date:string;start:string;end:string;exams:Exam[]}>();for(const exam of selected){const key=[exam.exam_date,exam.start_time||'',exam.end_time||''].join('|');if(!map.has(key))map.set(key,{date:exam.exam_date,start:exam.start_time||'',end:exam.end_time||'',exams:[]});map.get(key)!.exams.push(exam)}return [...map.values()]},[exams,examName,selectedStandards])
+ const sessions=useMemo(()=>{const selected=exams.filter(e=>e.exam_name===examName&&e.exam_date>=today()&&selectedStandards.includes(e.standard_name));const map=new Map<string,{date:string;start:string;end:string;exams:Exam[]}>();for(const exam of selected){const key=[exam.exam_date,exam.start_time||'',exam.end_time||''].join('|');if(!map.has(key))map.set(key,{date:exam.exam_date,start:exam.start_time||'',end:exam.end_time||'',exams:[]});map.get(key)!.exams.push(exam)}return [...map.values()]},[exams,examName,selectedStandards])
  const dutySlots=useMemo<DutySlot[]>(()=>{const map=new Map<string,DutySlot>();for(const seat of plan){const key=slotKey(seat);map.set(key,{key,room_id:seat.room_id,room_name:seat.room_name,exam_name:seat.exam_name,exam_date:seat.exam_date,start_time:seat.start_time,end_time:seat.end_time})}return [...map.values()]},[plan])
  const teachers=people.filter(p=>p.record_type==='Teacher')
  const staff=people.filter(p=>p.record_type==='Staff')
@@ -68,7 +69,7 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
  const generate=()=>{
   if(!examName||!selectedStandards.length){notify('Select an exam and at least one standard.');return}
   if(!rooms.length){notify('Register exam rooms and their capacities before seat allotment.');return}
-  if(exams.some(e=>e.exam_name===examName&&selectedStandards.includes(e.standard_name)&&(!e.start_time||!e.end_time))){notify('Every selected standard exam must have a start and end time before seat allotment.');return}
+  if(exams.some(e=>e.exam_name===examName&&e.exam_date>=today()&&selectedStandards.includes(e.standard_name)&&(!e.start_time||!e.end_time))){notify('Every selected standard exam must have a start and end time before seat allotment.');return}
   const perBench=Math.max(1,Math.min(4,Number(studentsPerBench)||2))
   setGenerating(true);setError('')
   try{
