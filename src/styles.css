@@ -805,3 +805,16 @@ button:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:3px s
   .vertical-sidebar .parent-tab{min-height:28px;padding-top:3px;padding-bottom:3px}
   .vertical-sidebar .child-tab{min-height:31px;padding-top:4px;padding-bottom:4px}
 }
+
+/* Academic multi-standard subject assignment and exam seating tables */
+.subject-standard-picker{border:1px solid var(--line);border-radius:11px;padding:12px;margin-top:12px;background:var(--surface)}
+.subject-standard-picker>b{display:block;font-size:12px;margin-bottom:9px;color:var(--ink)}
+.subject-standard-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:7px}
+.subject-standard-options label{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:650;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel,#fff)}
+.subject-standard-options input{accent-color:var(--brand-800)}
+.seat-allotment .ex-table,.teacher-allotment .ex-table{overflow:auto;border:1px solid var(--line);border-radius:11px}
+.seat-allotment .ex-table table,.teacher-allotment .ex-table table{width:100%;border-collapse:collapse;min-width:720px}
+.seat-allotment .ex-table th,.seat-allotment .ex-table td,.teacher-allotment .ex-table th,.teacher-allotment .ex-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:12px}
+.seat-allotment .ex-table th,.teacher-allotment .ex-table th{background:var(--surface);color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+.seat-allotment .ex-table td small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+@media(max-width:700px){.subject-standard-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
