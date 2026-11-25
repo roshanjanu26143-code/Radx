@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ArrowLeft, CalendarDays, Check, Clock3, Cpu, Plus, RefreshCw, Save, ShieldCheck, Sparkles, Users, WandSparkles } from 'lucide-react'
-import { supabase } from '../lib/supabase'\nimport TimeRangePicker from './TimeRangePicker'
+import { supabase } from '../lib/supabase'
+import TimeRangePicker from './TimeRangePicker'
 
 type Standard={name:string;sections:string[]}
 type Teacher={id:string;name:string}
