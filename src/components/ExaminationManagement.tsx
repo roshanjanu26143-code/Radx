@@ -122,9 +122,9 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   if(!uploadSchedules.length||!uploadClassStudents.length){notify('Select a scheduled exam, standard and section with enrolled students.');return}
   const header=['Admission Number','Student Name',...uploadSchedules.map(e=>e.subject_name)]
   const rows=[header,...uploadClassStudents.map(student=>[student.person_id,student.full_name,...uploadSchedules.map(()=> '')])]
-  const csv=rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n')
+  const csv=rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(',')).join('\r\n')
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a')
-  a.href=url;a.download='marks-template-'+uploadExamName.replace(/\\W+/g,'-')+'-'+uploadStandard.replace(/\\W+/g,'-')+'-'+uploadSection+'.csv';a.click();URL.revokeObjectURL(url)
+  a.href=url;a.download='marks-template-'+uploadExamName.replace(/\W+/g,'-')+'-'+uploadStandard.replace(/\W+/g,'-')+'-'+uploadSection+'.csv';a.click();URL.revokeObjectURL(url)
  }
  const uploadMarksFile=async()=>{
   if(!marksFile||!uploadSchedules.length){notify('Choose a CSV file and a scheduled exam class.');return}
