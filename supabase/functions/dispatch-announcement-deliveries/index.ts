@@ -61,7 +61,7 @@ Deno.serve(async (req: Request) => {
       if (item.channel === "sms" || item.channel === "whatsapp") {
         const from = item.channel === "sms" ? smsFrom : whatsappFrom;
         if (!twilioSid || !twilioToken || !from) {
-          await db.rpc("finish_school_announcement_delivery", { p_delivery_id: item.id, p_status: "skipped", p_error: "Twilio credentials or sender are not configured" });
+          await db.rpc("finish_school_announcement_delivery", { p_delivery_id: item.id, p_status: "deferred", p_error: "Twilio credentials or sender are not configured; will retry after provider setup" });
           skipped++; continue;
         }
         const params = new URLSearchParams();
@@ -88,7 +88,7 @@ Deno.serve(async (req: Request) => {
         sent++;
       } else if (item.channel === "push") {
         if (!pushReady) {
-          await db.rpc("finish_school_announcement_delivery", { p_delivery_id: item.id, p_status: "skipped", p_error: "VAPID push keys are not configured" });
+          await db.rpc("finish_school_announcement_delivery", { p_delivery_id: item.id, p_status: "deferred", p_error: "VAPID push keys are not configured; will retry after push setup" });
           skipped++; continue;
         }
         const { data: subscriptions } = await db.from("school_parent_push_subscriptions")
