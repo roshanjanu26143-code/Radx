@@ -85,7 +85,6 @@ Deno.serve(async (req: Request) => {
       const { data: students, error: studentError } = await db.from("school_people")
         .select("details").eq("school_id", schoolId).eq("record_type", "Student").limit(5000);
       if (studentError) throw studentError;
-      const digits = phone.replace(/\D/g, "");
       const matched = (students || []).some((student: any) => {
         const d = student.details || {};
         return ["father_phone", "mother_phone", "guardian_phone", "primary_contact"]
