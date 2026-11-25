@@ -1,0 +1,10 @@
+create index if not exists school_academic_timetable_room_fk_idx on public.school_academic_timetable(school_id,room_id);
+create index if not exists school_academic_timetable_generated_run_fk_idx on public.school_academic_timetable(school_id,generated_run_id);
+create index if not exists school_subject_period_requirements_subject_fk_idx on public.school_subject_period_requirements(school_id,subject_id);
+create index if not exists school_timetable_fixed_blocks_room_fk_idx on public.school_timetable_fixed_blocks(school_id,room_id);
+create index if not exists school_timetable_fixed_blocks_teacher_fk_idx on public.school_timetable_fixed_blocks(school_id,teacher_person_id);
+create index if not exists school_timetable_generation_runs_created_by_fk_idx on public.school_timetable_generation_runs(created_by);
+create index if not exists school_timetable_teacher_absences_created_by_fk_idx on public.school_timetable_teacher_absences(created_by);
+create index if not exists school_timetable_proxy_absent_teacher_fk_idx on public.school_timetable_proxy_assignments(school_id,absent_teacher_person_id);
+create index if not exists school_timetable_proxy_substitute_teacher_fk_idx on public.school_timetable_proxy_assignments(school_id,substitute_teacher_person_id);
+create index if not exists school_timetable_proxy_created_by_fk_idx on public.school_timetable_proxy_assignments(created_by);
