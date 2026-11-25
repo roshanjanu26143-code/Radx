@@ -49,7 +49,8 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
    const [timetableResult,assignmentResult,periodGridResult,roomsResult]=await Promise.all([
     supabase.from('school_academic_timetable').select('id,academic_year,standard_name,section_name,day_of_week,period_number,start_time,end_time,subject_id,teacher_person_id,room_label,room_id,room_type').eq('school_id',schoolId).eq('academic_year',academicYear).order('day_of_week').order('period_number'),
     supabase.from('school_teacher_class_assignments').select('teacher_person_id,standard_name,section_name,subject_name,is_active').eq('school_id',schoolId).eq('is_active',true),
-    supabase.from('school_timetable_periods').select('id,period_number,period_label,start_time,end_time,is_break,is_active').eq('school_id',schoolId).eq('academic_year',academicYear).order('period_number')
+    supabase.from('school_timetable_periods').select('id,period_number,period_label,start_time,end_time,is_break,is_active').eq('school_id',schoolId).eq('academic_year',academicYear).order('period_number'),
+    supabase.from('school_timetable_rooms').select('id,room_name,room_type,capacity,is_active').eq('school_id',schoolId).order('room_name')
    ])
    if(timetableResult.error||assignmentResult.error||periodGridResult.error||roomsResult.error){setError(timetableResult.error?.message||assignmentResult.error?.message||periodGridResult.error?.message||roomsResult.error?.message||'Could not load timetable data.');setLoading(false);return}
    setTeacherAssignments((assignmentResult.data||[]) as TeacherAssignment[])
@@ -58,6 +59,8 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
    setTimetable((timetableResult.data||[]).map((row:any)=>({...row,subject:rows.find(s=>s.id===row.subject_id)})) as TimetableRow[])
   }else{
    setTeacherAssignments([])
+   setPeriodGrid([])
+   setRoomList([])
    setTimetable([])
   }
   setLoading(false)
