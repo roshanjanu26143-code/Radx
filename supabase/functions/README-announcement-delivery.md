@@ -14,7 +14,8 @@ Set these in Supabase Dashboard → Edge Functions → Secrets (or with the Supa
 - `TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_SMS_FROM` — an SMS-enabled E.164 sender owned by the Twilio account
-- `TWILIO_WHATSAPP_FROM` — an approved WhatsApp sender, E.164; the dispatcher adds the `whatsapp:` prefix\n- `TWILIO_WHATSAPP_CONTENT_SID` — optional approved Twilio Content Template SID for template-based WhatsApp delivery outside the 24-hour service window
+- `TWILIO_WHATSAPP_FROM` — an approved WhatsApp sender, E.164; the dispatcher adds the `whatsapp:` prefix
+- `TWILIO_WHATSAPP_CONTENT_SID` — optional approved Twilio Content Template SID for template-based WhatsApp delivery outside the 24-hour service window
 
 The WhatsApp sender must be approved/enabled in the Twilio account. Template rules may apply for WhatsApp messages outside the customer-service window.
 
