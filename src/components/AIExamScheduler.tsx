@@ -137,24 +137,36 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
     })
     const exam=candidates[0]
     if(!exam)throw new Error('The scheduler could not order the remaining exams.')
-    let placed=false
+    const feasible:{slot:Slot;rooms:Room[];invigilators:Teacher[];penalty:number}[]=[]
     for(const slot of slots){
-     const cohortConflict=adjacency(exam).some(other=>{const prior=chosen.filter(a=>a.exam_schedule_id===other.id);return prior.some(a=>a.exam_date===slot.date&&overlaps({start_time:slot.start,end_time:slot.end},a))})
+     const cohortConflict=adjacency(exam).some(other=>chosen.filter(a=>a.exam_schedule_id===other.id).some(a=>a.exam_date===slot.date&&overlaps({start_time:slot.start,end_time:slot.end},a)))
      if(cohortConflict)continue
      const roomsForSlot=roomOptions(exam,slot)
      if(!roomsForSlot.length)continue
      const invigilators=teacherOptions(exam,slot,roomsForSlot)
      if(!invigilators.length)continue
-     roomsForSlot.forEach((room,index)=>{
-      const invigilator=invigilators[index]
-      roomBusy.add(room.id+'|'+slot.date+'|'+slot.start)
-      teacherBusy.add(invigilator.person_id+'|'+slot.date+'|'+slot.start)
-      teacherLoad.set(invigilator.person_id,(teacherLoad.get(invigilator.person_id)||0)+1)
-      chosen.push({exam_schedule_id:exam.id,exam_name:exam.exam_name,standard_name:exam.standard_name,section_name:exam.section_name,subject_name:exam.subject_name,exam_date:slot.date,start_time:slot.start,end_time:slot.end,room_id:room.id,room_name:room.room_name,invigilator_person_id:invigilator.person_id,invigilator_name:invigilator.full_name})
-     })
-     slotByExam.set(exam.id,slot);unassigned.delete(exam.id);placed=true;break
+     const related=adjacency(exam).flatMap(other=>chosen.filter(a=>a.exam_schedule_id===other.id))
+     let penalty=(roomsForSlot.length-1)*12
+     for(const prior of related){
+      const gapDays=Math.abs((new Date(slot.date+'T12:00:00').getTime()-new Date(prior.exam_date+'T12:00:00').getTime())/86400000)
+      if(gapDays===0)penalty+=70
+      else if(gapDays===1)penalty+=35
+      const heavy=(name:string)=>/math|mathematics|science|physics|chemistry|biology|accountancy/i.test(name)
+      if(gapDays<=2&&heavy(exam.subject_name)&&heavy(prior.subject_name))penalty+=25
+     }
+     feasible.push({slot,rooms:roomsForSlot,invigilators,penalty})
     }
-    if(!placed)throw new Error('Unable to allocate '+exam.standard_name+' '+exam.section_name+' · '+exam.subject_name+'. Add rooms / capacity / teachers or extend the exam date range.')
+    feasible.sort((a,b)=>a.penalty-b.penalty||a.slot.date.localeCompare(b.slot.date)||a.slot.start.localeCompare(b.slot.start))
+    const best=feasible[0]
+    if(!best)throw new Error('Unable to allocate '+exam.standard_name+' '+exam.section_name+' · '+exam.subject_name+'. Add rooms / capacity / teachers or extend the exam date range.')
+    best.rooms.forEach((room,index)=>{
+     const invigilator=best.invigilators[index]
+     roomBusy.add(room.id+'|'+best.slot.date+'|'+best.slot.start)
+     teacherBusy.add(invigilator.person_id+'|'+best.slot.date+'|'+best.slot.start)
+     teacherLoad.set(invigilator.person_id,(teacherLoad.get(invigilator.person_id)||0)+1)
+     chosen.push({exam_schedule_id:exam.id,exam_name:exam.exam_name,standard_name:exam.standard_name,section_name:exam.section_name,subject_name:exam.subject_name,exam_date:best.slot.date,start_time:best.slot.start,end_time:best.slot.end,room_id:room.id,room_name:room.room_name,invigilator_person_id:invigilator.person_id,invigilator_name:invigilator.full_name})
+    })
+    slotByExam.set(exam.id,best.slot);unassigned.delete(exam.id)
    }
    const payload=chosen.map(a=>({exam_schedule_id:a.exam_schedule_id,exam_date:a.exam_date,start_time:a.start_time,end_time:a.end_time,room_id:a.room_id,invigilator_person_id:a.invigilator_person_id}))
    const roomSplitCount=new Set(chosen.filter(a=>chosen.filter(b=>b.exam_schedule_id===a.exam_schedule_id).length>1).map(a=>a.exam_schedule_id)).size
