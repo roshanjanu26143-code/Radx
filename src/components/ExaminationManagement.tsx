@@ -1,5 +1,6 @@
 import { useEffect,useMemo,useState,type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
+import AIExamScheduler from './AIExamScheduler'
 import { CalendarDays,Plus,RefreshCw,ClipboardList,GraduationCap,Search,Save,Trash2 } from 'lucide-react'
 
 type Standard={name:string;sections:string[]}
@@ -26,6 +27,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  const [reportCardStudentId,setReportCardStudentId]=useState('')
  const [form,setForm]=useState({academic_year:academicYear||yearNow(),exam_name:'Quarterly Examination',standard_name:'',section_name:'',subject_name:'',exam_date:dateNow(),start_time:'',end_time:'',max_marks:'100',pass_marks:'35',instructions:''})
  const [markDraft,setMarkDraft]=useState<Record<string,{marks:string;remarks:string}>>({})
+ const [showAiScheduler,setShowAiScheduler]=useState(false)
  const canEnterMarks=userRole==='Admin'||allowedPages.includes('Marks Entry')
  const canManageSchedules=userRole==='Admin'||(userRole!=='Teacher'&&allowedPages.includes('Exam Schedules'))
 
@@ -115,8 +117,9 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  @media print{body *{visibility:hidden!important}.exam-module .exam-report-card,.exam-module .exam-report-card *{visibility:visible!important}.exam-module .exam-report-card{position:absolute;left:0;top:0;width:100%;border:0}.exam-module .exam-report-card .no-print{display:none!important}}
  @media(max-width:720px){.exam-module .ex-stats{grid-template-columns:1fr 1fr}.exam-module .ex-grid{grid-template-columns:1fr}.exam-module .wide{grid-column:auto}.exam-module .ex-toolbar>*{flex:1}}
  `}</style>
- <div className="workspace-heading"><div><span className="section-eyebrow">ACADEMIC MANAGEMENT</span><h2>{heading}</h2><p>Schedule examinations, enter subject marks and calculate student results.</p></div><button className="ex-btn secondary" onClick={()=>void load()} disabled={loading}><RefreshCw size={15}/> Refresh</button></div>
+ <div className="workspace-heading"><div><span className="section-eyebrow">ACADEMIC MANAGEMENT</span><h2>{heading}</h2><p>Schedule examinations, enter subject marks and calculate student results.</p></div><div className="ex-actions">{page==='Exam Schedules'&&canManageSchedules&&<button className="ex-btn" type="button" onClick={()=>setShowAiScheduler(value=>!value)}><CalendarDays size={15}/>{showAiScheduler?'Hide AI Scheduler':'AI Exam Scheduler'}</button>}<button className="ex-btn secondary" onClick={()=>void load()} disabled={loading}><RefreshCw size={15}/> Refresh</button></div></div>
  {error&&<div className="qr-error">{error}</div>}
+ {page==='Exam Schedules'&&canManageSchedules&&showAiScheduler&&<AIExamScheduler schoolId={schoolId} academicYear={academicYear} notify={notify}/>}
  <div className="ex-stats"><div className="ex-stat"><span><CalendarDays size={14}/> Exam schedules</span><strong>{exams.length}</strong></div><div className="ex-stat"><span><GraduationCap size={14}/> Students visible</span><strong>{students.length}</strong></div><div className="ex-stat"><span><ClipboardList size={14}/> Marks recorded</span><strong>{marks.length}</strong></div></div>
  {(page==='Exam Schedules'||page==='Marks Entry')&&<>
   {canManageSchedules&&<div className="ex-panel"><h3><Plus size={17}/> Create exam schedule</h3><form onSubmit={saveExam}><div className="ex-grid">
