@@ -82,8 +82,8 @@ begin
  if exists(select 1 from public.school_subject_period_requirements q
   where q.school_id=new.school_id and q.academic_year=new.academic_year and q.standard_name=new.standard_name
    and q.section_name=new.section_name and q.subject_id=new.subject_id and q.is_active
-   and q.room_type<>'classroom' and (new.room_id is null or q.room_type<>new.room_type)) then
-  raise exception 'This subject requires its configured specialist room';
+   and (new.room_id is null or q.room_type<>new.room_type)) then
+  raise exception 'This subject requires a registered room matching its configured room type';
  end if;
  return new;
 end;
