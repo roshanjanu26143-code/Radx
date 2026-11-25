@@ -50,7 +50,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
  const [selectedSection,setSelectedSection]=useState(standards[0]?.sections[0]||'')
  const [periodForm,setPeriodForm]=useState({period_number:'10',period_label:'Period 9',start_time:'15:45',end_time:'16:30',is_break:false})
  const [roomForm,setRoomForm]=useState({room_code:'',room_name:'',room_type:'classroom',capacity:'40'})
- const [fixedForm,setFixedForm]=useState({standard_name:'',section_name:'',day_of_week:'1',period_number:'5',block_type:'assembly',label:'Morning Assembly',teacher_person_id:'',room_id:''})
+ const [fixedForm,setFixedForm]=useState({standard_name:'',section_name:'',day_of_week:'1',period_number:'1',block_type:'assembly',label:'Morning Assembly',teacher_person_id:'',room_id:''})
  const [result,setResult]=useState<Placement[]|null>(null)
  const [score,setScore]=useState(0)
  const [solverMessage,setSolverMessage]=useState('')
