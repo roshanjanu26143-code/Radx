@@ -15,6 +15,7 @@ type AttendanceMark = { id: string; session_id: string; student_person_id: strin
 type TeacherAttendance = { id:string; attendance_date:string; session_code:string; teacher_person_id:string; checked_in_for_standard:string; checked_in_for_section:string; attendance_status:string; checked_in_at:string }
 type Student = { person_id: string; full_name: string; details: Record<string, unknown> }
 type ReportRow = AttendanceMark & { student_name: string; roll_number: string }
+type AcademicSubmission = { id:string; academic_year:string; report_period:string|null; standard_name:string; section_name:string; status:string; submitted_at:string; record_count:number; review_note:string|null }
 
 const monthStart = (value: string) => value + '-01'
 const monthEnd = (value: string) => {
@@ -36,13 +37,18 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
  const [loading, setLoading] = useState(true)
  const [refreshing, setRefreshing] = useState(false)
  const [error, setError] = useState('')
+ const [submissions,setSubmissions] = useState<AcademicSubmission[]>([])
+ const [submissionBusy,setSubmissionBusy] = useState(false)
+ const [reviewNote,setReviewNote] = useState('')
 
  const load = async () => {
   setLoading(true); setRefreshing(true); setError('')
-  const [sessionResult, teacherResult] = await Promise.all([
+  const [sessionResult, teacherResult, submissionResult] = await Promise.all([
    supabase.from('school_attendance_sessions').select('id,attendance_date,session_code,standard_name,section_name,teacher_person_id,submitted_at').eq('school_id',schoolId).gte('attendance_date',monthStart(month)).lte('attendance_date',monthEnd(month)).order('attendance_date',{ascending:false}),
-   supabase.from('school_teacher_attendance').select('id,attendance_date,session_code,teacher_person_id,checked_in_for_standard,checked_in_for_section,attendance_status,checked_in_at').eq('school_id',schoolId).gte('attendance_date',monthStart(month)).lte('attendance_date',monthEnd(month)).order('attendance_date',{ascending:false})
+   supabase.from('school_teacher_attendance').select('id,attendance_date,session_code,teacher_person_id,checked_in_for_standard,checked_in_for_section,attendance_status,checked_in_at').eq('school_id',schoolId).gte('attendance_date',monthStart(month)).lte('attendance_date',monthEnd(month)).order('attendance_date',{ascending:false}),
+   supabase.from('school_academic_submissions').select('id,academic_year,report_period,standard_name,section_name,status,submitted_at,record_count,review_note').eq('school_id',schoolId).eq('submission_type','attendance_report').eq('report_period',month).order('submitted_at',{ascending:false})
   ])
+  if(submissionResult.error){setError(submissionResult.error.message);setSubmissions([])}else setSubmissions((submissionResult.data||[]) as AcademicSubmission[])
   if(sessionResult.error){setError(sessionResult.error.message);setSessions([]);setMarks([]);setStudents([]);setTeacherAttendance([]);setLoading(false);setRefreshing(false);return}
   if(teacherResult.error){setError(teacherResult.error.message);setTeacherAttendance([])}
   const nextSessions=(sessionResult.data||[]) as AttendanceSession[]
@@ -84,6 +90,28 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
   const student = studentById.get(row.student_person_id)
   return { ...row, student_name: student?.full_name || row.student_person_id, roll_number: String(student?.details?.roll_number || '') }
  }).sort((a, b) => a.roll_number.localeCompare(b.roll_number, undefined, { numeric: true }) || a.student_name.localeCompare(b.student_name))
+
+ const academicYearForMonth = (value:string) => { const [year,monthNumber]=value.split('-').map(Number); const start=monthNumber>=4?year:year-1; return start+'-'+String(start+1).slice(-2) }
+ const submitAttendanceReport = async () => {
+  if(standard==='All'||section==='All'){setError('Choose one standard and one section before submitting its report.');return}
+  const scoped=filteredSessions.filter(row=>row.standard_name===standard&&row.section_name===section)
+  if(!scoped.length){setError('There are no completed attendance sessions for this standard and section in the selected month.');return}
+  setSubmissionBusy(true);setError('')
+  const sessionIds=scoped.map(row=>row.id)
+  const count=marks.filter(row=>sessionIds.includes(row.session_id)).length
+  const {error:saveError}=await supabase.from('school_academic_submissions').insert({school_id:schoolId,submission_type:'attendance_report',academic_year:academicYearForMonth(month),report_period:month,standard_name:standard,section_name:section,status:'submitted',record_count:count,source_session_ids:sessionIds})
+  setSubmissionBusy(false)
+  if(saveError){setError(saveError.code==='23505'?'This monthly attendance report has already been submitted.':saveError.message);return}
+  await load()
+ }
+ const reviewSubmission = async (row:AcademicSubmission,status:'approved'|'returned') => {
+  setSubmissionBusy(true);setError('')
+  const {data:userData}=await supabase.auth.getUser()
+  const {error:reviewError}=await supabase.from('school_academic_submissions').update({status,reviewed_by:userData.user?.id,reviewed_at:new Date().toISOString(),review_note:reviewNote.trim()||null,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('id',row.id)
+  setSubmissionBusy(false)
+  if(reviewError){setError(reviewError.message);return}
+  setReviewNote('');await load()
+ }
 
  const exportCsv = () => {
   const rows = filteredMarks.map(mark => {
@@ -136,6 +164,11 @@ export default function AttendanceReports({ schoolId, userRole }: { schoolId: st
    <div className="report-stat"><span><UserCheck size={15}/> Teachers present</span><strong>{filteredTeacherAttendance.length}</strong><small>Verified QR check-ins</small></div>
   </div>
   {error && <div className="qr-error">{error}</div>}
+  <div className="workspace-panel" style={{marginTop:18,padding:16,border:'1px solid #e4ece7',borderRadius:14}}>
+   <div className="workspace-heading"><div><h3>Standard report submission</h3><p>Submit the selected month's completed QR attendance register to Academic Staff for review.</p></div><button type="button" className="primary-action" onClick={()=>void submitAttendanceReport()} disabled={submissionBusy||userRole==='Teacher'||standard==='All'||section==='All'||!filteredSessions.length}>{submissionBusy?'Submitting…':'Submit standard report'}</button></div>
+   {userRole==='Teacher'&&<p className="people-form-note">Teachers can view reports. A Standard Coordinator or authorized Academic role submits the monthly report.</p>}
+   <div className="report-table-wrap"><table><thead><tr><th>Academic year</th><th>Month</th><th>Standard</th><th>Section</th><th>Records</th><th>Submitted</th><th>Status</th><th>Review</th></tr></thead><tbody>{submissions.map(row=><tr key={row.id}><td>{row.academic_year}</td><td>{row.report_period||'—'}</td><td>{row.standard_name}</td><td>{row.section_name}</td><td>{row.record_count}</td><td>{new Date(row.submitted_at).toLocaleString('en-IN')}</td><td><b>{row.status.replace('_',' ')}</b></td><td>{row.review_note||'—'}{(row.status==='submitted'||row.status==='under_review')&&userRole!=='Teacher'&&<div style={{display:'flex',gap:6,marginTop:6}}><input aria-label="Review note" value={reviewNote} onChange={e=>setReviewNote(e.target.value)} placeholder="Optional note" style={{maxWidth:160}}/><button type="button" className="report-select-button" disabled={submissionBusy} onClick={()=>void reviewSubmission(row,'approved')}>Approve</button><button type="button" className="report-select-button" disabled={submissionBusy} onClick={()=>void reviewSubmission(row,'returned')}>Return</button></div>}</td></tr>)}{!submissions.length&&<tr><td colSpan={8} className="report-empty">No monthly attendance report submissions for this month.</td></tr>}</tbody></table></div>
+  </div>
   <div className="workspace-heading" style={{marginTop:24}}><div><h3>Teacher attendance</h3><p>Teacher check-in is recorded after identity and assigned-section verification.</p></div></div>
   {filteredTeacherAttendance.length ? <div className="report-table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Teacher</th><th>Checked in for</th><th>Check-in time</th><th>Status</th></tr></thead><tbody>{filteredTeacherAttendance.map(row=><tr key={row.id}><td>{new Date(row.attendance_date+'T00:00:00').toLocaleDateString('en-IN')}</td><td>{row.session_code}</td><td>{studentById.get(row.teacher_person_id)?.full_name || row.teacher_person_id}</td><td>{row.checked_in_for_standard} · {row.checked_in_for_section}</td><td>{new Date(row.checked_in_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td><td className="status-present">{row.attendance_status}</td></tr>)}</tbody></table></div> : <div className="report-empty">No teacher QR check-ins recorded for this month and filter selection.</div>}
   <div className="workspace-heading" style={{marginTop:24}}><div><h3>Session register</h3><p>Select a session to view its student register.</p></div></div>
