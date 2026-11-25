@@ -68,6 +68,7 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
  const generate=()=>{
   if(!examName||!selectedStandards.length){notify('Select an exam and at least one standard.');return}
   if(!rooms.length){notify('Register exam rooms and their capacities before seat allotment.');return}
+  if(exams.some(e=>e.exam_name===examName&&selectedStandards.includes(e.standard_name)&&(!e.start_time||!e.end_time))){notify('Every selected standard exam must have a start and end time before seat allotment.');return}
   const perBench=Math.max(1,Math.min(4,Number(studentsPerBench)||2))
   setGenerating(true);setError('')
   try{
@@ -109,7 +110,7 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
   if(!plan.length)return
   setSaving(true);setError('')
   const rows=plan.map(s=>({exam_schedule_id:s.exam_schedule_id,student_person_id:s.student_person_id,room_id:s.room_id,exam_date:s.exam_date,start_time:s.start_time,end_time:s.end_time,bench_number:s.bench_number,seat_number:s.seat_number}))
-  const dutyRows=dutySlots.map(slot=>({room_id:slot.room_id,exam_date:slot.exam_date,start_time:slot.start_time,end_time:slot.end_time,exam_name:slot.exam_name,...(duties[slot.key]||emptyDuty())}))
+  const dutyRows=dutySlots.map(slot=>{const duty=duties[slot.key]||emptyDuty();return {room_id:slot.room_id,exam_date:slot.exam_date,start_time:slot.start_time,end_time:slot.end_time,exam_name:slot.exam_name,invigilator_person_id:duty.invigilator_person_id||null,standard_coordinator_person_id:duty.standard_coordinator_person_id||null,exam_supervisor_person_id:duty.exam_supervisor_person_id||null,rounds_staff_person_id:duty.rounds_staff_person_id||null,cleaner_person_id:duty.cleaner_person_id||null}})
   const {data,error}=await supabase.rpc('save_school_exam_seat_plan',{p_school_id:schoolId,p_seats:rows,p_duties:dutyRows})
   setSaving(false)
   if(error){setError(error.message);notify('Seat plan could not be saved: '+error.message);return}
