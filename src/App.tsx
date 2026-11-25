@@ -10,7 +10,7 @@ import FeesFinance from './components/FeesFinance'
 import ExaminationManagement from './components/ExaminationManagement'
 import AcademicPlanning from './components/AcademicPlanning'
 import TransportManagement from './components/TransportManagement'
-import AnnouncementManagement from './components/AnnouncementManagement'
+import AnnouncementManagement from './components/AnnouncementManagement'\nimport ParentNotifications from './components/ParentNotifications'
 import BusGpsTracker, { PublicBusTrackingPage, readBusTrackingPayload } from './components/BusGpsTracker'
 import {
   Activity, AlarmClock, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpen,
@@ -887,7 +887,7 @@ function App() {
     const timer = window.setTimeout(() => setShowWelcome(false), 1000)
     return () => window.clearTimeout(timer)
   }, [])
-  if (showWelcome) return <div className="splash-screen"><div className="splash-mark"><GraduationCap size={42}/></div><div className="splash-title">AI <span>ACADAMIX</span></div><div className="splash-powered">POWERED BY RADX</div><div className="splash-loader"><i/></div></div>
+  if (window.location.pathname === '/parent-notifications') return <ParentNotifications/>\n  if (showWelcome) return <div className="splash-screen"><div className="splash-mark"><GraduationCap size={42}/></div><div className="splash-title">AI <span>ACADAMIX</span></div><div className="splash-powered">POWERED BY RADX</div><div className="splash-loader"><i/></div></div>
   if (window.location.pathname === '/qr-attendance') return <PublicQRAttendance token={new URLSearchParams(window.location.search).get('token') || ''}/>
   const sharedTracking = readBusTrackingPayload()
   if (sharedTracking) return <PublicBusTrackingPage payload={sharedTracking}/>
