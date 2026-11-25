@@ -63,7 +63,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   return students.filter(s=>s.details.joining_standard===resultSelected.standard_name&&(s.details.section||'')===resultSelected.section_name).map(student=>{
    const rows=subjectExams.map(e=>({exam:e,mark:marks.find(m=>m.exam_schedule_id===e.id&&m.student_person_id===student.person_id)}))
    const obtained=rows.reduce((n,r)=>n+(r.mark?Number(r.mark.marks_obtained):0),0),maximum=rows.reduce((n,r)=>n+Number(r.exam.max_marks),0)
-   const allEntered=rows.length>0&&rows.every(r=>!!r.mark),failed=rows.some(r=>r.mark&&Number(r.mark.marks_obtained)<Number(r.exam.pass_marks))
+   const allEntered=rows.length>0&&rows.every(r=>!!r.mark),failed=rows.some(r=>r.mark&&pct(Number(r.mark.marks_obtained),Number(r.exam.max_marks))<=40)
    return {student,rows,obtained,maximum,percentage:pct(obtained,maximum),allEntered,failed}
   })
  },[resultSelected,exams,students,marks])
@@ -118,13 +118,23 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   notify(e.is_ai_locked?'Manual schedule unlocked for AI optimization.':'Manual date and time locked; AI will preserve this exam slot.')
   await load()
  }
+ const csvCell=(value:unknown)=>'"'+String(value??'').replace(/"/g,'""')+'"'
  const downloadMarksTemplate=()=>{
   if(!uploadSchedules.length||!uploadClassStudents.length){notify('Select a scheduled exam, standard and section with enrolled students.');return}
-  const header=['Admission Number','Student Name',...uploadSchedules.map(e=>e.subject_name)]
-  const rows=[header,...uploadClassStudents.map(student=>[student.person_id,student.full_name,...uploadSchedules.map(()=> '')])]
-  const csv=rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(',')).join('\r\n')
-  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a')
-  a.href=url;a.download='marks-template-'+uploadExamName.replace(/\W+/g,'-')+'-'+uploadStandard.replace(/\W+/g,'-')+'-'+uploadSection+'.csv';a.click();URL.revokeObjectURL(url)
+  const headers=['Admission Number','Student Name']
+  uploadSchedules.forEach(e=>headers.push(e.subject_name+' Marks',e.subject_name+' Grade (P/F)'))
+  headers.push('Total Marks','Out Of','Rank','Status')
+  const rows=[
+   ['Current Academic Year',uploadSchedules[0].academic_year],
+   ['Examination',uploadExamName],
+   ['Standard',uploadStandard],
+   ['Section',uploadSection],
+   headers,
+   ...uploadClassStudents.map(student=>[student.person_id,student.full_name,...uploadSchedules.flatMap(()=>['','']), '',uploadSchedules.reduce((n,e)=>n+Number(e.max_marks),0),'',''])
+  ]
+  const csv=rows.map(row=>row.map(csvCell).join(',')).join('\\r\\n')
+  const url=URL.createObjectURL(new Blob(['\\uFEFF',csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a')
+  a.href=url;a.download='marks-template-'+uploadExamName.replace(/\\W+/g,'-')+'-'+uploadStandard.replace(/\\W+/g,'-')+'-'+uploadSection+'.csv';a.click();URL.revokeObjectURL(url)
  }
  const uploadMarksFile=async()=>{
   if(!marksFile||!uploadSchedules.length){notify('Choose a CSV file and a scheduled exam class.');return}
@@ -132,32 +142,59 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   setSaving(true)
   try{
    const csvRows=parseCsv(await marksFile.text())
-   if(csvRows.length<2)throw new Error('The CSV file has no student mark rows.')
-   const header=csvRows[0].map(value=>value.trim().toLowerCase())
-   const admissionIndex=header.findIndex(value=>['admission number','admission no.','admission no','student id'].includes(value))
-   if(admissionIndex<0)throw new Error('Template must include the Admission Number column.')
-   const grouped=new Map<string,{student_person_id:string;marks_obtained:number;remarks:null}[]>()
+   if(csvRows.length<6)throw new Error('The template is incomplete. Download a fresh marks template.')
+   const metadata=(label:string)=>csvRows.find(row=>(row[0]||'').trim().toLowerCase()===label.toLowerCase())?.[1]?.trim()||''
+   const expectedYear=uploadSchedules[0].academic_year
+   if(metadata('Current Academic Year')!==expectedYear)throw new Error('Academic year mismatch. Expected '+expectedYear+'.')
+   if(metadata('Examination')!==uploadExamName)throw new Error('Examination name does not match the selected exam.')
+   if(metadata('Standard')!==uploadStandard)throw new Error('Standard does not match the selected standard.')
+   if(metadata('Section')!==uploadSection)throw new Error('Section does not match the selected section. Use the exact section/group name from RADX.')
+   const headerIndex=csvRows.findIndex(row=>(row[0]||'').trim().toLowerCase()==='admission number'&&(row[1]||'').trim().toLowerCase()==='student name')
+   if(headerIndex<0)throw new Error('Required template columns are missing. Download a fresh template.')
+   const header=csvRows[headerIndex].map(value=>value.trim().toLowerCase())
+   const studentIndex=header.indexOf('student name')
+   const grouped=new Map<string,{student_person_id:string;marks_obtained:number;remarks:string|null}[]>()
+   const subjectColumns=new Map<string,{marks:number;grade:number;max:number}>()
    for(const examRow of uploadSchedules){
-    if(!header.includes(examRow.subject_name.toLowerCase()))throw new Error('Missing subject column: '+examRow.subject_name+'. Download a fresh template.')
+    const marksIndex=header.indexOf((examRow.subject_name+' marks').toLowerCase())
+    const gradeIndex=header.indexOf((examRow.subject_name+' grade (p/f)').toLowerCase())
+    if(marksIndex<0||gradeIndex<0)throw new Error('Missing marks / Grade (P/F) columns for '+examRow.subject_name+'. Download a fresh template.')
+    subjectColumns.set(examRow.id,{marks:marksIndex,grade:gradeIndex,max:Number(examRow.max_marks)})
     grouped.set(examRow.id,[])
    }
-   for(let rowIndex=1;rowIndex<csvRows.length;rowIndex++){
-    const row=csvRows[rowIndex],admission=row[admissionIndex]?.trim()
+   const seen=new Set<string>()
+   const importedTotals=new Map<string,{obtained:number;maximum:number;failed:boolean}>()
+   for(let rowIndex=headerIndex+1;rowIndex<csvRows.length;rowIndex++){
+    const row=csvRows[rowIndex],admission=row[0]?.trim()
     if(!admission)continue
     const student=uploadClassStudents.find(s=>s.person_id.toLowerCase()===admission.toLowerCase())
     if(!student)throw new Error('Admission number '+admission+' is not part of '+uploadStandard+' · '+uploadSection+'.')
+    if((row[studentIndex]||'').trim().toLowerCase()!==student.full_name.trim().toLowerCase())throw new Error('Student name does not match admission number '+admission+'. Do not edit the student identity columns.')
+    if(seen.has(student.person_id))throw new Error('Duplicate student row: '+admission+'. Each student must appear once.')
+    seen.add(student.person_id)
+    let obtained=0,maximum=0,failed=false
     for(const examRow of uploadSchedules){
-     const column=header.indexOf(examRow.subject_name.toLowerCase()),raw=row[column]?.trim()
+     const cols=subjectColumns.get(examRow.id)!,raw=row[cols.marks]?.trim()
      if(!raw)continue
      const value=Number(raw)
-     if(!Number.isFinite(value)||value<0||value>Number(examRow.max_marks))throw new Error('Invalid marks for '+student.full_name+' · '+examRow.subject_name+'. Maximum is '+examRow.max_marks+'.')
-     grouped.get(examRow.id)!.push({student_person_id:student.person_id,marks_obtained:value,remarks:null})
+     if(!Number.isFinite(value)||value<0||value>cols.max)throw new Error('Invalid marks for '+student.full_name+' · '+examRow.subject_name+'. Maximum is '+cols.max+'.')
+     const passed=value/cols.max*100>40
+     const enteredGrade=row[cols.grade]?.trim().toUpperCase()
+     if(enteredGrade&&enteredGrade!==(passed?'P':'F'))throw new Error('Grade mismatch for '+student.full_name+' · '+examRow.subject_name+'. Marks above 40% = P; 40% or below = F.')
+     grouped.get(examRow.id)!.push({student_person_id:student.person_id,marks_obtained:value,remarks:passed?'P':'F'})
+     obtained+=value;maximum+=cols.max;if(!passed)failed=true
     }
+    importedTotals.set(student.person_id,{obtained,maximum,failed})
    }
    let total=0
    for(const [examId,entries] of grouped){if(!entries.length)continue;const {error}=await supabase.rpc('save_school_exam_marks',{p_school_id:schoolId,p_exam_schedule_id:examId,p_marks:entries});if(error)throw error;total+=entries.length}
-   if(!total)throw new Error('No marks were filled in the CSV file.')
-   setMarksFile(null);notify(total+' student subject marks imported successfully.');await load()
+   if(!total)throw new Error('No subject marks were filled in the CSV file.')
+   const ranked=[...importedTotals.entries()].filter(([,v])=>v.maximum>0).sort((a,b)=>b[1].obtained-a[1].obtained)
+   const rankByStudent=new Map<string,number>();let previous:number|null=null,rank=0
+   ranked.forEach(([id,v],index)=>{if(previous===null||v.obtained!==previous)rank=index+1;rankByStudent.set(id,rank);previous=v.obtained})
+   setMarksFile(null)
+   notify(total+' subject marks synced to student records. Grades: >40% P, 40% or below F. Class totals and ranks are calculated from the uploaded subject marks.')
+   await load()
   }catch(error){notify(error instanceof Error?error.message:'Marks upload failed.')}
   finally{setSaving(false)}
  }
@@ -195,10 +232,10 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    <label className="wide">Instructions<input value={form.instructions} onChange={e=>setForm({...form,instructions:e.target.value})} placeholder="Optional instructions"/></label>
   </div><div style={{marginTop:14}}><button className="ex-btn" disabled={saving||loading}>{saving?'Saving…':'Save exam schedule'}</button></div></form></div>}
   <div className="ex-panel"><h3>Exam timetable</h3><div className="ex-table"><table><thead><tr><th>Date</th><th>Exam</th><th>Class / Section</th><th>Subject</th><th>Time</th><th>Marks</th><th>Status</th><th>Actions</th></tr></thead><tbody>{loading?<tr><td colSpan={8} className="empty">Loading…</td></tr>:exams.length?exams.map(e=><tr key={e.id}><td>{e.exam_date}</td><td><b>{e.exam_name}</b><br/><small>{e.academic_year}</small></td><td>{e.standard_name} · {e.section_name}</td><td>{e.subject_name}</td><td>{e.start_time?.slice(0,5)||'—'}{e.end_time?' – '+e.end_time.slice(0,5):''}</td><td>{e.max_marks} / pass {e.pass_marks}</td><td className={e.is_published?'good':'muted'}>{e.is_published?'Published':'Draft'}{e.is_ai_locked?' · AI locked':''}</td><td><div className="ex-actions">{canManageSchedules&&!e.is_published&&<button className="ex-btn secondary" onClick={()=>void toggleAiLock(e)}>{e.is_ai_locked?'Unlock':'Lock slot'}</button>}{canEnterMarks&&<button className="ex-btn secondary" onClick={()=>{setSelectedExam(e.id);setMarkDraft({})}}>Marks</button>}{canManageSchedules&&<button className="ex-btn secondary" onClick={()=>void togglePublish(e)}>{e.is_published?'Unpublish':'Publish'}</button>}{userRole==='Admin'&&<button className="ex-btn secondary" onClick={()=>void deleteExam(e)} aria-label="Delete exam"><Trash2 size={14}/></button>}</div></td></tr>):<tr><td colSpan={8} className="empty">No exams scheduled yet.</td></tr>}</tbody></table></div></div>
-  {canEnterMarks&&page==='Marks Entry'&&<div className="ex-panel"><h3><ClipboardList size={17}/> Bulk marks upload</h3><p className="muted">Standard Coordinator can download the class template, fill marks and submit the CSV to the Academic team.</p><div className="ex-grid"><label>Exam<select value={uploadExamName} onChange={e=>{setUploadExamName(e.target.value);setUploadStandard('');setUploadSection('')}}><option value="">Select exam</option>{[...new Set(exams.map(e=>e.exam_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Standard<select value={uploadStandard} onChange={e=>{setUploadStandard(e.target.value);setUploadSection('')}}><option value="">Select standard</option>{[...new Set(exams.filter(e=>e.exam_name===uploadExamName).map(e=>e.standard_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Section<select value={uploadSection} onChange={e=>setUploadSection(e.target.value)}><option value="">Select section</option>{[...new Set(exams.filter(e=>e.exam_name===uploadExamName&&e.standard_name===uploadStandard).map(e=>e.section_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Completed marks CSV<input type="file" accept=".csv,text/csv" onChange={e=>setMarksFile(e.target.files?.[0]||null)}/></label></div><div className="ex-actions" style={{marginTop:12}}><button type="button" className="ex-btn secondary" onClick={downloadMarksTemplate} disabled={!uploadSchedules.length||!uploadClassStudents.length}>Download template ({uploadClassStudents.length} students)</button><button type="button" className="ex-btn" onClick={()=>void uploadMarksFile()} disabled={saving||!marksFile}>{saving?'Importing…':'Upload marks CSV'}</button></div></div>}
+  {canEnterMarks&&page==='Marks Entry'&&<div className="ex-panel"><h3><ClipboardList size={17}/> Bulk marks upload</h3><p className="muted">Template includes academic year, examination, exact standard and section/group, student identity, subject marks and P/F grade columns, total, out-of, rank and status. Upload matches admission number + student name and syncs marks to each student's exam record. Pass requires strictly more than 40% in a subject.</p><div className="ex-grid"><label>Exam<select value={uploadExamName} onChange={e=>{setUploadExamName(e.target.value);setUploadStandard('');setUploadSection('')}}><option value="">Select exam</option>{[...new Set(exams.map(e=>e.exam_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Standard<select value={uploadStandard} onChange={e=>{setUploadStandard(e.target.value);setUploadSection('')}}><option value="">Select standard</option>{[...new Set(exams.filter(e=>e.exam_name===uploadExamName).map(e=>e.standard_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Section<select value={uploadSection} onChange={e=>setUploadSection(e.target.value)}><option value="">Select section</option>{[...new Set(exams.filter(e=>e.exam_name===uploadExamName&&e.standard_name===uploadStandard).map(e=>e.section_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Completed marks CSV<input type="file" accept=".csv,text/csv" onChange={e=>setMarksFile(e.target.files?.[0]||null)}/></label></div><div className="ex-actions" style={{marginTop:12}}><button type="button" className="ex-btn secondary" onClick={downloadMarksTemplate} disabled={!uploadSchedules.length||!uploadClassStudents.length}>Download template ({uploadClassStudents.length} students)</button><button type="button" className="ex-btn" onClick={()=>void uploadMarksFile()} disabled={saving||!marksFile}>{saving?'Importing…':'Upload marks CSV'}</button></div></div>}
   {canEnterMarks&&<div className="ex-panel"><h3><ClipboardList size={17}/> Marks entry</h3><div className="ex-toolbar"><label>Choose exam<select value={selectedExam} onChange={e=>{setSelectedExam(e.target.value);setMarkDraft({})}}><option value="">Select exam</option>{exams.map(e=><option key={e.id} value={e.id}>{e.exam_name} · {e.standard_name}-{e.section_name} · {e.subject_name}</option>)}</select></label><span className="muted">Maximum: {exam?.max_marks??'—'} marks</span></div><div className="ex-table"><table><thead><tr><th>Admission no.</th><th>Student</th><th>Marks / {exam?.max_marks??'—'}</th><th>Remarks</th><th>Saved</th></tr></thead><tbody>{!exam?<tr><td colSpan={5} className="empty">Select an exam to enter marks.</td></tr>:examStudents.length?examStudents.map(student=>{const saved=markByStudent.get(student.person_id),draft=markDraft[student.person_id];return <tr key={student.person_id}><td>{student.person_id}</td><td>{student.full_name}</td><td><input type="number" min="0" max={exam.max_marks} step="0.5" value={draft?.marks??(saved?String(saved.marks_obtained):'')} disabled={!!exam.is_published} onChange={e=>setMarkDraft(cur=>({...cur,[student.person_id]:{marks:e.target.value,remarks:draft?.remarks??saved?.remarks??''}}))}/></td><td><input value={draft?.remarks??saved?.remarks??''} placeholder="Optional" disabled={!!exam.is_published} onChange={e=>setMarkDraft(cur=>({...cur,[student.person_id]:{marks:draft?.marks??(saved?String(saved.marks_obtained):''),remarks:e.target.value}}))}/></td><td className={saved?'good':'muted'}>{saved?'Saved':'Not entered'}</td></tr>}):<tr><td colSpan={5} className="empty">No students found in {exam.standard_name} · {exam.section_name}. Check student joining standard and section.</td></tr>}</tbody></table></div><div style={{marginTop:14}}><button className="ex-btn" onClick={()=>void saveMarks()} disabled={saving||!exam||!examStudents.length||!!exam.is_published}><Save size={15}/>{exam?.is_published?'Published · marks locked':saving?'Saving marks…':'Save marks'}</button></div></div>}
  </>}
- {canEnterMarks&&page==='Performance'&&<div className="ex-panel"><h3><ClipboardList size={17}/> Bulk marks upload</h3><p className="muted">Standard Coordinator can download the class template, fill marks and submit the CSV to the Academic team.</p><div className="ex-grid"><label>Exam<select value={uploadExamName} onChange={e=>{setUploadExamName(e.target.value);setUploadStandard('');setUploadSection('')}}><option value="">Select exam</option>{[...new Set(exams.map(e=>e.exam_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Standard<select value={uploadStandard} onChange={e=>{setUploadStandard(e.target.value);setUploadSection('')}}><option value="">Select standard</option>{[...new Set(exams.filter(e=>e.exam_name===uploadExamName).map(e=>e.standard_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Section<select value={uploadSection} onChange={e=>setUploadSection(e.target.value)}><option value="">Select section</option>{[...new Set(exams.filter(e=>e.exam_name===uploadExamName&&e.standard_name===uploadStandard).map(e=>e.section_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Completed marks CSV<input type="file" accept=".csv,text/csv" onChange={e=>setMarksFile(e.target.files?.[0]||null)}/></label></div><div className="ex-actions" style={{marginTop:12}}><button type="button" className="ex-btn secondary" onClick={downloadMarksTemplate} disabled={!uploadSchedules.length||!uploadClassStudents.length}>Download template ({uploadClassStudents.length} students)</button><button type="button" className="ex-btn" onClick={()=>void uploadMarksFile()} disabled={saving||!marksFile}>{saving?'Importing…':'Upload marks CSV'}</button></div></div>}
+ {canEnterMarks&&page==='Performance'&&<div className="ex-panel"><h3><ClipboardList size={17}/> Bulk marks upload</h3><p className="muted">Template includes academic year, examination, exact standard and section/group, student identity, subject marks and P/F grade columns, total, out-of, rank and status. Upload matches admission number + student name and syncs marks to each student's exam record. Pass requires strictly more than 40% in a subject.</p><div className="ex-grid"><label>Exam<select value={uploadExamName} onChange={e=>{setUploadExamName(e.target.value);setUploadStandard('');setUploadSection('')}}><option value="">Select exam</option>{[...new Set(exams.map(e=>e.exam_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Standard<select value={uploadStandard} onChange={e=>{setUploadStandard(e.target.value);setUploadSection('')}}><option value="">Select standard</option>{[...new Set(exams.filter(e=>e.exam_name===uploadExamName).map(e=>e.standard_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Section<select value={uploadSection} onChange={e=>setUploadSection(e.target.value)}><option value="">Select section</option>{[...new Set(exams.filter(e=>e.exam_name===uploadExamName&&e.standard_name===uploadStandard).map(e=>e.section_name))].map(name=><option key={name}>{name}</option>)}</select></label><label>Completed marks CSV<input type="file" accept=".csv,text/csv" onChange={e=>setMarksFile(e.target.files?.[0]||null)}/></label></div><div className="ex-actions" style={{marginTop:12}}><button type="button" className="ex-btn secondary" onClick={downloadMarksTemplate} disabled={!uploadSchedules.length||!uploadClassStudents.length}>Download template ({uploadClassStudents.length} students)</button><button type="button" className="ex-btn" onClick={()=>void uploadMarksFile()} disabled={saving||!marksFile}>{saving?'Importing…':'Upload marks CSV'}</button></div></div>}
   {(page==='Student Results'||page==='Performance')&&<div className="ex-panel"><div className="ex-toolbar"><label>Exam / class<select value={resultExam} onChange={e=>setResultExam(e.target.value)}><option value="">Select exam</option>{exams.map(e=><option key={e.id} value={e.id}>{e.exam_name} · {e.standard_name}-{e.section_name} · {e.subject_name}</option>)}</select></label><div className="ex-search"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search student"/></div><button className="ex-btn secondary" onClick={exportResults}>Export CSV</button></div>
   {!resultSelected?<div className="empty">No exam selected.</div>:<><div className="muted" style={{marginBottom:12}}>Results are grouped by {resultSelected.exam_name}, {resultSelected.standard_name} · {resultSelected.section_name}. Grades: A1 (90%+), A2 (80%+), B1 (70%+), B2 (60%+), C1 (50%+), C2 (40%+), D (35%+), E (below 35%).</div><div className="ex-table"><table><thead><tr><th>Admission no.</th><th>Student</th><th>Subjects entered</th><th>Marks</th><th>Percentage</th><th>Grade</th><th>Status</th><th>Report card</th></tr></thead><tbody>{filteredResults.length?filteredResults.map(r=><tr key={r.student.person_id}><td>{r.student.person_id}</td><td>{r.student.full_name}</td><td>{r.rows.filter(x=>x.mark).length}/{r.rows.length}</td><td>{r.obtained}/{r.maximum}</td><td>{r.allEntered?r.percentage.toFixed(1)+'%':'—'}</td><td>{r.allEntered?grade(r.percentage):'—'}</td><td className={r.allEntered?(r.failed?'bad':'good'):'muted'}>{r.allEntered?(r.failed?'Needs improvement':'Complete'):'Marks pending'}</td><td><button className="ex-btn secondary" onClick={()=>setReportCardStudentId(r.student.person_id)}>View</button></td></tr>):<tr><td colSpan={8} className="empty">No students found for this exam.</td></tr>}</tbody></table></div></>}
  </div>}
