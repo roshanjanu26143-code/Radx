@@ -79,9 +79,9 @@ Deno.serve(async (req: Request) => {
 
     if (input.action === "verify_and_subscribe") {
       const otp = String(input.otp || "").trim();
-      const subscription = input.subscription;
-      if (!/^\d{6}$/.test(otp) || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
-        return json({ error: "Enter the six-digit code and allow browser notifications." }, 400);
+      const subscription = input.subscription || null;
+      if (!/^\\d{6}$/.test(otp) || (subscription && (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth))) {
+        return json({ error: "Enter the six-digit code and provide a valid notification subscription if enabling push." }, 400);
       }
       const { data: row, error } = await db.from("school_parent_push_otps").select("*")
         .eq("school_id", schoolId).eq("recipient_phone", phone).gt("expires_at", new Date().toISOString())
@@ -93,13 +93,29 @@ Deno.serve(async (req: Request) => {
         await db.from("school_parent_push_otps").update({ attempts: row.attempts + 1 }).eq("id", row.id);
         return json({ error: "Incorrect verification code." }, 400);
       }
-      const { error: saveError } = await db.from("school_parent_push_subscriptions").upsert({
-        school_id: schoolId, recipient_phone: phone, subscription, user_agent: req.headers.get("user-agent") || "",
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "school_id,recipient_phone" });
-      if (saveError) throw saveError;
+      if (subscription) {
+        const { error: saveError } = await db.from("school_parent_push_subscriptions").upsert({
+          school_id: schoolId, recipient_phone: phone, subscription, user_agent: req.headers.get("user-agent") || "",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "school_id,recipient_phone" });
+        if (saveError) throw saveError;
+      }
       await db.from("school_parent_push_otps").delete().eq("id", row.id);
-      return json({ success: true, message: "Parent notifications are enabled on this device." });
+      const { data: inbox } = await db.from("school_parent_inbox").select("id,title,body,attachments,created_at,read_at")
+        .eq("school_id", schoolId).eq("recipient_phone", phone).order("created_at", { ascending: false }).limit(50);
+      const inboxWithLinks = await Promise.all((inbox || []).map(async (item: any) => ({
+        ...item,
+        attachments: await Promise.all((item.attachments || []).map(async (file: any) => {
+          const { data } = await db.storage.from("school-announcements").createSignedUrl(file.path, 60 * 60);
+          return { ...file, url: data?.signedUrl || null };
+        })),
+      })));
+      return json({
+        success: true,
+        message: subscription ? "Parent notifications are enabled on this device." : "Mobile number verified. Your school inbox is ready.",
+        push_enabled: !!subscription,
+        inbox: inboxWithLinks,
+      });
     }
     return json({ error: "Unknown action" }, 400);
   } catch (error) {
