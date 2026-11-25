@@ -1,6 +1,6 @@
 create table if not exists public.school_parent_push_otps(
  id uuid primary key default gen_random_uuid(),school_id text not null references public.school_tenants(school_id) on delete cascade,
- recipient_phone text not null,otp_hash text not null,attempts integer not null default 0 check(attempts between 0 and 6),
+ recipient_phone text not null,request_ip text,otp_hash text not null,attempts integer not null default 0 check(attempts between 0 and 6),
  expires_at timestamptz not null,created_at timestamptz not null default now()
 );
 create index if not exists school_parent_push_otps_lookup_idx on public.school_parent_push_otps(school_id,recipient_phone,created_at desc);
