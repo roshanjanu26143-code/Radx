@@ -13,7 +13,24 @@ alter table public.school_academic_timetable
     check (room_type in ('classroom','computer_lab','chemistry_lab','physics_lab','biology_lab','library','auditorium','playground','other')),
   add column if not exists is_double_period boolean not null default false,
   add column if not exists double_group_id uuid,
-  add column if not exists combined_group_key text;
+  add column if not exists combined_group_key text,
+  add column if not exists is_locked boolean not null default true,
+  add column if not exists source text not null default 'manual' check(source in ('manual','ai')),
+  add column if not exists generated_run_id uuid;
+
+create table if not exists public.school_timetable_generation_runs (
+ id uuid primary key default gen_random_uuid(),
+ school_id text not null references public.school_tenants(school_id) on update cascade on delete cascade,
+ academic_year text not null,
+ status text not null default 'generated' check(status in ('generated','published','archived')),
+ algorithm text not null default 'backtracking-local-search',
+ soft_score numeric(8,2) not null default 0,
+ hard_violations integer not null default 0 check(hard_violations=0),
+ summary jsonb not null default '{}'::jsonb,
+ created_by uuid references auth.users(id) on delete set null,
+ created_at timestamptz not null default now(),
+ unique(school_id,id)
+);
 
 create table if not exists public.school_timetable_periods (
  id uuid primary key default gen_random_uuid(),
@@ -65,6 +82,7 @@ create table if not exists public.school_subject_period_requirements (
  is_active boolean not null default true,
  created_at timestamptz not null default now(),
  updated_at timestamptz not null default now(),
+ combined_group_key text,
  unique(school_id,academic_year,standard_name,section_name,subject_id),
  foreign key(school_id,subject_id) references public.school_academic_subjects(school_id,id) on delete cascade
 );
@@ -95,8 +113,8 @@ create table if not exists public.school_timetable_fixed_blocks (
  room_id uuid,
  created_at timestamptz not null default now(),
  check(section_name is null or standard_name is not null),
- foreign key(school_id,room_id) references public.school_timetable_rooms(school_id,id) on delete set null,
- foreign key(school_id,teacher_person_id) references public.school_people(school_id,person_id) on delete set null
+ foreign key(school_id,room_id) references public.school_timetable_rooms(school_id,id) on delete set null (room_id),
+ foreign key(school_id,teacher_person_id) references public.school_people(school_id,person_id) on delete set null (teacher_person_id)
 );
 
 create table if not exists public.school_timetable_teacher_absences (
@@ -131,6 +149,8 @@ create table if not exists public.school_timetable_proxy_assignments (
  foreign key(school_id,substitute_teacher_person_id) references public.school_people(school_id,person_id) on delete restrict
 );
 
+alter table public.school_academic_timetable add constraint school_academic_timetable_generated_run_fk foreign key(school_id,generated_run_id) references public.school_timetable_generation_runs(school_id,id) on delete set null (generated_run_id);
+create index if not exists school_timetable_generation_runs_lookup_idx on public.school_timetable_generation_runs(school_id,academic_year,created_at desc);
 create index if not exists school_timetable_periods_lookup_idx on public.school_timetable_periods(school_id,academic_year,is_active,period_number);
 create index if not exists school_timetable_rooms_lookup_idx on public.school_timetable_rooms(school_id,is_active,room_type);
 create index if not exists school_subject_period_requirements_lookup_idx on public.school_subject_period_requirements(school_id,academic_year,standard_name,section_name,is_active);
@@ -145,7 +165,7 @@ do $rls$
 declare t text;
 begin
  foreach t in array array[
-  'school_timetable_periods','school_timetable_rooms','school_subject_period_requirements',
+  'school_timetable_generation_runs','school_timetable_periods','school_timetable_rooms','school_subject_period_requirements',
   'school_teacher_workload_limits','school_timetable_fixed_blocks',
   'school_timetable_teacher_absences','school_timetable_proxy_assignments'
  ] loop
