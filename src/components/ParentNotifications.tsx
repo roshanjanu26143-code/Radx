@@ -18,6 +18,7 @@ export default function ParentNotifications() {
   const [busy,setBusy] = useState(false)
   const [message,setMessage] = useState('')
   const [error,setError] = useState('')
+  const [inbox,setInbox] = useState<any[]>([])
 
   const requestCode = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError(''); setMessage('')
@@ -30,20 +31,23 @@ export default function ParentNotifications() {
     event.preventDefault(); setBusy(true); setError(''); setMessage('')
     try {
       const publicKey = (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY as string | undefined
-      if(!publicKey) throw new Error('Parent push is not configured yet. Ask the school administrator to add the VAPID public key.')
-      if(!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('This browser does not support web push notifications.')
-      const permission = await Notification.requestPermission()
-      if(permission !== 'granted') throw new Error('Allow notifications in your browser to continue.')
-      const registration = await navigator.serviceWorker.register('/sw.js')
-      await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
-        userVisibleOnly:true,applicationServerKey:decodeVapidKey(publicKey),
-      })
+      let subscription: PushSubscription | null = null
+      if(publicKey && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
+        const permission = await Notification.requestPermission()
+        if(permission === 'granted') {
+          const registration = await navigator.serviceWorker.register('/sw.js')
+          await navigator.serviceWorker.ready
+          subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
+            userVisibleOnly:true,applicationServerKey:decodeVapidKey(publicKey),
+          })
+        }
+      }
       const {data,error:invokeError} = await supabase.functions.invoke('parent-push-registration',{
-        body:{action:'verify_and_subscribe',school_id:schoolId,phone,otp,subscription:subscription.toJSON()},
+        body:{action:'verify_and_subscribe',school_id:schoolId,phone,otp,subscription:subscription?.toJSON() || null},
       })
-      if(invokeError || data?.error) throw new Error(data?.error || invokeError?.message || 'Could not enable notifications.')
-      setStep('done');setMessage(data.message || 'Notifications enabled on this device.')
+      if(invokeError || data?.error) throw new Error(data?.error || invokeError?.message || 'Could not verify this mobile number.')
+      setInbox(data.inbox || [])
+      setStep('done');setMessage(subscription ? 'Your parent inbox is ready and push notifications are enabled on this device.' : 'Your parent inbox is ready. Browser push was not enabled on this device.')
     } catch(e) { setError(e instanceof Error ? e.message : 'Could not enable notifications.') }
     finally { setBusy(false) }
   }
@@ -63,7 +67,7 @@ export default function ParentNotifications() {
         <button disabled={busy || otp.length!==6}>{busy?'Verifying…':'Verify & enable notifications'}</button>
         <button type="button" className="parent-push-back" onClick={()=>{setStep('phone');setOtp('')}}>Change mobile number</button>
       </form>}
-      {step==='done' && <div className="parent-push-success"><ShieldCheck size={24}/><b>Notifications enabled</b><span>This device is registered for school updates.</span></div>}
+      {step==='done' && <><div className="parent-push-success"><ShieldCheck size={24}/><b>Parent inbox verified</b><span>{inbox.length} school updates available</span></div><div className="parent-push-inbox">{inbox.length ? inbox.map(item=><article key={item.id}><time>{new Date(item.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</time><b>{item.title}</b><p>{item.body}</p>{(item.attachments||[]).map((file:any)=><a key={file.path} href={file.url} target="_blank" rel="noreferrer">{file.name}</a>)}</article>) : <p>No school updates yet. New circulars will appear here.</p>}</div></>}
       {message && <div className="parent-push-message"><Smartphone size={15}/>{message}</div>}
       {error && <div className="parent-push-error">{error}</div>}
       <small>Your mobile number is matched against the contact details provided to the school. Verification codes expire after five minutes.</small>
