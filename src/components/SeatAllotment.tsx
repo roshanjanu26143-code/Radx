@@ -84,6 +84,11 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
     const cohortMap=new Map<string,Person[]>()
     for(const exam of session.exams){
      const cohort=students.filter(s=>s.details?.joining_standard===exam.standard_name&&(s.details?.section||'')===exam.section_name)
+     if(!cohort.length){
+      const otherSections=[...new Set(students.filter(s=>s.details?.joining_standard===exam.standard_name).map(s=>String(s.details?.section||'Unassigned')))]
+      const sectionHint=otherSections.length?' Students in this standard are currently recorded under: '+otherSections.join(', ')+'.':' No enrolled students were found in this standard.'
+      throw new Error('Cannot allocate seats for '+exam.standard_name+' · '+exam.section_name+'.'+sectionHint+' Match the student section/group to the exam section before generating the seating plan.')
+     }
      cohortMap.set(exam.id,cohort)
     }
     const cohortEntries=[...cohortMap.entries()].sort((a,b)=>{const ea=session.exams.find(e=>e.id===a[0])!;const eb=session.exams.find(e=>e.id===b[0])!;return band(ea.standard_name)-band(eb.standard_name)||ea.standard_name.localeCompare(eb.standard_name)||ea.section_name.localeCompare(eb.section_name)})
