@@ -88,6 +88,7 @@ export function FileUploadField({ name = 'documents', label = 'Upload supporting
     if (invalid) {
       setError(!ALLOWED_MIME.has(invalid.type) ? `${invalid.name}: unsupported format. Use PDF, JPG or PNG.` : invalid.size > MAX_FILE_BYTES ? `${invalid.name}: file exceeds 5 MB.` : `${invalid.name}: file is empty.`)
       event.target.value = ''
+      if (inputRef.current) { const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); inputRef.current.files = transfer.files }
       return
     }
     setError('')
