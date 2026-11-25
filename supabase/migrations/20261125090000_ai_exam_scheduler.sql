@@ -42,6 +42,9 @@ create index if not exists school_exam_plan_allocations_slot_idx on public.schoo
 alter table public.school_exam_rooms enable row level security;
 alter table public.school_exam_plan_runs enable row level security;
 alter table public.school_exam_plan_allocations enable row level security;
+grant select,insert,update,delete on public.school_exam_rooms to authenticated;
+grant select,insert,update,delete on public.school_exam_plan_runs to authenticated;
+grant select,insert,update,delete on public.school_exam_plan_allocations to authenticated;
 
 drop policy if exists "Exam managers manage exam rooms" on public.school_exam_rooms;
 drop policy if exists "Exam managers read exam rooms" on public.school_exam_rooms;
