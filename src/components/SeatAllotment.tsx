@@ -47,7 +47,7 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
   setExams(examRows);setRooms((roomRes.data||[]) as Room[]);setPeople((peopleRes.data||[]) as Person[]);setStudents(studentRows);setOtherBookings((bookingRes.data||[]) as any[])
   const names=[...new Set(examRows.filter(e=>e.exam_date>=today()).map(e=>e.exam_name))]
   setExamName(current=>names.includes(current)?current:(names[0]||''))
-  const seats=(seatRes.data||[]) as any[]
+  const seats=((seatRes.data||[]) as any[]).filter(row=>examRows.some(exam=>exam.id===row.exam_schedule_id))
   if(seats.length){
    setPlan(seats.map(row=>{const exam=examRows.find(e=>e.id===row.exam_schedule_id);const student=studentRows.find(s=>s.person_id===row.student_person_id);const room=(roomRes.data||[]).find((r:any)=>r.id===row.room_id);return {exam_schedule_id:row.exam_schedule_id,exam_name:exam?.exam_name||'',standard_name:exam?.standard_name||'',section_name:exam?.section_name||'',subject_name:exam?.subject_name||'',student_person_id:row.student_person_id,student_name:student?.full_name||row.student_person_id,room_id:row.room_id,room_name:room?.room_name||'Room',exam_date:row.exam_date,start_time:row.start_time,end_time:row.end_time,bench_number:row.bench_number,seat_number:row.seat_number}}))
    setSavedAt('Existing saved seating plan loaded')
