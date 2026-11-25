@@ -38,3 +38,5 @@
 .announcement-history-files{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .announcement-delivery-note{padding:10px 12px;border-left:3px solid var(--radx-coral);background:var(--radx-coral-soft);color:#795a54;border-radius:0 7px 7px 0}
 @media(max-width:760px){.announcement-channel-grid{grid-template-columns:1fr 1fr}.announcement-attachments{align-items:flex-start;flex-direction:column}}
+
+.announcement-parent-setup-link{display:inline-flex;margin-top:9px;color:var(--radx-teal);font-size:9px;font-weight:800;text-decoration:none}.announcement-parent-setup-link:hover{color:var(--radx-orange);text-decoration:underline}
