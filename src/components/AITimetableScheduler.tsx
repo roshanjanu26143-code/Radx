@@ -139,7 +139,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
   const domains=lessons.map(lesson=>{
    const req=lesson.requirement;const candidates=matchingTeachers(req,lesson.subject);const eligibleRooms=rooms.filter(r=>r.is_active&&r.room_type===req.room_type&&(r.capacity>=(studentCounts[req.standard_name+'|'+req.section_name]||0)))
    const slots:Candidate[]=[]
-   for(let day=1;day<=6;day++)for(const p of periodsTeaching){const group=periodsTeaching.filter(x=>x.day_of_week===undefined?false:true);void group;const p2=lesson.length===2?periodsTeaching.find(x=>x.period_number===p.period_number+1):undefined;if(lesson.length===2&&(!p2||p.end_time!==p2.start_time))continue;const blockPeriods=lesson.length===2?[p,p2!]:[p];for(const teacher of candidates)for(const room of eligibleRooms){if(blockPeriods.some(x=>fixedAt(req.standard_name,req.section_name,day,x.period_number,teacher.id,room.id)))continue;slots.push({day,periods:blockPeriods,teacher,room})}}
+   for(let day=1;day<=6;day++)for(const p of periodsTeaching){const p2=lesson.length===2?periodsTeaching.find(x=>x.period_number===p.period_number+1):undefined;if(lesson.length===2&&(!p2||p.end_time!==p2.start_time))continue;const blockPeriods=lesson.length===2?[p,p2!]:[p];for(const teacher of candidates)for(const room of eligibleRooms){if(blockPeriods.some(x=>fixedAt(req.standard_name,req.section_name,day,x.period_number,teacher.id,room.id)))continue;slots.push({day,periods:blockPeriods,teacher,room})}}
    return {lesson,slots}
   })
   const impossible=domains.find(d=>!d.slots.length)
@@ -168,19 +168,37 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
   // Local-search pass: swap single-period lessons inside the same section when every hard rule remains valid.
   const validSwap=(rows:Placement[])=>{
    const sec=new Set<string>(),tea=new Set<string>(),room=new Set<string>(),daily:Record<string,number>={},weekly:Record<string,number>={}
-   for(const row of rows){const req=requirements.find(r=>r.standard_name===row.standard_name&&r.section_name===row.section_name&&r.subject_id===row.subject_id);if(!req)return false;const keys=[row.period_number];for(const period of keys){const sk=slotKey(row.standard_name,row.section_name,row.day_of_week,period),tk=teacherKey(row.teacher_person_id,row.day_of_week,period),rk=roomKey(row.room_id,row.day_of_week,period);if(sec.has(sk)||tea.has(tk)||room.has(rk)||fixedAt(row.standard_name,row.section_name,row.day_of_week,period,row.teacher_person_id,row.room_id))return false;sec.add(sk);tea.add(tk);room.add(rk)}const dk=row.teacher_person_id+'|'+row.day_of_week;daily[dk]=(daily[dk]||0)+1;weekly[row.teacher_person_id]=(weekly[row.teacher_person_id]||0)+1;const lim=teacherLimit(row.teacher_person_id);if(daily[dk]>lim.max_daily_periods||weekly[row.teacher_person_id]>lim.max_weekly_periods)return false}
+   for(const row of existing){sec.add(slotKey(row.standard_name,row.section_name,row.day_of_week,row.period_number));if(row.teacher_person_id){tea.add(teacherKey(row.teacher_person_id,row.day_of_week,row.period_number));const dk=row.teacher_person_id+'|'+row.day_of_week;daily[dk]=(daily[dk]||0)+1;weekly[row.teacher_person_id]=(weekly[row.teacher_person_id]||0)+1}if(row.room_id)room.add(roomKey(row.room_id,row.day_of_week,row.period_number))}
+   for(const row of rows){
+    const req=requirements.find(r=>r.standard_name===row.standard_name&&r.section_name===row.section_name&&r.subject_id===row.subject_id);if(!req)return false
+    const keys=row.is_double_period?[row.period_number,row.period_number+1]:[row.period_number]
+    for(const period of keys){const sk=slotKey(row.standard_name,row.section_name,row.day_of_week,period),tk=teacherKey(row.teacher_person_id,row.day_of_week,period),rk=roomKey(row.room_id,row.day_of_week,period);if(sec.has(sk)||tea.has(tk)||room.has(rk)||fixedAt(row.standard_name,row.section_name,row.day_of_week,period,row.teacher_person_id,row.room_id))return false;sec.add(sk);tea.add(tk);room.add(rk)}
+    const dk=row.teacher_person_id+'|'+row.day_of_week;daily[dk]=(daily[dk]||0)+keys.length;weekly[row.teacher_person_id]=(weekly[row.teacher_person_id]||0)+keys.length;const lim=teacherLimit(row.teacher_person_id);if(daily[dk]>lim.max_daily_periods||weekly[row.teacher_person_id]>lim.max_weekly_periods)return false
+   }
    return true
   }
   for(let pass=0;pass<4;pass++){let improved=false;for(let i=0;i<optimized.length&&!improved;i++)for(let j=i+1;j<optimized.length&&!improved;j++){const a=optimized[i],b=optimized[j];if(a.standard_name!==b.standard_name||a.section_name!==b.section_name||a.is_double_period||b.is_double_period)continue;const candidate=optimized.map((r,k)=>k===i?{...r,day_of_week:b.day_of_week,period_number:b.period_number,start_time:b.start_time,end_time:b.end_time}:k===j?{...r,day_of_week:a.day_of_week,period_number:a.period_number,start_time:a.start_time,end_time:a.end_time}:r);if(validSwap(candidate)){const next=scoreSchedule(candidate);if(next<best){optimized.splice(0,optimized.length,...candidate);best=next;improved=true}}}}
   setResult(optimized);setScore(best);setSolverMessage('Found a complete timetable with zero hard-constraint violations. '+nodes.toLocaleString()+' search nodes; local optimization complete.')
  }
- const saveGenerated=async()=>{if(!result?.length)return;setSaving(true);const user=await supabase.auth.getUser();const {data:run,error:runError}=await supabase.from('school_timetable_generation_runs').insert({school_id:schoolId,academic_year:academicYear,algorithm:'DSATUR-MRV-backtracking-local-search',soft_score:Math.max(0,100-score),hard_violations:0,summary:{lessons:result.length,score:score,periods:activePeriods.filter(p=>!p.is_break).length,sections:[...new Set(result.map(r=>r.standard_name+' '+r.section_name))]}}).select('id').single();if(runError||!run){setSaving(false);notify('Could not create timetable run: '+(runError?.message||'Unknown error'));return}
-  const oldAi=timetable.filter(t=>t.source==='ai'&&!t.is_locked).map(t=>t.id)
-  if(oldAi.length){const {error}=await supabase.from('school_academic_timetable').delete().eq('school_id',schoolId).in('id',oldAi);if(error){setSaving(false);notify('Could not replace previous AI draft: '+error.message);return}}
-  const payload=result.flatMap(row=>{const req=periodsTeachingForRow(row,activePeriods);return req.map(p=>({school_id:schoolId,academic_year:academicYear,standard_name:row.standard_name,section_name:row.section_name,day_of_week:row.day_of_week,period_number:p.period_number,start_time:p.start_time,end_time:p.end_time,subject_id:row.subject_id,teacher_person_id:row.teacher_person_id,room_id:row.room_id,room_type:row.room_type,room_label:rooms.find(r=>r.id===row.room_id)?.room_name||null,is_double_period:row.is_double_period&&p.period_number===row.period_number,double_group_id:row.double_group_id,combined_group_key:null,is_locked:false,source:'ai',generated_run_id:run.id}))})
-  const {error:insertError}=await supabase.from('school_academic_timetable').insert(payload)
-  if(insertError){await supabase.from('school_timetable_generation_runs').delete().eq('school_id',schoolId).eq('id',run.id);setSaving(false);notify('Timetable validation rejected the generated plan: '+insertError.message);return}
-  setSaving(false);notify('AI timetable saved as a draft. Manual timetable entries were preserved.');setResult(null);await load()
+ const saveGenerated=async()=>{
+  if(!result?.length)return
+  setSaving(true)
+  const payload=result.flatMap(row=>periodsTeachingForRow(row,activePeriods).map(p=>({
+   standard_name:row.standard_name,section_name:row.section_name,day_of_week:row.day_of_week,
+   period_number:p.period_number,start_time:p.start_time,end_time:p.end_time,subject_id:row.subject_id,
+   teacher_person_id:row.teacher_person_id,room_id:row.room_id,room_type:row.room_type,
+   room_label:rooms.find(r=>r.id===row.room_id)?.room_name||null,
+   is_double_period:row.is_double_period&&p.period_number===row.period_number,
+   double_group_id:row.double_group_id,combined_group_key:null
+  })))
+  const {data:runId,error}=await supabase.rpc('save_school_timetable_run',{
+   p_school_id:schoolId,p_academic_year:academicYear,p_lessons:payload,
+   p_summary:{soft_penalty:score,lesson_blocks:result.length,period_rows:payload.length,sections:[...new Set(result.map(r=>r.standard_name+' '+r.section_name))]}
+  })
+  setSaving(false)
+  if(error||!runId){notify('Could not save generated timetable: '+(error?.message||'No run ID returned'));return}
+  notify('AI timetable saved atomically as a draft. Manual timetable entries were preserved.')
+  setResult(null);await load()
  }
  const publish=async(runId:string)=>{const {error}=await supabase.rpc('publish_school_timetable_run',{p_school_id:schoolId,p_run_id:runId});if(error){notify('Timetable could not be published: '+error.message);return}notify('Timetable published. Exact quotas validated and all generated periods locked.');await load()}
  const markAbsent=async(e:FormEvent)=>{e.preventDefault();if(!absenceTeacher)return;const {error}=await supabase.from('school_timetable_teacher_absences').insert({school_id:schoolId,teacher_person_id:absenceTeacher,absence_date:date,reason:absenceReason||null});if(error){notify('Could not mark teacher absent: '+error.message);return}notify('Teacher absence recorded for '+date+'.');setAbsenceReason('');await loadProxy()}
