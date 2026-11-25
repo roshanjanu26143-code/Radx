@@ -109,7 +109,6 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
    const chosen:Allocation[]=[]
    const roomOptions=(e:Exam,slot:Slot)=>{
     const needed=studentCount.get(cohort(e))||0
-    const subject=assignments.find(a=>a.standard_name===e.standard_name&&a.section_name===e.section_name&&a.subject_name===e.subject_name)
     const catalog=awaitSubjectType.get(e.id)||''
     const lab=/lab|practical/i.test(catalog)
     const available=activeRooms.filter(r=>!roomBusy.has(r.id+'|'+slot.date+'|'+slot.start)&&(!lab||r.room_type==='lab'||r.room_type==='computer_lab')).sort((a,b)=>a.capacity-b.capacity)
