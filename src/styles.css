@@ -758,3 +758,17 @@ button:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:3px s
 @media(max-width:900px) and (min-width:701px){.vertical-sidebar{width:330px}.vertical-main-area{margin-left:330px}.vertical-sidebar .vertical-nav-layout{grid-template-columns:116px minmax(0,1fr)}}
 @media(max-width:700px){.vertical-sidebar{width:min(352px,92vw)}.vertical-sidebar .vertical-nav-layout{grid-template-columns:118px minmax(0,1fr)}.vertical-main-area{margin-left:0}}
 @media(max-height:700px){.vertical-sidebar .parent-tab{min-height:50px}.vertical-sidebar .child-tab{min-height:38px}.vertical-sidebar .brand-lockup{padding-bottom:10px}.vertical-sidebar .school-switcher{margin-bottom:8px}}
+
+
+/* Compact main-module tabs: smaller footprint, clearer horizontal scanning */
+.vertical-sidebar .vertical-nav-layout{grid-template-columns:108px minmax(0,1fr);gap:8px}
+.vertical-sidebar .parent-tabs{gap:3px;padding-right:5px}
+.vertical-sidebar .parent-tab{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:7px;min-height:38px;padding:6px 7px;border-radius:7px;font-size:10px;line-height:1.15}
+.vertical-sidebar .parent-tab>svg:first-child{width:15px;height:15px;flex:0 0 15px}
+.vertical-sidebar .parent-tab>span{flex:1;min-width:0;font-size:10px;white-space:normal;overflow-wrap:anywhere}
+.vertical-sidebar .parent-tab.active{box-shadow:inset 2px 0 0 #60a5fa}
+.vertical-sidebar .child-navigation-heading{padding:5px 7px 9px;margin-bottom:5px}
+.vertical-sidebar .child-tab{min-height:39px;padding:6px 7px;font-size:10.5px}
+@media(max-width:900px) and (min-width:701px){.vertical-sidebar .vertical-nav-layout{grid-template-columns:102px minmax(0,1fr)}}
+@media(max-width:700px){.vertical-sidebar .vertical-nav-layout{grid-template-columns:102px minmax(0,1fr)}}
+@media(max-height:700px){.vertical-sidebar .parent-tab{min-height:34px;padding-top:5px;padding-bottom:5px}.vertical-sidebar .child-tab{min-height:35px}}
