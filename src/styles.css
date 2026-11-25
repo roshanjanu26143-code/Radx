@@ -600,3 +600,60 @@ body,.app-shell{background:#fffbf5;color:#4b2d19}
 .overview-error{display:flex;align-items:center;gap:8px;border:1px solid #f1d9c8;background:#fff9f4;color:#9a6544;border-radius:8px;padding:10px 12px;font-size:9px}
 @media(max-width:1050px){.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.overview-welcome{align-items:flex-start;flex-direction:column}.overview-welcome h2{font-size:20px}.overview-module-grid,.overview-bottom-grid{grid-template-columns:1fr}.overview-metrics{gap:9px}.overview-metric{min-height:118px;padding:12px}.overview-metric strong{font-size:18px}.overview-module-card,.overview-recent-card{padding:14px}.overview-module-kpis{gap:5px}.overview-module-kpis strong{font-size:12px}.overview-donut-layout{gap:15px}.overview-footnote{align-items:flex-start;flex-direction:column}}
+
+
+/* RADX image-inspired brand system: deep teal, coral, golden orange and warm stone */
+:root{
+ --radx-forest:#123f3b;--radx-teal:#1d5a53;--radx-teal-soft:#e4efeb;
+ --radx-coral:#e77b78;--radx-coral-soft:#fbe9e6;
+ --radx-gold:#f4b942;--radx-orange:#e2711d;
+ --radx-sand:#f2eee6;--radx-cream:#fbf8f2;--radx-paper:#fffdfa;
+ --radx-ink:#263b38;--radx-muted:#7d8982;--radx-line:#e7e0d5;
+ --green:var(--radx-teal);--dark:var(--radx-forest);--muted:var(--radx-muted);--line:var(--radx-line);--surface:var(--radx-paper);
+ color-scheme:light;
+}
+html,body{background:var(--radx-sand);color:var(--radx-ink)}
+body{background:var(--radx-sand)}
+.sidebar{background:var(--radx-forest);border-right:1px solid #ffffff12;color:#f5f3eb}
+.brand-mark{background:var(--radx-gold);color:var(--radx-forest)}
+.brand-name{color:#fffaf0}.brand-name span{color:var(--radx-gold)}
+.brand-powered{color:#a9c0b9}.brand-powered b{color:var(--radx-coral)}
+.icon-button{color:#bfd0ca}.icon-button:hover{background:#ffffff14;color:#fff}
+.school-switcher{background:#ffffff0c;border-color:#ffffff1c}
+.school-avatar{background:var(--radx-gold);color:var(--radx-forest)}
+.school-copy b,.user-copy b{color:#fffaf0}.school-copy span,.user-copy span{color:#b7c9c2}
+.muted-icon{color:#b3c7bf}
+.nav-heading{color:#91aaa2}
+.nav-item{color:#d1dfd9}
+.nav-item:hover{background:#ffffff12;color:#fff}
+.nav-item.active{background:var(--radx-gold);color:var(--radx-forest);font-weight:800}
+.nav-item.active small{color:#5f5b45}
+.nav-ai{color:#f1aaa5}.nav-ai.active{background:var(--radx-coral);color:#3f2828}
+.new-pill{background:var(--radx-coral-soft);color:#914c4a}
+.help-card{background:#ffffff0c;border-color:#ffffff1c;color:#c4d2cc}
+.help-card b{color:#fffaf0}.help-icon{background:#ffffff18;color:var(--radx-gold)}
+.sidebar-user{border-color:#ffffff24}
+.user-avatar{background:#f1d8c9;color:#724b3b}
+.profile-pop{background:var(--radx-cream);border-color:var(--radx-line)}
+.main-area{background:var(--radx-sand)}
+.topbar{background:var(--radx-cream);border-color:var(--radx-line)}
+.breadcrumb b{color:var(--radx-forest)}
+.search-box{background:var(--radx-paper);border-color:var(--radx-line)}
+.search-box input{color:var(--radx-ink)}
+.top-divider{background:var(--radx-line)}
+.top-profile{color:var(--radx-ink)}
+.notification-button i{background:var(--radx-coral)}
+/* Consistent warm surfaces for workspace cards and data panels */
+.dashboard-card,.overview-metric,.overview-module-card,.overview-recent-card,.overview-panel,
+.content-card,.workspace-card,.data-card,.table-card,.settings-card,.panel-card{
+ background:var(--radx-paper);border-color:var(--radx-line)
+}
+input,select,textarea{accent-color:var(--radx-teal)}
+input:focus,select:focus,textarea:focus{border-color:var(--radx-coral)}
+button:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:3px solid #e77b7855;outline-offset:2px}
+.primary-button,.btn-primary,.action-primary,.submit-button{background:var(--radx-orange);border-color:var(--radx-orange);color:#fff}
+.primary-button:hover,.btn-primary:hover,.action-primary:hover,.submit-button:hover{background:#c65c13;border-color:#c65c13}
+.status-success,.badge-success{background:#e4efeb;color:var(--radx-teal)}
+.status-warning,.badge-warning{background:#fff0cf;color:#8a5b13}
+.status-error,.badge-error{background:var(--radx-coral-soft);color:#a64f4b}
+@media(max-width:900px){.sidebar{box-shadow:12px 0 35px #0e302b26}}
