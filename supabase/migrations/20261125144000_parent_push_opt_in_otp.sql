@@ -7,3 +7,5 @@ create index if not exists school_parent_push_otps_lookup_idx on public.school_p
 alter table public.school_parent_push_otps enable row level security;
 revoke all on public.school_parent_push_otps from anon,authenticated;
 grant all on public.school_parent_push_otps to service_role;
+drop policy if exists "No client access to parent push OTPs" on public.school_parent_push_otps;
+create policy "No client access to parent push OTPs" on public.school_parent_push_otps for all to anon,authenticated using(false) with check(false);
