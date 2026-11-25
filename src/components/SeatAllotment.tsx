@@ -8,7 +8,7 @@ type Person={person_id:string;full_name:string;record_type:string;details:Record
 type Seat={exam_schedule_id:string;exam_name:string;standard_name:string;section_name:string;subject_name:string;student_person_id:string;student_name:string;room_id:string;room_name:string;exam_date:string;start_time:string;end_time:string;bench_number:number;seat_number:number}
 type Duty={invigilator_person_id:string;standard_coordinator_person_id:string;exam_supervisor_person_id:string;rounds_staff_person_id:string;cleaner_person_id:string}
 type DutySlot={key:string;room_id:string;room_name:string;exam_name:string;exam_date:string;start_time:string;end_time:string}
-const band=(name:string)=>{const n=Number((name.match(/\\d+/)||[])[0]||0);return n<=5?0:n<=8?1:n<=10?2:3}
+const band=(name:string)=>{const n=Number((name.match(/\d+/)||[])[0]||0);return n<=5?0:n<=8?1:n<=10?2:3}
 const slotKey=(s:{room_id:string;exam_date:string;start_time:string;end_time:string})=>[s.room_id,s.exam_date,s.start_time,s.end_time].join('|')
 const emptyDuty=():Duty=>({invigilator_person_id:'',standard_coordinator_person_id:'',exam_supervisor_person_id:'',rounds_staff_person_id:'',cleaner_person_id:''})
 
@@ -59,8 +59,8 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
  const examNames=useMemo(()=>[...new Set(exams.map(e=>e.exam_name))],[exams])
  const availableStandards=useMemo(()=>[...new Set(exams.filter(e=>e.exam_name===examName).map(e=>e.standard_name))].sort((a,b)=>band(a)-band(b)||a.localeCompare(b)),[exams,examName])
  useEffect(()=>{setSelectedStandards(current=>current.filter(s=>availableStandards.includes(s)).length?current.filter(s=>availableStandards.includes(s)):availableStandards)},[availableStandards])
- const sessions=useMemo(()=>{const selected=exams.filter(e=>e.exam_name===examName&&selectedStandards.includes(e.standard_name));return [...new Map(selected.map(e=>[[e.exam_date,e.start_time||'',e.end_time||''].join('|'),{date:e.exam_date,start:e.start_time||'',end:e.end_time||'',exams:selected.filter(x=>x.exam_date===e.exam_date&&(x.start_time||'')===(e.start_time||'')&&(x.end_time||'')===(e.end_time||''))}])).values()]},[exams,examName,selectedStandards])
- const dutySlots=useMemo(()=>[...new Map(plan.map(s=>{const key=slotKey(s);return [key,{key,room_id:s.room_id,room_name:s.room_name,exam_name:s.exam_name,exam_date:s.exam_date,start_time:s.start_time,end_time:s.end_time} as DutySlot]}))].map(x=>x[1]),[plan])
+ const sessions=useMemo(()=>{const selected=exams.filter(e=>e.exam_name===examName&&selectedStandards.includes(e.standard_name));const map=new Map<string,{date:string;start:string;end:string;exams:Exam[]}>();for(const exam of selected){const key=[exam.exam_date,exam.start_time||'',exam.end_time||''].join('|');if(!map.has(key))map.set(key,{date:exam.exam_date,start:exam.start_time||'',end:exam.end_time||'',exams:[]});map.get(key)!.exams.push(exam)}return [...map.values()]},[exams,examName,selectedStandards])
+ const dutySlots=useMemo<DutySlot[]>(()=>{const map=new Map<string,DutySlot>();for(const seat of plan){const key=slotKey(seat);map.set(key,{key,room_id:seat.room_id,room_name:seat.room_name,exam_name:seat.exam_name,exam_date:seat.exam_date,start_time:seat.start_time,end_time:seat.end_time})}return [...map.values()]},[plan])
  const teachers=people.filter(p=>p.record_type==='Teacher')
  const staff=people.filter(p=>p.record_type==='Staff')
  const cleaners=people.filter(p=>p.record_type==='Driver & Cleaner'&&String(p.details?.work_role||'').toLowerCase()==='cleaner')
