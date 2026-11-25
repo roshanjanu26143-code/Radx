@@ -71,7 +71,7 @@ type NavItem = { label: string; icon: typeof LayoutDashboard; children: string[]
 const schoolNavigation: NavItem[] = [
  {label:'Overview',icon:LayoutDashboard,children:['Dashboard']},
  {label:'Admission',icon:GraduationCap,children:['Create Student','Create Teacher','Create Staff','Create Driver & Cleaner']},
- {label:'Academic',icon:BookOpen,children:['Standard','Teacher Allotment','Subjects','Timetable','Attendance','Attendance Reports','Exam Schedules','Seat Allotment','Marks Entry','Student Results','Performance']},
+ {label:'Academic',icon:BookOpen,children:['Standard','Teacher Allotment','Subjects','Timetable','Exam Schedules','Seat Allotment','Attendance Reports','Performance','Attendance','Marks Entry','Student Results']},
  {label:'Transport',icon:Bus,children:['Live tracking','Routes','Students','Buses']},
  {label:'Peoples',icon:Users,children:['Students','Teachers','Staff','Driver & Cleaner','Parent Book','Announcements']},
  {label:'Finance',icon:Wallet,children:['Finance','Fees','Fees Structure','Pending Fees']},
