@@ -110,6 +110,13 @@ begin
     (x->>'start_time')::time,(x->>'end_time')::time,(x->>'room_id')::uuid,x->>'invigilator_person_id'
   from jsonb_array_elements(p_allocations) x;
 
+  if exists (
+    select 1 from public.school_exam_plan_allocations a
+    join public.school_exam_schedules e on e.id=a.exam_schedule_id and e.school_id=a.school_id
+    where a.plan_run_id=v_run_id and e.is_ai_locked
+      and (a.exam_date<>e.exam_date or a.start_time<>e.start_time or a.end_time<>e.end_time)
+  ) then raise exception 'A manually locked exam slot cannot be changed by the AI scheduler.'; end if;
+
   select count(*) into v_expected from public.school_exam_schedules e
   where e.school_id=p_school_id and e.academic_year=p_academic_year and e.exam_name=p_exam_name;
   select count(distinct exam_schedule_id) into v_allocated from public.school_exam_plan_allocations a where a.plan_run_id=v_run_id;
