@@ -18,7 +18,7 @@ type Candidate={day:number;periods:Period[];teacher:Teacher;room:Room}
 type Props={schoolId:string;academicYear:string;standards:Standard[];teachers:Teacher[];notify:(message:string)=>void;canManage:boolean;onClose:()=>void}
 const DAY_NAMES=['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const ROOM_TYPES=['classroom','computer_lab','chemistry_lab','physics_lab','biology_lab','library','auditorium','playground','other']
-const roomLabel=(value:string)=>value.replace(/_/g,' ').replace(/\\b\\w/g,(c:string)=>c.toUpperCase())
+const roomLabel=(value:string)=>value.replace(/_/g,' ').replace(/\b\w/g,(c:string)=>c.toUpperCase())
 const time=(value:string)=>value?.slice(0,5)||'—'
 const overlap=(a:{start_time:string;end_time:string},b:{start_time:string;end_time:string})=>a.start_time<b.end_time&&a.end_time>b.start_time
 const slotKey=(standard:string,section:string,day:number,period:number)=>standard+'|'+section+'|'+day+'|'+period
