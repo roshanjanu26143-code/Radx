@@ -55,9 +55,9 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
   const latest=(runRes.data||[])[0]
   if(latest){
    setRunId(latest.id);setRunStatus(latest.status)
-   const {data:rows,error:allocationError}=await supabase.from('school_exam_plan_allocations').select('exam_schedule_id,exam_date,start_time,end_time,room_id,invigilator_person_id,school_exam_schedules(exam_name,standard_name,section_name,subject_name),school_exam_rooms(room_name),school_people!school_exam_plan_allocations_invigilator_person_id_fkey(full_name)').eq('school_id',schoolId).eq('plan_run_id',latest.id)
+   const {data:rows,error:allocationError}=await supabase.from('school_exam_plan_allocations').select('exam_schedule_id,exam_date,start_time,end_time,room_id,invigilator_person_id,school_exam_schedules(exam_name,standard_name,section_name,subject_name),school_exam_rooms(room_name)').eq('school_id',schoolId).eq('plan_run_id',latest.id)
    if(!allocationError&&rows){
-    setAllocations(rows.map((row:any)=>({exam_schedule_id:row.exam_schedule_id,exam_name:row.school_exam_schedules?.exam_name||'',standard_name:row.school_exam_schedules?.standard_name||'',section_name:row.school_exam_schedules?.section_name||'',subject_name:row.school_exam_schedules?.subject_name||'',exam_date:row.exam_date,start_time:row.start_time,end_time:row.end_time,room_id:row.room_id,room_name:row.school_exam_rooms?.room_name||'Room',invigilator_person_id:row.invigilator_person_id,invigilator_name:row.school_people?.full_name||row.invigilator_person_id})))
+    setAllocations(rows.map((row:any)=>({exam_schedule_id:row.exam_schedule_id,exam_name:row.school_exam_schedules?.exam_name||'',standard_name:row.school_exam_schedules?.standard_name||'',section_name:row.school_exam_schedules?.section_name||'',subject_name:row.school_exam_schedules?.subject_name||'',exam_date:row.exam_date,start_time:row.start_time,end_time:row.end_time,room_id:row.room_id,room_name:row.school_exam_rooms?.room_name||'Room',invigilator_person_id:row.invigilator_person_id,invigilator_name:(teacherRes.data||[]).find((t:any)=>t.person_id===row.invigilator_person_id)?.full_name||row.invigilator_person_id})))
    }else setAllocations([])
   }else{setRunId('');setRunStatus('');setAllocations([])}
   setLoading(false)
