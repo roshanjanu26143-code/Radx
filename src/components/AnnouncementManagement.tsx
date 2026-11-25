@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { CalendarClock, CheckCircle2, FileText, Megaphone, MessageCircle, Send, X } from 'lucide-react'
-import './AnnouncementManagement.css'\nimport TimeRangePicker from './TimeRangePicker'
+import './AnnouncementManagement.css'
+import TimeRangePicker from './TimeRangePicker'
 
 type Standard = { name: string; sections: string[] }
 type Announcement = {
@@ -114,8 +115,10 @@ export default function AnnouncementManagement({ schoolId, standards, notify }: 
               <button type="button" title="Italic" onClick={() => insertAtCursor('_', '_')}><i>I</i></button>
               <button type="button" title="Underline" onClick={() => insertAtCursor('<u>', '</u>')}><u>U</u></button>
               <span/>
-              <button type="button" title="Bullet list" onClick={() => insertAtCursor('\n• ')}>• List</button>
-              <button type="button" title="Numbered list" onClick={() => insertAtCursor('\n1. ')}>1. List</button>
+              <button type="button" title="Bullet list" onClick={() => insertAtCursor('
+• ')}>• List</button>
+              <button type="button" title="Numbered list" onClick={() => insertAtCursor('
+1. ')}>1. List</button>
               <button type="button" title="Add a smile" onClick={() => insertAtCursor(' 😊 ')}>😊</button>
             </div>
             <label className="sr-only" htmlFor="announcement-message">Message body</label>
