@@ -85,7 +85,7 @@ type PeopleRecord={id:string;type:string;name:string;details:Record<string,strin
 type PeopleIdSettings={studentPrefix:string;teacherPrefix:string;staffPrefix:string;driverPrefix:string;cleanerPrefix:string;studentNext:number;teacherNext:number;staffNext:number;driverNext:number;cleanerNext:number}
 const rolePageDefaults:Record<string,string[]> = {
  'Cashier-Staff':['Finance','Fees','Fees Structure','Students','Pending Fees'],
- 'Academic Director':['Teacher Allotment','Subjects','Timetable','Exam Schedules','Seat Allotment','Marks Entry','Attendance','Attendance Reports','Student Results','Performance'],
+ 'Academic Director':['Standard','Teacher Allotment','Subjects','Timetable','Exam Schedules','Seat Allotment','Marks Entry','Attendance','Attendance Reports','Student Results','Performance'],
  'Teacher':['Timetable','Attendance','Attendance Reports','Marks Entry'],
 }
 const pageDisplayName=(page:string)=>({'Timetable':'Time Table','Exam Schedules':'Exam Schedule','Attendance Reports':'Attendance Report','Performance':'Students Performance'} as Record<string,string>)[page]||page
