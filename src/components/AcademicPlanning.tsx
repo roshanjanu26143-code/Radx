@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { BookOpen, CalendarDays, Plus, RefreshCw, Trash2, Pencil, Sparkles } from 'lucide-react'
 const AITimetableScheduler = lazy(() => import('./AITimetableScheduler'))
-import { supabase } from '../lib/supabase'\nimport TimeRangePicker from './TimeRangePicker'
+import { supabase } from '../lib/supabase'
+import TimeRangePicker from './TimeRangePicker'
 
 type Standard = { name: string; sections: string[] }
 type Teacher = { id: string; name: string }
