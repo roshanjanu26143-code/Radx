@@ -57,16 +57,16 @@ Deno.serve(async (req: Request) => {
   if (role === "Teacher" && (initialPassword.length < 8 || initialPassword.length > 72)) {
     return json({ error: "For a Teacher account, the Admin must enter an initial password of 8 to 72 characters." }, 400);
   }
-  if (role === "Teacher" && !personId) return json({ error: "Select the teacher profile to link this login account." }, 400);
-  if (role === "Teacher") {
+  if ((role === "Teacher" || role === "Staff") && !personId) return json({ error: `Select the ${role.toLowerCase()} profile to link this login account.` }, 400);
+  if (role === "Teacher" || role === "Staff") {
     const { data: person, error: personError } = await admin.from("school_people")
-      .select("person_id").eq("school_id", schoolId).eq("person_id", personId).eq("record_type", "Teacher").maybeSingle();
-    if (personError) return json({ error: "Could not verify the teacher profile." }, 500);
-    if (!person) return json({ error: "The selected teacher profile does not belong to this school." }, 400);
+      .select("person_id").eq("school_id", schoolId).eq("person_id", personId).eq("record_type", role).maybeSingle();
+    if (personError) return json({ error: `Could not verify the ${role.toLowerCase()} profile.` }, 500);
+    if (!person) return json({ error: `The selected ${role.toLowerCase()} profile does not belong to this school.` }, 400);
     const { data: linked, error: linkedError } = await admin.from("school_user_roles")
-      .select("id").eq("school_id", schoolId).eq("person_id", personId).eq("role", "Teacher").maybeSingle();
-    if (linkedError) return json({ error: "Could not check the teacher account link." }, 500);
-    if (linked) return json({ error: "This teacher profile already has a login account." }, 409);
+      .select("id").eq("school_id", schoolId).eq("person_id", personId).eq("role", role).maybeSingle();
+    if (linkedError) return json({ error: `Could not check the ${role.toLowerCase()} account link.` }, 500);
+    if (linked) return json({ error: `This ${role.toLowerCase()} profile already has a login account.` }, 409);
   }
 
   let accountUser: { id: string } | null = null;
@@ -91,7 +91,7 @@ Deno.serve(async (req: Request) => {
 
   const { error: roleError } = await admin.from("school_user_roles").insert({
     school_id: schoolId, user_id: accountUser.id, email, role,
-    allowed_pages: pages, status: "active", person_id: role === "Teacher" ? personId : null,
+    allowed_pages: pages, status: "active", person_id: (role === "Teacher" || role === "Staff") ? personId : null,
     created_by: caller.id, created_by_email: caller.email ?? null,
   });
   if (roleError) {
