@@ -92,6 +92,7 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
 
   const deleteRoute = async (route: RouteRow) => {
     if (buses.some(bus => bus.route_id === route.id)) { notify('Move or remove buses assigned to this route before deleting it.'); return }
+    if (allotments.some(row => row.route_id === route.id && row.status === 'active')) { notify('Move or pause active student allotments before deleting this route.'); return }
     const { error } = await supabase.from('school_transport_routes').delete().eq('school_id', schoolId).eq('id', route.id)
     if (error) notify(error.message); else { notify('Route deleted.'); await load() }
   }
@@ -116,7 +117,12 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
   const toggleStudent = (id: string) => setSelectedStudents(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id])
   const saveAllotments = async () => {
     if (!selectedRoute || !selectedBus || !selectedStudents.length) { notify('Choose a route, bus and at least one student.'); return }
-    if (!buses.some(bus => bus.id === selectedBus && bus.route_id === selectedRoute)) { notify('Selected bus does not belong to this route.'); return }
+    const targetBus = buses.find(bus => bus.id === selectedBus)
+    if (!targetBus || targetBus.route_id !== selectedRoute || targetBus.status !== 'active') { notify('Choose an active bus assigned to this route.'); return }
+    const alreadyOnBus = selectedStudents.filter(studentId => allotments.some(row => row.student_person_id === studentId && row.bus_id === selectedBus && row.status === 'active')).length
+    const currentOnBus = allotments.filter(row => row.bus_id === selectedBus && row.status === 'active').length
+    const projectedOccupancy = currentOnBus + selectedStudents.length - alreadyOnBus
+    if (projectedOccupancy > targetBus.capacity) { notify('Bus capacity exceeded: this allotment would assign ' + projectedOccupancy + ' students to a ' + targetBus.capacity + '-seat bus.'); return }
     setSaving(true)
     const rows = selectedStudents.map(student_person_id => ({
       school_id: schoolId, student_person_id, route_id: selectedRoute, bus_id: selectedBus,
