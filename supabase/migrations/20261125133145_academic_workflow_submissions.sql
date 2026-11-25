@@ -20,6 +20,8 @@ create table if not exists public.school_academic_submissions (
  updated_at timestamptz not null default now()
 );
 create index if not exists school_academic_submissions_scope_idx on public.school_academic_submissions (school_id, submission_type, academic_year, standard_name, section_name, submitted_at desc);
+create index if not exists school_academic_submissions_submitted_by_idx on public.school_academic_submissions (submitted_by);
+create index if not exists school_academic_submissions_reviewed_by_idx on public.school_academic_submissions (reviewed_by);
 create unique index if not exists school_academic_submissions_period_unique on public.school_academic_submissions (school_id, submission_type, academic_year, report_period, standard_name, section_name, coalesce(exam_name,''));
 alter table public.school_academic_submissions enable row level security;
 drop policy if exists "Academic users read scoped submissions" on public.school_academic_submissions;
