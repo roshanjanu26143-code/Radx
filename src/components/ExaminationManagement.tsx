@@ -128,13 +128,6 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   const headers=['Admission Number','Student Name']
   uploadSchedules.forEach(e=>headers.push(e.subject_name+' Marks',e.subject_name+' Grade (P/F)'))
   headers.push('Total Marks','Out Of','Rank','Status')
-  const firstStudentRow=6,lastStudentRow=firstStudentRow+uploadClassStudents.length-1
-  const markColumnIndexes:number[]=[]
-  const gradeColumnIndexes:number[]=[]
-  let nextColumn=2
-  uploadSchedules.forEach(()=>{markColumnIndexes.push(nextColumn);gradeColumnIndexes.push(nextColumn+1);nextColumn+=2})
-  const excelColumn=(index:number)=>{let n=index+1,out='';while(n){const rem=(n-1)%26;out=String.fromCharCode(65+rem)+out;n=Math.floor((n-1)/26)}return out}
-  const totalColumn=nextColumn,outOfColumn=nextColumn+1,rankColumn=nextColumn+2,statusColumn=nextColumn+3
   const rows=[
    ['Current Academic Year',uploadSchedules[0].academic_year],
    ['Examination',uploadExamName],
@@ -142,13 +135,11 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    ['Section',uploadSection],
    headers,
    ...uploadClassStudents.map((student,index)=>{
-    const rowNumber=firstStudentRow+index
     const subjectCells=uploadSchedules.flatMap(()=>['',''])
-    const totalFormula=`=SUM(${markColumnIndexes.map(column=>excelColumn(column)+rowNumber).join(',')})`
     const maxTotal=uploadSchedules.reduce((n,e)=>n+Number(e.max_marks),0)
     const rankFormula=''
     const statusFormula=''
-    return [student.person_id,student.full_name,...subjectCells,totalFormula,maxTotal,rankFormula,statusFormula]
+    return [student.person_id,student.full_name,...subjectCells,'',maxTotal,'','']
    })
   ]
   const csv=rows.map(row=>row.map(csvCell).join(',')).join('\\r\\n')
