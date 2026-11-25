@@ -898,7 +898,7 @@ function AuthScreen() {
               </> : setupStep === 'details' ? <>
                 <h2>Complete school details</h2>
                 <p className="auth-subtitle">School ID <b>{registrationResult.schoolId}</b> is ready. Add your school information to view the plans.</p>
-                <AppStepper steps={[{title:'School details',description:'Address and strength'},{title:'Choose plan',description:'Trial or subscription'}]} current={0}/>
+                <AppStepper steps={[{title:'Admin account',description:'User information'},{title:'School details',description:'Address and strength'},{title:'Plan',description:'Trial or subscription'}]} current={1}/>
                 <form className="school-setup-form" onSubmit={event => { event.preventDefault(); setSetupStep('plans') }}>
                   <label className="auth-label" htmlFor="setup-address1">Address line 1</label><div className="auth-input"><Building2 size={17}/><input id="setup-address1" value={schoolDetails.address_line_1} onChange={e => setSchoolDetails(v => ({...v,address_line_1:e.target.value}))} placeholder="Door no., street and area" required /></div>
                   <label className="auth-label" htmlFor="setup-address2">Address line 2 <span className="optional-label">(optional)</span></label><div className="auth-input"><Building2 size={17}/><input id="setup-address2" value={schoolDetails.address_line_2} onChange={e => setSchoolDetails(v => ({...v,address_line_2:e.target.value}))} placeholder="Landmark or locality" /></div>
@@ -910,7 +910,7 @@ function AuthScreen() {
                 </form>
               </> : <>
                 <h2>Choose your school plan</h2>
-                <AppStepper steps={[{title:'School details',description:'Address and strength'},{title:'Choose plan',description:'Trial or subscription'}]} current={1}/><p className="auth-subtitle">Compare the available plans. BASIC includes a 14-day free trial. Payment is not required now.</p>
+                <AppStepper steps={[{title:'Admin account',description:'User information'},{title:'School details',description:'Address and strength'},{title:'Plan',description:'Trial or subscription'}]} current={2}/><p className="auth-subtitle">Compare the available plans. BASIC includes a 14-day free trial. Payment is not required now.</p>
                 <div className="plan-selection-grid">
                   <button type="button" className={`plan-option basic-plan ${selectedPlan === 'BASIC' ? 'chosen' : ''}`} onClick={() => setSelectedPlan('BASIC')}><span className="plan-tag">14 DAYS FREE</span><b>BASIC</b><strong>Free trial</strong><span>Full BASIC access for 14 days.</span><i>{selectedPlan === 'BASIC' ? 'Selected' : 'Choose BASIC'}</i></button>
                   <button type="button" className={`plan-option ${selectedPlan === 'PRO' ? 'chosen' : ''}`} onClick={() => setSelectedPlan('PRO')}><span className="plan-tag muted-plan-tag">DETAILS LATER</span><b>PRO</b><strong>Coming soon</strong><span>PRO plan details will be announced later.</span><i>{selectedPlan === 'PRO' ? 'Selected' : 'Choose PRO'}</i></button>
@@ -933,6 +933,7 @@ function AuthScreen() {
             </> : <>
               <h2>Register your school</h2>
               <p className="auth-subtitle">Create your school account to get started with ACADAMIX.</p>
+              <AppStepper steps={[{title:'Admin account',description:'User information'},{title:'School details',description:'Address and strength'},{title:'Plan',description:'Trial or subscription'}]} current={0}/>
               <form onSubmit={submitRegister}>
                 <label className="auth-label" htmlFor="school-name">School name</label>
                 <div className="auth-input"><Building2 size={17}/><input id="school-name" value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="Enter your school's name" required/></div>
