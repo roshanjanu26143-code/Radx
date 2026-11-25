@@ -83,7 +83,7 @@ export default function OverviewDashboard({ schoolId, schoolName, academicYear, 
       supabase.from('school_workspace_state').select('standards').eq('school_id', schoolId).maybeSingle(),
       supabase.from('school_audit_logs').select('action,entity_type,created_at').eq('school_id', schoolId).order('created_at', { ascending: false }).limit(5)
     ])
-    const failed = results.find(result => result.error && !['school_audit_logs'].includes(''))
+    const failed = results.slice(0, 12).find(result => result.error)
     if (failed?.error) {
       setError(failed.error.message)
       setLoading(false)
