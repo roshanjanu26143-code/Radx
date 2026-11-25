@@ -77,7 +77,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
    supabase.from('school_teacher_workload_limits').select('teacher_person_id,max_daily_periods,max_weekly_periods').eq('school_id',schoolId),
    supabase.from('school_timetable_fixed_blocks').select('id,standard_name,section_name,day_of_week,period_number,block_type,label,teacher_person_id,room_id').eq('school_id',schoolId).eq('academic_year',academicYear),
    supabase.from('school_academic_timetable').select('id,standard_name,section_name,day_of_week,period_number,start_time,end_time,subject_id,teacher_person_id,room_id,room_type,room_label,is_locked,source,generated_run_id,is_double_period,double_group_id').eq('school_id',schoolId).eq('academic_year',academicYear),
-   supabase.rpc('get_school_section_strengths',{p_school_id:schoolId}),
+   supabase.from('school_section_strengths').select('standard_name,section_name,student_count').eq('school_id',schoolId),
   ])
   const failed=results.find(r=>r.error)
   if(failed?.error){setError(failed.error.message);setLoading(false);return}
