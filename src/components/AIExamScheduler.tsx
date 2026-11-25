@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarClock, Plus, RefreshCw, Sparkles, Users, DoorOpen, CheckCircle2, AlertTriangle, Send } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-type Exam = { id:string; academic_year:string; exam_name:string; standard_name:string; section_name:string; subject_name:string; exam_date:string; start_time:string|null; end_time:string|null }
+type Exam = { id:string; academic_year:string; exam_name:string; standard_name:string; section_name:string; subject_name:string; exam_date:string; start_time:string|null; end_time:string|null; duration_minutes:number }
 type Room = { id:string; room_name:string; room_type:'classroom'|'lab'|'computer_lab'; capacity:number; is_active:boolean }
 type Teacher = { person_id:string; full_name:string }
 type Assignment = { teacher_person_id:string; standard_name:string; section_name:string; subject_name:string|null }
@@ -40,7 +40,7 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
  const load=async()=>{
   setLoading(true);setError('')
   const [examRes,roomRes,teacherRes,assignRes,runRes]=await Promise.all([
-   supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time').eq('school_id',schoolId).eq('academic_year',academicYear).order('exam_date'),
+   supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time,duration_minutes').eq('school_id',schoolId).eq('academic_year',academicYear).order('exam_date'),
    supabase.from('school_exam_rooms').select('id,room_name,room_type,capacity,is_active').eq('school_id',schoolId).order('capacity'),
    supabase.from('school_people').select('person_id,full_name').eq('school_id',schoolId).eq('record_type','Teacher').order('full_name'),
    supabase.from('school_teacher_class_assignments').select('teacher_person_id,standard_name,section_name,subject_name').eq('school_id',schoolId).eq('is_active',true),
