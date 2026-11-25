@@ -50,12 +50,12 @@ Deno.serve(async (req: Request) => {
   const { data: school, error: schoolError } = await admin.from("school_tenants")
     .select("school_id,school_name,admin_user_id").eq("school_id", schoolId).maybeSingle();
   if (schoolError) return json({ error: "Could not verify the school." }, 500);
-  if (!school || school.admin_user_id !== caller.id) return json({ error: "Only this school's Admin can invite role users." }, 403);
+  if (!school || school.admin_user_id !== caller.id) return json({ error: "Only this school's Admin can create role accounts." }, 403);
 
   const initialPassword = typeof body?.initial_password === "string" ? body.initial_password : "";
   const personId = typeof body?.person_id === "string" ? body.person_id.trim() : "";
-  if (role === "Teacher" && (initialPassword.length < 8 || initialPassword.length > 72)) {
-    return json({ error: "For a Teacher account, the Admin must enter an initial password of 8 to 72 characters." }, 400);
+  if ((role === "Teacher" || role === "Staff") && (initialPassword.length < 8 || initialPassword.length > 72)) {
+    return json({ error: "The Admin must enter an initial password of 8 to 72 characters for Teacher and Staff accounts." }, 400);
   }
   if ((role === "Teacher" || role === "Staff") && !personId) return json({ error: `Select the ${role.toLowerCase()} profile to link this login account.` }, 400);
   if (role === "Teacher" || role === "Staff") {
@@ -71,14 +71,14 @@ Deno.serve(async (req: Request) => {
 
   let accountUser: { id: string } | null = null;
   let invited = false;
-  if (role === "Teacher") {
+  if (role === "Teacher" || role === "Staff") {
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
       password: initialPassword,
       email_confirm: true,
       user_metadata: { invited_school_id: schoolId, invited_role: role },
     });
-    if (createError || !created.user) return json({ error: createError?.message || "Teacher account could not be created." }, 400);
+    if (createError || !created.user) return json({ error: createError?.message || "Role account could not be created." }, 400);
     accountUser = created.user;
   } else {
     const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
@@ -98,5 +98,5 @@ Deno.serve(async (req: Request) => {
     await admin.auth.admin.deleteUser(accountUser.id);
     return json({ error: roleError.message }, 400);
   }
-  return json({ success: true, invited, email, role, allowed_pages: pages, password_set_by_admin: role === "Teacher" });
+  return json({ success: true, invited, email, role, allowed_pages: pages, password_set_by_admin: role === "Teacher" || role === "Staff" });
 });
