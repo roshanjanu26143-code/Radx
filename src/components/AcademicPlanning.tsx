@@ -27,7 +27,8 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
  const [sectionName,setSectionName]=useState(standards[0]?.sections[0]||'')
  const [subjectForm,setSubjectForm]=useState({subject_name:'',subject_code:'',subject_type:'Core'})
  const [slot,setSlot]=useState({standard_name:standards[0]?.name||'',section_name:standards[0]?.sections[0]||'',day_of_week:'1',period_number:'1',start_time:'09:00',end_time:'09:45',subject_id:'',teacher_person_id:'',room_label:'',room_id:'',room_type:'classroom'})
- const [periodGrid,setPeriodGrid]=useState<PeriodGridRow[]>([])\n const [roomList,setRoomList]=useState<{id:string;room_name:string;room_type:string;capacity:number;is_active:boolean}[]>([])
+ const [periodGrid,setPeriodGrid]=useState<PeriodGridRow[]>([])
+ const [roomList,setRoomList]=useState<{id:string;room_name:string;room_type:string;capacity:number;is_active:boolean}[]>([])
  const isSubjects=page==='Subjects'
  const isAdmin=userRole==='Admin'
  const canManage=isAdmin||(userRole!=='Teacher'&&allowedPages.includes(page))
