@@ -210,12 +210,23 @@ begin
   where p.school_id=p_school_id and p.replacement_date=p_replacement_date
    and p.substitute_teacher_person_id=p_substitute_teacher_person_id and p.status='assigned');
  if v_used>=v_max_daily then raise exception 'Proxy teacher daily period limit would be exceeded'; end if;
- insert into public.school_timetable_proxy_assignments(
-  school_id,original_timetable_id,replacement_date,absent_teacher_person_id,substitute_teacher_person_id,
-  standard_name,section_name,period_number,reason,created_by
- ) values(p_school_id,p_original_timetable_id,p_replacement_date,v_absent,p_substitute_teacher_person_id,
-  v_slot.standard_name,v_slot.section_name,v_slot.period_number,nullif(btrim(p_reason),''),(select auth.uid()))
- returning id into v_id;
+ select p.id into v_id from public.school_timetable_proxy_assignments p
+  where p.school_id=p_school_id and p.original_timetable_id=p_original_timetable_id
+   and p.replacement_date=p_replacement_date and p.status='cancelled' for update;
+ if v_id is not null then
+  update public.school_timetable_proxy_assignments set
+   absent_teacher_person_id=v_absent,substitute_teacher_person_id=p_substitute_teacher_person_id,
+   standard_name=v_slot.standard_name,section_name=v_slot.section_name,period_number=v_slot.period_number,
+   status='assigned',reason=nullif(btrim(p_reason),''),created_by=(select auth.uid()),created_at=now()
+  where school_id=p_school_id and id=v_id;
+ else
+  insert into public.school_timetable_proxy_assignments(
+   school_id,original_timetable_id,replacement_date,absent_teacher_person_id,substitute_teacher_person_id,
+   standard_name,section_name,period_number,reason,created_by
+  ) values(p_school_id,p_original_timetable_id,p_replacement_date,v_absent,p_substitute_teacher_person_id,
+   v_slot.standard_name,v_slot.section_name,v_slot.period_number,nullif(btrim(p_reason),''),(select auth.uid()))
+  returning id into v_id;
+ end if;
  return v_id;
 end;
 $function$;
