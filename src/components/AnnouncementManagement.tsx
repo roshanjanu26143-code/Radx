@@ -16,6 +16,7 @@ type Props = { schoolId: string; standards: Standard[]; notify: (message: string
 
 export default function AnnouncementManagement({ schoolId, standards, notify }: Props) {
   const [items, setItems] = useState<Announcement[]>([])
+  const [deliveryStats, setDeliveryStats] = useState<Record<string, Record<string, number>>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [contentType, setContentType] = useState<'message' | 'circular'>('message')
@@ -43,7 +44,18 @@ export default function AnnouncementManagement({ schoolId, standards, notify }: 
       .select('id,title,body,content_type,audience_type,standard_name,section_name,status,scheduled_for,expires_at,delivery_channels,attachments,created_at,published_at')
       .eq('school_id', schoolId).order('created_at', { ascending: false }).limit(100)
     if (error) notify('Announcements could not be loaded: ' + error.message)
-    else setItems((data || []) as Announcement[])
+    else {
+      setItems((data || []) as Announcement[])
+      const { data: deliveries } = await supabase.from('school_announcement_deliveries')
+        .select('announcement_id,channel,status').eq('school_id', schoolId).limit(2000)
+      const grouped: Record<string, Record<string, number>> = {}
+      ;(deliveries || []).forEach((row: {announcement_id:string;channel:string;status:string}) => {
+        grouped[row.announcement_id] ||= {}
+        const key = row.channel + ':' + row.status
+        grouped[row.announcement_id][key] = (grouped[row.announcement_id][key] || 0) + 1
+      })
+      setDeliveryStats(grouped)
+    }
     setLoading(false)
   }
   useEffect(() => { void loadItems() }, [schoolId])
@@ -164,7 +176,7 @@ export default function AnnouncementManagement({ schoolId, standards, notify }: 
 
       <aside className="announcement-history">
         <div className="announcement-history-head"><div><span className="section-eyebrow">COMMUNICATION LOG</span><h3>Recent announcements</h3></div><button type="button" onClick={() => void loadItems()} aria-label="Refresh announcements"><X size={15}/></button></div>
-        {loading ? <div className="announcement-empty">Loading announcements…</div> : items.length === 0 ? <div className="announcement-empty"><Megaphone size={25}/><b>No announcements yet</b><span>Your published messages and circulars will appear here.</span></div> : <div className="announcement-history-list">{items.map(item => <article key={item.id} className="announcement-history-item"><div className="announcement-history-item-top"><span className={item.content_type === 'circular' ? 'circular-tag' : 'message-tag'}>{item.content_type === 'circular' ? 'CIRCULAR' : 'MESSAGE'}</span><span className={'announcement-status '+item.status}>{item.status}</span></div><h4>{item.title}</h4><p>{item.body}</p><div className="announcement-history-meta"><span>{audienceLabel(item)}</span><time>{formatDate(item.published_at || item.scheduled_for || item.created_at)}</time></div>{item.attachments?.length>0 && <div className="announcement-history-files">{item.attachments.map(file=><span key={file.path}><Paperclip size={11}/>{file.name}</span>)}</div>}</article>)}</div>}
+        {loading ? <div className="announcement-empty">Loading announcements…</div> : items.length === 0 ? <div className="announcement-empty"><Megaphone size={25}/><b>No announcements yet</b><span>Your published messages and circulars will appear here.</span></div> : <div className="announcement-history-list">{items.map(item => <article key={item.id} className="announcement-history-item"><div className="announcement-history-item-top"><span className={item.content_type === 'circular' ? 'circular-tag' : 'message-tag'}>{item.content_type === 'circular' ? 'CIRCULAR' : 'MESSAGE'}</span><span className={'announcement-status '+item.status}>{item.status}</span></div><h4>{item.title}</h4><p>{item.body}</p><div className="announcement-history-meta"><span>{audienceLabel(item)}</span><time>{formatDate(item.published_at || item.scheduled_for || item.created_at)}</time></div>{item.attachments?.length>0 && <div className="announcement-history-files">{item.attachments.map(file=><span key={file.path}><Paperclip size={11}/>{file.name}</span>)}</div>}{deliveryStats[item.id] && <div className="announcement-delivery-stats">{Object.entries(deliveryStats[item.id]).map(([key,count])=><span key={key}>{key.replace(':',' · ')} {count}</span>)}</div>}</article>)}</div>}
       </aside>
     </div>
   </div>
