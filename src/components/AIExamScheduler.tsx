@@ -31,6 +31,7 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
  const [publishing,setPublishing]=useState(false)
  const [error,setError]=useState('')
  const [examName,setExamName]=useState('')
+ const [standardFilter,setStandardFilter]=useState('All')
  const [fromDate,setFromDate]=useState(new Date().toISOString().slice(0,10))
  const [toDate,setToDate]=useState(new Date(Date.now()+14*86400000).toISOString().slice(0,10))
  const [dayStart,setDayStart]=useState('09:00')
@@ -68,7 +69,8 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
  }
  useEffect(()=>{void load()},[schoolId,academicYear])
 
- const selectedExams=useMemo(()=>exams.filter(e=>e.exam_name===examName),[exams,examName])
+ const availableStandards=useMemo(()=>[...new Set(exams.filter(e=>e.exam_name===examName).map(e=>e.standard_name))].sort((a,b)=>a.localeCompare(b)),[exams,examName])
+ const selectedExams=useMemo(()=>exams.filter(e=>e.exam_name===examName&&(standardFilter==='All'||e.standard_name===standardFilter)),[exams,examName,standardFilter])
  const addRoom=async()=>{
   const capacity=Number(roomForm.capacity)
   if(!roomForm.room_name.trim()||!Number.isInteger(capacity)||capacity<1){notify('Enter a room name and a valid capacity.');return}
@@ -215,7 +217,8 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
   {error&&<div className="ai-error" role="alert">{error}</div>}
   <div className="ai-stats"><div className="ai-stat"><span>Subject exams</span><b>{selectedExams.length}</b></div><div className="ai-stat"><span>Active rooms</span><b>{rooms.filter(r=>r.is_active).length}</b></div><div className="ai-stat"><span>Invigilators</span><b>{teachers.length}</b></div><div className="ai-stat"><span>Room splits</span><b>{splits}</b></div></div>
   <div className="ai-card"><h3><CalendarClock size={17}/> Schedule generation</h3><div className="ai-grid">
-   <label>Examination<select value={examName} onChange={e=>setExamName(e.target.value)}><option value="">Choose exam</option>{[...new Set(exams.map(e=>e.exam_name))].map(name=><option key={name}>{name}</option>)}</select></label>
+   <label>Examination<select value={examName} onChange={e=>{setExamName(e.target.value);setStandardFilter('All')}}><option value="">Choose exam</option>{[...new Set(exams.map(e=>e.exam_name))].map(name=><option key={name}>{name}</option>)}</select></label>
+   <label>Standard<select value={standardFilter} onChange={e=>setStandardFilter(e.target.value)}><option value="All">All standards</option>{availableStandards.map(name=><option key={name}>{name}</option>)}</select></label>
    <label>Available from<input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)}/></label>
    <label>Available until<input type="date" value={toDate} min={fromDate} onChange={e=>setToDate(e.target.value)}/></label>
    <label>First daily slot<input type="time" value={dayStart} onChange={e=>setDayStart(e.target.value)}/></label>
