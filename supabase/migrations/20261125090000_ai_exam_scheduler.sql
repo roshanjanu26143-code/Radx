@@ -1,5 +1,6 @@
 -- AI Exam Scheduler: room registry, plan versions, room/invigilator allocations.
 alter table public.school_exam_schedules add column if not exists duration_minutes integer not null default 180 check (duration_minutes between 15 and 600);
+alter table public.school_exam_schedules add column if not exists is_ai_locked boolean not null default false;
 
 create table if not exists public.school_exam_rooms (
   id uuid primary key default gen_random_uuid(),
