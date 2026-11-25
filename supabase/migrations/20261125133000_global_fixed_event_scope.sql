@@ -5,11 +5,22 @@ declare
  v_subject_name text; v_valid_teacher boolean; v_conflict boolean;
  v_room_capacity integer; v_student_count integer;
  v_max_daily integer; v_max_weekly integer; v_daily_used integer; v_weekly_used integer;
+ v_grid_start time; v_grid_end time; v_grid_break boolean; v_grid_active boolean;
 begin
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(new.school_id||':'||new.academic_year||':'||new.day_of_week::text,0));
  select s.subject_name into v_subject_name from public.school_academic_subjects s
  where s.school_id=new.school_id and s.id=new.subject_id and s.academic_year=new.academic_year and s.standard_name=new.standard_name and s.is_active;
  if v_subject_name is null then raise exception 'Select an active subject for this standard and academic year'; end if;
+ select p.start_time,p.end_time,p.is_break,p.is_active into v_grid_start,v_grid_end,v_grid_break,v_grid_active
+  from public.school_timetable_periods p
+  where p.school_id=new.school_id and p.academic_year=new.academic_year and p.period_number=new.period_number;
+ if found then
+  if not v_grid_active then raise exception 'This timetable period is inactive in the weekly time grid'; end if;
+  if v_grid_break then raise exception 'A class lesson cannot be placed inside a fixed break'; end if;
+  if new.start_time<>v_grid_start or new.end_time<>v_grid_end then
+   raise exception 'Lesson times must match the configured weekly period grid';
+  end if;
+ end if;
  if new.teacher_person_id is not null then
   select exists(select 1 from public.school_people p join public.school_teacher_class_assignments a
    on a.school_id=p.school_id and a.teacher_person_id=p.person_id
