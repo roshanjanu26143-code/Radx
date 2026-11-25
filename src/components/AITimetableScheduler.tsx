@@ -18,7 +18,7 @@ type Candidate={day:number;periods:Period[];teacher:Teacher;room:Room}
 type Props={schoolId:string;academicYear:string;standards:Standard[];teachers:Teacher[];notify:(message:string)=>void;canManage:boolean;onClose:()=>void}
 const DAY_NAMES=['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const ROOM_TYPES=['classroom','computer_lab','chemistry_lab','physics_lab','biology_lab','library','auditorium','playground','other']
-const roomLabel=(value:string)=>value.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase())
+const roomLabel=(value:string)=>value.replace(/_/g,' ').replace(/\\b\\w/g,(c:string)=>c.toUpperCase())
 const time=(value:string)=>value?.slice(0,5)||'—'
 const overlap=(a:{start_time:string;end_time:string},b:{start_time:string;end_time:string})=>a.start_time<b.end_time&&a.end_time>b.start_time
 const slotKey=(standard:string,section:string,day:number,period:number)=>standard+'|'+section+'|'+day+'|'+period
@@ -116,6 +116,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
   setSolverMessage('Checking constraints and building lesson blocks…');setResult(null)
   if(!activePeriods.length||!requirements.length||!rooms.some(r=>r.is_active)){setSolverMessage('Complete the time grid, subject quotas and room register before generating.');return}
   const periodsTeaching=activePeriods.filter(p=>!p.is_break)
+  const existing=timetable.filter(t=>t.is_locked||t.source!=='ai')
   const lessons:Lesson[]=[]
   for(const req of requirements){
    const subject=subjects.find(s=>s.id===req.subject_id);if(!subject)continue
@@ -130,7 +131,6 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
    for(let i=0;i<remaining-remainingDoubles*2;i++)lessons.push({key:req.id+'-S'+i,requirement:req,subject,length:1,doubleGroup:null})
   }
   if(!lessons.length){setSolverMessage('Add weekly subject period requirements first.');return}
-  const existing=timetable.filter(t=>t.is_locked||t.source!=='ai')
   const occupiedSection=new Set<string>(),occupiedTeacher=new Set<string>(),occupiedRoom=new Set<string>()
   const teacherDay:Record<string,number>={},teacherWeek:Record<string,number>={}
   const fixedAt=(std:string,sec:string,day:number,period:number,teacherId?:string,roomId?:string)=>fixedBlocks.some(b=>b.day_of_week===day&&b.period_number===period&&((!!b.standard_name&&b.standard_name===std&&(!b.section_name||b.section_name===sec))||(!b.standard_name&&!b.teacher_person_id&&!b.room_id)||(!!teacherId&&b.teacher_person_id===teacherId)||(!!roomId&&b.room_id===roomId)))
