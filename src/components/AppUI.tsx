@@ -94,12 +94,13 @@ export function FileUploadField({ name = 'documents', label = 'Upload supporting
     const next = multiple ? [...files, ...chosen].filter((file, index, all) => all.findIndex(x => x.name === file.name && x.size === file.size) === index) : chosen.slice(0, 1)
     setFiles(next)
     onFilesChange?.(next)
-    event.target.value = ''
+    if (inputRef.current) { const transfer = new DataTransfer(); next.forEach(file => transfer.items.add(file)); inputRef.current.files = transfer.files }
   }
   const remove = (file: File) => {
     const next = files.filter(item => item !== file)
     setFiles(next)
     onFilesChange?.(next)
+    if (inputRef.current) { const transfer = new DataTransfer(); next.forEach(file => transfer.items.add(file)); inputRef.current.files = transfer.files }
   }
   return <div className="radx-upload-field">
     <div className="radx-upload-head"><b>{label}</b><small>{helper}</small></div>
