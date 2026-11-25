@@ -27,7 +27,7 @@ begin
   where b.school_id=new.school_id and b.academic_year=new.academic_year
    and b.day_of_week=new.day_of_week and b.period_number=new.period_number
    and ((b.standard_name is not null and b.standard_name=new.standard_name and (b.section_name is null or b.section_name=new.section_name))
-     or (b.standard_name is null and b.teacher_person_id is null and b.room_id is null)
+     or (b.standard_name is null)
      or (b.teacher_person_id is not null and b.teacher_person_id=new.teacher_person_id)
      or (b.room_id is not null and b.room_id=new.room_id))) then
   raise exception 'This timetable period is reserved by a fixed school event or resource block';
