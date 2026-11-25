@@ -41,7 +41,7 @@ const decodeB64Url = (value: string) => {
   const raw = atob(padded);
   return Uint8Array.from(raw, char => char.charCodeAt(0));
 };
-const encodeB64Url = (value: Uint8Array) => btoa(String.fromCharCode(...value)).replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+const encodeB64Url = (value: Uint8Array) => btoa(String.fromCharCode(...value)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 const getVapidConfig = async (db: ReturnType<typeof createClient>) => {
   const { data: existing } = await db.from("school_push_vapid_keys").select("public_key,private_key").eq("key_id","radx-global").maybeSingle();
   if (existing) return { publicKey: existing.public_key, privateKey: existing.private_key };
@@ -71,7 +71,12 @@ Deno.serve(async (req: Request) => {
     const phone = normalizePhone(String(input.phone || ""));
     if (!schoolId || !phone) return json({ error: "Enter a valid school ID and mobile number." }, 400);
 
-    if (input.action === "get_vapid") {\n      const vapid = await getVapidConfig(db);\n      return json({ success: true, public_key: vapid.publicKey });\n    }\n\n    if (input.action === "request_otp") {
+    if (input.action === "get_vapid") {
+      const vapid = await getVapidConfig(db);
+      return json({ success: true, public_key: vapid.publicKey });
+    }
+
+    if (input.action === "request_otp") {
       const { count } = await db.from("school_parent_push_otps").select("id", { count: "exact", head: true })
         .eq("school_id", schoolId).eq("recipient_phone", phone)
         .gte("created_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
