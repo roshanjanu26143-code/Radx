@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { BookOpen, CalendarDays, Plus, RefreshCw, Trash2, Pencil } from 'lucide-react'
+import { BookOpen, CalendarDays, Plus, RefreshCw, Trash2, Pencil, Sparkles } from 'lucide-react'
+import AITimetableScheduler from './AITimetableScheduler'
 import { supabase } from '../lib/supabase'
 
 type Standard = { name: string; sections: string[] }
@@ -20,6 +21,7 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
  const [editingSubjectId,setEditingSubjectId]=useState('')
  const [editingSlotId,setEditingSlotId]=useState('')
  const [error,setError]=useState('')
+ const [showAiScheduler,setShowAiScheduler]=useState(false)
  const [standardName,setStandardName]=useState(standards[0]?.name||'')
  const [sectionName,setSectionName]=useState(standards[0]?.sections[0]||'')
  const [subjectForm,setSubjectForm]=useState({subject_name:'',subject_code:'',subject_type:'Core'})
@@ -106,9 +108,10 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
  const subjectName=(id:string)=>subjects.find(s=>s.id===id)?.subject_name||'Subject'
  const teacherName=(id:string|null)=>teachers.find(t=>t.id===id)?.name||'Teacher not allotted'
  const selectedClassRows=timetable.filter(r=>r.standard_name===slot.standard_name&&r.section_name===slot.section_name)
+ if(page==='Timetable'&&showAiScheduler)return <AITimetableScheduler schoolId={schoolId} academicYear={academicYear} standards={standards} teachers={teachers} notify={notify} canManage={canManage} onClose={()=>setShowAiScheduler(false)}/>
  return <div className="academic-planning">
   <section className="workspace-panel">
-   <div className="workspace-heading"><div><span className="section-eyebrow">{isSubjects?'SUBJECT CATALOGUE':'WEEKLY CLASS PLAN'}</span><h2>{isSubjects?'Subjects Management':'Timetable & Period Management'}</h2><p>{isSubjects?'Create and maintain subjects for each standard and academic year.':'Build the weekly timetable by class, section, period, subject and teacher.'}</p></div><span className="count-pill">{academicYear}</span></div>
+   <div className="workspace-heading"><div><span className="section-eyebrow">{isSubjects?'SUBJECT CATALOGUE':'WEEKLY CLASS PLAN'}</span><h2>{isSubjects?'Subjects Management':'Timetable & Period Management'}</h2><p>{isSubjects?'Create and maintain subjects for each standard and academic year.':'Build the weekly timetable by class, section, period, subject and teacher.'}</p></div><div className="academic-form-actions"><span className="count-pill">{academicYear}</span>{!isSubjects&&<button type="button" className="primary-action" onClick={()=>setShowAiScheduler(true)}><Sparkles size={15}/> AI Timetable Scheduler</button>}</div></div>
    {error&&<div className="qr-error">{error}</div>}
    {isSubjects?<><div className="academic-filter-row"><label>Standard<select value={standardName} onChange={e=>setStandardName(e.target.value)}>{standards.map(s=><option key={s.name}>{s.name}</option>)}</select></label><span className="count-pill">{activeSubjects.filter(s=>s.standard_name===standardName).length} active subjects</span></div>
     {canManage&&<form className="people-form" onSubmit={addSubject}><div className="people-form-grid"><label>Subject name<input value={subjectForm.subject_name} onChange={e=>setSubjectForm(v=>({...v,subject_name:e.target.value}))} placeholder="e.g. Mathematics" required/></label><label>Subject code (optional)<input value={subjectForm.subject_code} onChange={e=>setSubjectForm(v=>({...v,subject_code:e.target.value.toUpperCase()}))} placeholder="MATH-01"/></label><label>Subject category<select value={subjectForm.subject_type} onChange={e=>setSubjectForm(v=>({...v,subject_type:e.target.value}))}><option>Core</option><option>Language</option><option>Elective</option><option>Co-curricular</option><option>Practical / Lab</option></select></label></div><div className="academic-form-actions"><button className="primary-action" disabled={saving||!standardName}>{saving?'Saving…':<><Plus size={15}/> {editingSubjectId?'Save changes':'Add subject'}</>}</button>{editingSubjectId&&<button type="button" className="secondary-action" onClick={()=>{setEditingSubjectId('');setSubjectForm({subject_name:'',subject_code:'',subject_type:'Core'})}}>Cancel</button>}</div></form>}
