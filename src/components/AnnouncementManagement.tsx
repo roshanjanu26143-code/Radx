@@ -133,8 +133,8 @@ export default function AnnouncementManagement({ schoolId, standards, notify }: 
             </div>
             {publishMode === 'schedule' && <div className="announcement-schedule-fields"><label>Publish date<input type="date" min={new Date().toISOString().slice(0,10)} value={publishDate} onChange={event => setPublishDate(event.target.value)}/></label><div><span className="announcement-small-label">Publish and expiry time</span><TimeRangePicker start={startTime} end={endTime} onSave={(start,end) => {setStartTime(start);setEndTime(end)}}/></div></div>}
           </div>
-          <div className="announcement-form-actions"><button type="button" className="announcement-preview-button" onClick={() => { setShowPreview(true); window.scrollTo({top:0,behavior:'smooth'}) }}>Review</button><button type="submit" className="announcement-publish-button" disabled={saving}><Send size={16}/>{saving ? 'Saving…' : publishMode === 'draft' ? 'Save draft' : publishMode === 'schedule' ? 'Schedule announcement' : 'Publish announcement'}</button></div>
-          <p className="announcement-delivery-note">Publishing saves the announcement and its parent audience in RADX. SMS, WhatsApp and push delivery require a connected messaging provider.</p>
+          <div className="announcement-form-actions"><button type="button" className="announcement-preview-button" onClick={() => { setShowPreview(true); window.scrollTo({top:0,behavior:'smooth'}) }}>Review</button><button type="submit" className="announcement-publish-button" disabled={saving}><Send size={16}/>{saving ? 'Saving…' : publishMode === 'draft' ? 'Save draft' : publishMode === 'schedule' ? 'Save schedule' : 'Save as published'}</button></div>
+          <p className="announcement-delivery-note">This saves the announcement and selected parent audience in RADX. Parent-facing delivery is not connected yet; automatic scheduled release and SMS, WhatsApp or push notifications require a delivery service.</p>
         </form>
       </section>
 
