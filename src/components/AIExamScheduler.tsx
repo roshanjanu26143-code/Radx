@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarClock, Plus, RefreshCw, Sparkles, Users, DoorOpen, CheckCircle2, AlertTriangle, Send } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-type Exam = { id:string; academic_year:string; exam_name:string; standard_name:string; section_name:string; subject_name:string; exam_date:string; start_time:string|null; end_time:string|null; duration_minutes:number }
+type Exam = { id:string; academic_year:string; exam_name:string; standard_name:string; section_name:string; subject_name:string; exam_date:string; start_time:string|null; end_time:string|null; duration_minutes:number; is_ai_locked:boolean }
 type Room = { id:string; room_name:string; room_type:'classroom'|'lab'|'computer_lab'; capacity:number; is_active:boolean }
 type Teacher = { person_id:string; full_name:string }
 type Assignment = { teacher_person_id:string; standard_name:string; section_name:string; subject_name:string|null }
@@ -40,7 +40,7 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
  const load=async()=>{
   setLoading(true);setError('')
   const [examRes,roomRes,teacherRes,assignRes,runRes]=await Promise.all([
-   supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time,duration_minutes').eq('school_id',schoolId).eq('academic_year',academicYear).order('exam_date'),
+   supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time,duration_minutes,is_ai_locked').eq('school_id',schoolId).eq('academic_year',academicYear).order('exam_date'),
    supabase.from('school_exam_rooms').select('id,room_name,room_type,capacity,is_active').eq('school_id',schoolId).order('capacity'),
    supabase.from('school_people').select('person_id,full_name').eq('school_id',schoolId).eq('record_type','Teacher').order('full_name'),
    supabase.from('school_teacher_class_assignments').select('teacher_person_id,standard_name,section_name,subject_name').eq('school_id',schoolId).eq('is_active',true),
@@ -136,8 +136,10 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
     const exam=candidates[0]
     if(!exam)throw new Error('The scheduler could not order the remaining exams.')
     const feasible:{slot:Slot;rooms:Room[];invigilators:Teacher[];penalty:number}[]=[]
-    for(const slot of slots){
-     const examSlot={...slot,end:asTime(asMinutes(slot.start)+(Number(exam.duration_minutes)||defaultDuration))}
+    if(exam.is_ai_locked&&(!exam.start_time||!exam.end_time||!days.includes(exam.exam_date)))throw new Error('Locked exam '+exam.subject_name+' must have a date and time inside the selected planning range.')
+    const candidateSlots=exam.is_ai_locked?[{date:exam.exam_date,start:exam.start_time!.slice(0,5),end:exam.end_time!.slice(0,5)}]:slots
+    for(const slot of candidateSlots){
+     const examSlot=exam.is_ai_locked?slot:{...slot,end:asTime(asMinutes(slot.start)+(Number(exam.duration_minutes)||defaultDuration))}
      if(asMinutes(examSlot.end)>18*60)continue
      const cohortConflict=adjacency(exam).some(other=>chosen.filter(a=>a.exam_schedule_id===other.id).some(a=>a.exam_date===examSlot.date&&overlaps({start_time:examSlot.start,end_time:examSlot.end},a)))
      if(cohortConflict)continue
@@ -154,7 +156,7 @@ export default function AIExamScheduler({schoolId,academicYear,notify}:Props){
       const heavy=(name:string)=>/math|mathematics|science|physics|chemistry|biology|accountancy/i.test(name)
       if(gapDays<=2&&heavy(exam.subject_name)&&heavy(prior.subject_name))penalty+=25
      }
-     feasible.push({slot,rooms:roomsForSlot,invigilators,penalty})
+     feasible.push({slot:examSlot,rooms:roomsForSlot,invigilators,penalty})
     }
     feasible.sort((a,b)=>a.penalty-b.penalty||a.slot.date.localeCompare(b.slot.date)||a.slot.start.localeCompare(b.slot.start))
     const best=feasible[0]
