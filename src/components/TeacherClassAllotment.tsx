@@ -59,7 +59,7 @@ export default function TeacherClassAllotment({schoolId,teachers,standards}:{sch
  }
  const teacherName=(id:string)=>teachers.find(t=>t.id===id)?.name||id
  const activeRows=rows.filter(r=>r.is_active)
- return <section className="workspace-panel" style={{display:'grid',gap:16}}>
+ return <section className="workspace-panel teacher-allotment" style={{display:'grid',gap:16}}>
   <div className="workspace-heading"><div><span className="section-eyebrow">ACADEMIC WORKLOAD</span><h2>Teacher Allotment</h2><p>Teacher eligibility is limited by the teaching range selected during teacher creation.</p></div><span className="count-pill">{teachers.length} teachers</span></div>
   {error&&<div className="qr-error">{error}</div>}
   <div className="ex-table"><table><thead><tr><th>Teacher</th><th>Teacher ID</th><th>Teaching range</th><th>Assigned classes</th><th>Subjects</th></tr></thead><tbody>
