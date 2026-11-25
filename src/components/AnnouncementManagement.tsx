@@ -76,7 +76,7 @@ export default function AnnouncementManagement({ schoolId, standards, notify }: 
     const { data: created, error } = await supabase.from('school_announcements').insert({
       school_id: schoolId, title: title.trim(), body: body.trim(), content_type: contentType,
       audience_type: audience, standard_name: audience === 'all' ? null : standardName,
-      section_name: audience === 'section' ? null : (audience === 'section' ? sectionName : null),
+      section_name: audience === 'section' ? sectionName : null,
       status: status === 'published' ? 'draft' : status, delivery_channels: deliveryChannels,
       scheduled_for: scheduledFor, expires_at: expiresAt,
       published_at: null,
