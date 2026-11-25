@@ -4,3 +4,5 @@ create table if not exists public.school_push_vapid_keys(
 alter table public.school_push_vapid_keys enable row level security;
 revoke all on public.school_push_vapid_keys from anon,authenticated;
 grant all on public.school_push_vapid_keys to service_role;
+drop policy if exists "No client access to VAPID keys" on public.school_push_vapid_keys;
+create policy "No client access to VAPID keys" on public.school_push_vapid_keys for all to anon,authenticated using(false) with check(false);
