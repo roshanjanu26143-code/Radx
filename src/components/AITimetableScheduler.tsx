@@ -120,7 +120,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
   if(!activePeriods.length||!requirements.length||!rooms.some(r=>r.is_active)){setSolverMessage('Complete the time grid, subject quotas and room register before generating.');return}
   const periodsTeaching=activePeriods.filter(p=>!p.is_break)
   const existing=timetable.filter(t=>t.is_locked||t.source!=='ai')
-  const misaligned=existing.find(row=>{const period=activePeriods.find(p=>p.period_number===row.period_number);return period&&(period.is_break||row.start_time.slice(0,5)!==period.start_time.slice(0,5)||row.end_time.slice(0,5)!==period.end_time.slice(0,5))})
+  const misaligned=existing.find(row=>{const period=periods.find(p=>p.period_number===row.period_number);return period&&(!period.is_active||period.is_break||row.start_time.slice(0,5)!==period.start_time.slice(0,5)||row.end_time.slice(0,5)!==period.end_time.slice(0,5))})
   if(misaligned){setSolverMessage('Existing locked timetable entry for '+misaligned.standard_name+' '+misaligned.section_name+' · period '+misaligned.period_number+' does not match the configured weekly time grid. Update that manual entry before generating.');return}
   const lessons:Lesson[]=[]
   for(const req of requirements){
