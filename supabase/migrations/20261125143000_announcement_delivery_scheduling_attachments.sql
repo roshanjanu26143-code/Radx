@@ -134,3 +134,6 @@ do $$ begin
    headers:='{"Content-Type":"application/json"}'::jsonb,body:='{"source":"cron"}'::jsonb,timeout_milliseconds:=10000);$job$);
  end if;
 end $$;
+
+drop policy if exists "No client access to parent push subscriptions" on public.school_parent_push_subscriptions;
+create policy "No client access to parent push subscriptions" on public.school_parent_push_subscriptions for all to anon,authenticated using(false) with check(false);
