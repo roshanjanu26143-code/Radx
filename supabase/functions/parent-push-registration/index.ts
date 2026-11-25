@@ -81,6 +81,10 @@ Deno.serve(async (req: Request) => {
         .eq("school_id", schoolId).eq("recipient_phone", phone)
         .gte("created_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
       if ((count || 0) >= 3) return json({ error: "Too many codes requested. Try again after 15 minutes." }, 429);
+      const requestIp = (req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown").split(",")[0].trim();
+      const { count: ipCount } = await db.from("school_parent_push_otps").select("id", { count: "exact", head: true })
+        .eq("request_ip", requestIp).gte("created_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
+      if ((ipCount || 0) >= 10) return json({ error: "Too many verification requests from this network. Try again later." }, 429);
 
       const { data: students, error: studentError } = await db.from("school_people")
         .select("details").eq("school_id", schoolId).eq("record_type", "Student").limit(5000);
@@ -97,7 +101,7 @@ Deno.serve(async (req: Request) => {
       await sendOtp(phone, otp);
       await db.from("school_parent_push_otps").delete().eq("school_id", schoolId).eq("recipient_phone", phone);
       const { error } = await db.from("school_parent_push_otps").insert({
-        school_id: schoolId, recipient_phone: phone, otp_hash: await hashOtp(schoolId, phone, otp),
+        school_id: schoolId, recipient_phone: phone, request_ip: requestIp, otp_hash: await hashOtp(schoolId, phone, otp),
         expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
       });
       if (error) throw error;
