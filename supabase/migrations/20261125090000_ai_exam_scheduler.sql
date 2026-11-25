@@ -130,7 +130,6 @@ begin
          where s.school_id=e.school_id and s.academic_year=e.academic_year
            and s.standard_name=e.standard_name and s.subject_name=e.subject_name limit 1) like '%practical%'
       ) and r.room_type not in ('lab','computer_lab')
-    )
   ) then raise exception 'A selected room is inactive or does not match the subject room type.'; end if;
 
   if exists (
