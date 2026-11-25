@@ -34,7 +34,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  const load=async()=>{
   setLoading(true);setError('')
   const [examResult,studentResult,markResult,subjectResult]=await Promise.all([
-   supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time,max_marks,pass_marks,instructions,is_published').eq('school_id',schoolId).order('exam_date',{ascending:false}),
+   supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time,duration_minutes,max_marks,pass_marks,instructions,is_published').eq('school_id',schoolId).order('exam_date',{ascending:false}),
    supabase.from('school_people').select('person_id,full_name,details').eq('school_id',schoolId).eq('record_type','Student').order('full_name'),
    supabase.from('school_exam_marks').select('id,exam_schedule_id,student_person_id,marks_obtained,remarks').eq('school_id',schoolId),
    supabase.from('school_academic_subjects').select('id,academic_year,standard_name,subject_name,is_active').eq('school_id',schoolId).eq('is_active',true).order('subject_name')
