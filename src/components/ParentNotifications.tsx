@@ -36,22 +36,25 @@ export default function ParentNotifications() {
     try {
       const publicKey = vapidPublicKey
       let subscription: PushSubscription | null = null
+      let pushWarning = ''
       if(publicKey && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
-        const permission = await Notification.requestPermission()
-        if(permission === 'granted') {
-          const registration = await navigator.serviceWorker.register('/sw.js')
-          await navigator.serviceWorker.ready
-          subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
-            userVisibleOnly:true,applicationServerKey:decodeVapidKey(publicKey),
-          })
-        }
-      }
+        try {
+          const permission = await Notification.requestPermission()
+          if(permission === 'granted') {
+            const registration = await navigator.serviceWorker.register('/sw.js')
+            await navigator.serviceWorker.ready
+            subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
+              userVisibleOnly:true,applicationServerKey:decodeVapidKey(publicKey),
+            })
+          } else pushWarning = ' Browser push permission was not granted.'
+        } catch { pushWarning = ' Browser push could not be enabled on this device.' }
+      } else pushWarning = ' Browser push is not supported on this device.'
       const {data,error:invokeError} = await supabase.functions.invoke('parent-push-registration',{
         body:{action:'verify_and_subscribe',school_id:schoolId,phone,otp,subscription:subscription?.toJSON() || null},
       })
       if(invokeError || data?.error) throw new Error(data?.error || invokeError?.message || 'Could not verify this mobile number.')
       setInbox(data.inbox || [])
-      setStep('done');setMessage(subscription ? 'Your parent inbox is ready and push notifications are enabled on this device.' : 'Your parent inbox is ready. Browser push was not enabled on this device.')
+      setStep('done');setMessage(subscription ? 'Your parent inbox is ready and push notifications are enabled on this device.' : 'Your parent inbox is ready.' + pushWarning)
     } catch(e) { setError(e instanceof Error ? e.message : 'Could not enable notifications.') }
     finally { setBusy(false) }
   }
