@@ -50,7 +50,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   ])
   if(examResult.error||studentResult.error||markResult.error||subjectResult.error||submissionResult.error){setError(examResult.error?.message||studentResult.error?.message||markResult.error?.message||subjectResult.error?.message||submissionResult.error?.message||'Could not load examination records.');setLoading(false);return}
   const e=(examResult.data||[]) as Exam[],m=(markResult.data||[]) as Mark[]
-  setExams(e);setStudents((studentResult.data||[]) as Student[]);setMarks(m);setSubjectCatalog((subjectResult.data||[]) as {id:string;academic_year:string;standard_name:string;subject_name:string;is_active:boolean}[]);setPerformanceSubmissions((submissionResult.data||[]) as AcademicSubmission[]);setPerformanceSubmissions((submissionResult.data||[]) as AcademicSubmission[])
+  setExams(e);setStudents((studentResult.data||[]) as Student[]);setMarks(m);setSubjectCatalog((subjectResult.data||[]) as {id:string;academic_year:string;standard_name:string;subject_name:string;is_active:boolean}[]);setPerformanceSubmissions((submissionResult.data||[]) as AcademicSubmission[])
   if(!selectedExam&&e.length)setSelectedExam(e[0].id)
   if(!resultExam&&e.length)setResultExam(e[0].id)
   setLoading(false)
