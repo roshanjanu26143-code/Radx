@@ -54,6 +54,7 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
    if(timetableResult.error||assignmentResult.error||periodGridResult.error||roomsResult.error){setError(timetableResult.error?.message||assignmentResult.error?.message||periodGridResult.error?.message||roomsResult.error?.message||'Could not load timetable data.');setLoading(false);return}
    setTeacherAssignments((assignmentResult.data||[]) as TeacherAssignment[])
    setPeriodGrid((periodGridResult.data||[]) as PeriodGridRow[])
+   setRoomList((roomsResult.data||[]) as any[])
    setTimetable((timetableResult.data||[]).map((row:any)=>({...row,subject:rows.find(s=>s.id===row.subject_id)})) as TimetableRow[])
   }else{
    setTeacherAssignments([])
