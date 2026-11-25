@@ -83,7 +83,7 @@ type RoleUserRow={id:string;role:string;email:string;pages:string[];status:strin
 type PeopleRecord={id:string;type:string;name:string;details:Record<string,string>}
 type PeopleIdSettings={studentPrefix:string;teacherPrefix:string;staffPrefix:string;driverPrefix:string;cleanerPrefix:string;studentNext:number;teacherNext:number;staffNext:number;driverNext:number;cleanerNext:number}
 const rolePageDefaults:Record<string,string[]> = {
- 'Cashier-Staff':['Finance','Fees','Fees Structure','Students Data','Pending Fees'],
+ 'Cashier-Staff':['Finance','Fees','Fees Structure','Students','Pending Fees'],
  'Academic Director':['Subjects','Timetable','Exam Schedules','Marks Entry','Attendance','Attendance Reports','Student Results','Performance'],
  'Teacher':['Timetable','Attendance','Attendance Reports','Marks Entry'],
 }
@@ -185,7 +185,7 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages,t
   for(const [key,value] of Object.entries(details)){
     if(key==='phone'||key.endsWith('_phone')){
       const digits=value.replace(/\D/g,'')
-      if(value.trim()&&value.trim()!=='-'&&!/^[6-9]\\d{9}$/.test(digits)){notify('Enter a valid 10-digit Indian mobile number.');return}
+      if(value.trim()&&value.trim()!=='-'&&!/^[6-9]\d{9}$/.test(digits)){notify('Enter a valid 10-digit Indian mobile number.');return}
       details[key]=value.trim()&&value.trim()!=='-'?'+91'+digits:''
     }
   }
