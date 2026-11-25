@@ -35,6 +35,29 @@ const sendOtp = async (phone: string, otp: string) => {
   const result = await response.json();
   if (!response.ok) throw new Error(result.message || "Could not send verification SMS");
 };
+
+const decodeB64Url = (value: string) => {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+  const raw = atob(padded);
+  return Uint8Array.from(raw, char => char.charCodeAt(0));
+};
+const encodeB64Url = (value: Uint8Array) => btoa(String.fromCharCode(...value)).replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+const getVapidConfig = async (db: ReturnType<typeof createClient>) => {
+  const { data: existing } = await db.from("school_push_vapid_keys").select("public_key,private_key").eq("key_id","radx-global").maybeSingle();
+  if (existing) return { publicKey: existing.public_key, privateKey: existing.private_key };
+  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const jwk = await crypto.subtle.exportKey("jwk", pair.privateKey);
+  if (!jwk.x || !jwk.y || !jwk.d) throw new Error("Could not generate web push keys");
+  const point = new Uint8Array(65); point[0] = 4;
+  point.set(decodeB64Url(jwk.x), 1); point.set(decodeB64Url(jwk.y), 33);
+  const created = { public_key: encodeB64Url(point), private_key: jwk.d };
+  const { error } = await db.from("school_push_vapid_keys").insert({ key_id: "radx-global", ...created });
+  if (error && !String(error.message).toLowerCase().includes("duplicate")) throw error;
+  const { data: stored } = await db.from("school_push_vapid_keys").select("public_key,private_key").eq("key_id","radx-global").single();
+  if (!stored) throw new Error("Could not persist web push keys");
+  return { publicKey: stored.public_key, privateKey: stored.private_key };
+};
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -48,7 +71,7 @@ Deno.serve(async (req: Request) => {
     const phone = normalizePhone(String(input.phone || ""));
     if (!schoolId || !phone) return json({ error: "Enter a valid school ID and mobile number." }, 400);
 
-    if (input.action === "request_otp") {
+    if (input.action === "get_vapid") {\n      const vapid = await getVapidConfig(db);\n      return json({ success: true, public_key: vapid.publicKey });\n    }\n\n    if (input.action === "request_otp") {
       const { count } = await db.from("school_parent_push_otps").select("id", { count: "exact", head: true })
         .eq("school_id", schoolId).eq("recipient_phone", phone)
         .gte("created_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
