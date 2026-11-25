@@ -36,9 +36,9 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
    supabase.from('school_exam_rooms').select('id,room_name,capacity,is_active').eq('school_id',schoolId).eq('is_active',true).order('room_name'),
    supabase.from('school_people').select('person_id,full_name,record_type,details').eq('school_id',schoolId).in('record_type',['Teacher','Staff','Driver & Cleaner']).order('full_name'),
    supabase.from('school_people').select('person_id,full_name,record_type,details').eq('school_id',schoolId).eq('record_type','Student').order('full_name'),
-   supabase.from('school_exam_seat_assignments').select('id,exam_schedule_id,student_person_id,room_id,exam_date,start_time,end_time,bench_number,seat_number,school_exam_schedules(exam_name,standard_name,section_name,subject_name),school_exam_rooms(room_name)').eq('school_id',schoolId).order('exam_date'),
+   supabase.from('school_exam_seat_assignments').select('id,exam_schedule_id,student_person_id,room_id,exam_date,start_time,end_time,bench_number,seat_number').eq('school_id',schoolId).order('exam_date'),
    supabase.from('school_exam_room_duties').select('room_id,exam_date,start_time,end_time,invigilator_person_id,standard_coordinator_person_id,exam_supervisor_person_id,rounds_staff_person_id,cleaner_person_id').eq('school_id',schoolId),
-   supabase.from('school_exam_plan_allocations').select('exam_schedule_id,room_id,exam_date,start_time,end_time,school_exam_schedules(exam_name,standard_name)').eq('school_id',schoolId)
+   supabase.from('school_exam_plan_allocations').select('exam_schedule_id,room_id,exam_date,start_time,end_time').eq('school_id',schoolId)
   ])
   const failed=[examRes,roomRes,peopleRes,studentRes,seatRes,dutyRes,bookingRes].find(x=>x.error)
   if(failed?.error){setError(failed.error.message);setLoading(false);return}
@@ -49,7 +49,7 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
   setExamName(current=>names.includes(current)?current:(names[0]||''))
   const seats=(seatRes.data||[]) as any[]
   if(seats.length){
-   setPlan(seats.map(row=>{const exam=row.school_exam_schedules||{};const student=studentRows.find(s=>s.person_id===row.student_person_id);const room=(roomRes.data||[]).find((r:any)=>r.id===row.room_id);return {exam_schedule_id:row.exam_schedule_id,exam_name:exam.exam_name||'',standard_name:exam.standard_name||'',section_name:exam.section_name||'',subject_name:exam.subject_name||'',student_person_id:row.student_person_id,student_name:student?.full_name||row.student_person_id,room_id:row.room_id,room_name:row.school_exam_rooms?.room_name||room?.room_name||'Room',exam_date:row.exam_date,start_time:row.start_time,end_time:row.end_time,bench_number:row.bench_number,seat_number:row.seat_number}}))
+   setPlan(seats.map(row=>{const exam=examRows.find(e=>e.id===row.exam_schedule_id);const student=studentRows.find(s=>s.person_id===row.student_person_id);const room=(roomRes.data||[]).find((r:any)=>r.id===row.room_id);return {exam_schedule_id:row.exam_schedule_id,exam_name:exam?.exam_name||'',standard_name:exam?.standard_name||'',section_name:exam?.section_name||'',subject_name:exam?.subject_name||'',student_person_id:row.student_person_id,student_name:student?.full_name||row.student_person_id,room_id:row.room_id,room_name:room?.room_name||'Room',exam_date:row.exam_date,start_time:row.start_time,end_time:row.end_time,bench_number:row.bench_number,seat_number:row.seat_number}}))
    setSavedAt('Existing saved seating plan loaded')
   }else{setPlan([]);setSavedAt('')}
   const dutyMap:Record<string,Duty>={}
