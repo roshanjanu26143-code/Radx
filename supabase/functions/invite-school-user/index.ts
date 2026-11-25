@@ -17,7 +17,7 @@ const allowedPages = new Set([
   "Exam Schedules", "Marks Entry", "Student Results", "Performance", "Attendance Reports",
   "Live tracking", "Routes", "Students", "Buses", "Teachers", "Staff", "Driver & Cleaner",
   "Parent Book", "Announcements", "Finance", "Fees", "Fees Structure", "Pending Fees",
-  "OpenCV", "GPS - Bus", "Common Settings", "Notifications", "QR Attendance Passwords",
+  "OpenCV", "GPS - Bus", "WhatsApp", "SMS", "Common Settings", "Notifications", "QR Attendance Passwords",
 ]);
 
 Deno.serve(async (req: Request) => {
