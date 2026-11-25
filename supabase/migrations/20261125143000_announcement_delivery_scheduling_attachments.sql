@@ -137,3 +137,20 @@ end $$;
 
 drop policy if exists "No client access to parent push subscriptions" on public.school_parent_push_subscriptions;
 create policy "No client access to parent push subscriptions" on public.school_parent_push_subscriptions for all to anon,authenticated using(false) with check(false);
+
+
+create or replace function public.finish_school_announcement_delivery(p_delivery_id uuid,p_status text,p_provider_message_id text default null,p_error text default null)
+returns void language plpgsql security definer set search_path='' as $$
+begin
+ if p_status not in('sent','failed','skipped','deferred') then raise exception 'Invalid delivery result'; end if;
+ update public.school_announcement_deliveries set
+ status=case when p_status='deferred' then 'pending' when p_status='failed' and attempts<5 then 'pending' else p_status end,
+ provider_message_id=coalesce(p_provider_message_id,provider_message_id),last_error=left(p_error,1000),
+ sent_at=case when p_status='sent' then now() else sent_at end,
+ attempts=case when p_status='deferred' then 0 else attempts end,
+ next_attempt_at=case when p_status='deferred' then now()+interval '1 hour'
+ when p_status='failed' and attempts<5 then now()+make_interval(secs=>least(3600,(power(2,attempts)::integer)*60)) else next_attempt_at end
+ where id=p_delivery_id and status='processing';
+end; $$;
+revoke all on function public.finish_school_announcement_delivery(uuid,text,text,text) from public,anon,authenticated;
+grant execute on function public.finish_school_announcement_delivery(uuid,text,text,text) to service_role;
