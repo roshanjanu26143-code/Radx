@@ -12,7 +12,7 @@ import AcademicPlanning from './components/AcademicPlanning'
 import TransportManagement from './components/TransportManagement'
 import AnnouncementManagement from './components/AnnouncementManagement'
 import ParentNotifications from './components/ParentNotifications'
-import { AppStepper, FileUploadField, StorageStatusCard, TermsDialog, useAppToast, ConfirmDialog } from './components/AppUI'
+import { AppStepper, FileUploadField, StorageStatusCard, TermsDialog, useAppToast, ConfirmDialog, LoadingButton } from './components/AppUI'
 import BusGpsTracker, { PublicBusTrackingPage, readBusTrackingPayload } from './components/BusGpsTracker'
 import {
   Activity, AlarmClock, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpen,
@@ -854,7 +854,7 @@ function AuthScreen() {
                   <button type="button" className={`plan-option ${selectedPlan === 'CUSTOM' ? 'chosen' : ''}`} onClick={() => setSelectedPlan('CUSTOM')}><span className="plan-tag">FLEXIBLE</span><b>CUSTOM</b><strong>Custom plan</strong><span>Plan configuration for your school.</span><i>{selectedPlan === 'CUSTOM' ? 'Selected' : 'Choose CUSTOM'}</i></button>
                 </div>
                 <p className="plan-payment-note">No payment gateway is connected. If you select a paid plan, it will be saved as pending payment. You can complete payment later.</p>
-                <div className="plan-actions"><button type="button" className="plan-back-button" onClick={() => setSetupStep('details')}>Back to details</button><button className="auth-submit" type="button" onClick={saveSchoolSetup} disabled={setupSaving}>{setupSaving ? 'Saving plan…' : selectedPlan === 'BASIC' ? 'Start 14-day free trial' : 'Save plan for later'} <ArrowRight size={17}/></button></div>
+                <div className="plan-actions"><button type="button" className="plan-back-button" onClick={() => setSetupStep('details')}>Back to details</button><LoadingButton className="auth-submit" onClick={saveSchoolSetup} disabled={setupSaving}>{selectedPlan === 'BASIC' ? 'Start 14-day free trial' : 'Save plan for later'} <ArrowRight size={17}/></LoadingButton></div>
               </>}
             </> : registrationPending ? <>
               <h2>Finishing registration</h2>
