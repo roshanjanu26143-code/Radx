@@ -69,6 +69,9 @@ grant select,insert,delete on public.school_exam_resource_blocks to authenticate
 
 drop policy if exists "Exam managers manage exam rooms" on public.school_exam_rooms;
 drop policy if exists "Exam managers read exam rooms" on public.school_exam_rooms;
+drop policy if exists "Exam managers insert exam rooms" on public.school_exam_rooms;
+drop policy if exists "Exam managers update exam rooms" on public.school_exam_rooms;
+drop policy if exists "Exam managers delete exam rooms" on public.school_exam_rooms;
 create policy "Exam managers read exam rooms" on public.school_exam_rooms for select to authenticated
 using (private.can_manage_exam_schedule(school_exam_rooms.school_id));
 create policy "Exam managers insert exam rooms" on public.school_exam_rooms for insert to authenticated
@@ -81,6 +84,9 @@ using (private.can_manage_exam_schedule(school_exam_rooms.school_id));
 
 drop policy if exists "Exam managers manage exam plan runs" on public.school_exam_plan_runs;
 drop policy if exists "Exam managers read exam plan runs" on public.school_exam_plan_runs;
+drop policy if exists "Exam managers insert exam plan runs" on public.school_exam_plan_runs;
+drop policy if exists "Exam managers update draft exam plan runs" on public.school_exam_plan_runs;
+drop policy if exists "Exam managers delete draft exam plan runs" on public.school_exam_plan_runs;
 create policy "Exam managers read exam plan runs" on public.school_exam_plan_runs for select to authenticated
 using (private.can_manage_exam_schedule(school_exam_plan_runs.school_id));
 create policy "Exam managers insert exam plan runs" on public.school_exam_plan_runs for insert to authenticated
@@ -93,6 +99,9 @@ using (private.can_manage_exam_schedule(school_exam_plan_runs.school_id) and sta
 
 drop policy if exists "Exam managers manage draft allocations" on public.school_exam_plan_allocations;
 drop policy if exists "Exam managers read allocations" on public.school_exam_plan_allocations;
+drop policy if exists "Exam managers insert draft allocations" on public.school_exam_plan_allocations;
+drop policy if exists "Exam managers update draft allocations" on public.school_exam_plan_allocations;
+drop policy if exists "Exam managers delete draft allocations" on public.school_exam_plan_allocations;
 create policy "Exam managers read allocations" on public.school_exam_plan_allocations for select to authenticated
 using (private.can_manage_exam_schedule(school_exam_plan_allocations.school_id));
 create policy "Exam managers insert draft allocations" on public.school_exam_plan_allocations for insert to authenticated
