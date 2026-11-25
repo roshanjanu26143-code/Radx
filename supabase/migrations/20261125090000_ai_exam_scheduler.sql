@@ -113,10 +113,15 @@ begin
 
   if exists (
     select 1 from public.school_exam_plan_allocations a
+    left join public.school_exam_rooms r on r.id=a.room_id and r.school_id=a.school_id
+    where a.plan_run_id=v_run_id and (r.id is null or not r.is_active)
+  ) then raise exception 'A selected room is missing, belongs to another school, or is inactive.'; end if;
+
+  if exists (
+    select 1 from public.school_exam_plan_allocations a
     join public.school_exam_schedules e on e.id=a.exam_schedule_id and e.school_id=a.school_id
     join public.school_exam_rooms r on r.id=a.room_id and r.school_id=a.school_id
     where a.plan_run_id=v_run_id and (
-      not r.is_active or (
         (select lower(coalesce(s.subject_type,'')) from public.school_academic_subjects s
          where s.school_id=e.school_id and s.academic_year=e.academic_year
            and s.standard_name=e.standard_name and s.subject_name=e.subject_name limit 1) like '%lab%'
