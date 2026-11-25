@@ -6,7 +6,7 @@ type Teacher={id:string;name:string;range?:string}
 type Standard={name:string;sections:string[]}
 type Assignment={id:string;teacher_person_id:string;standard_name:string;section_name:string;subject_name:string|null;is_active:boolean}
 type SubjectOption={standard_name:string;subject_name:string;is_active:boolean}
-const standardNumber=(name:string)=>Number((name.match(/\\d+/)||[])[0]||0)
+const standardNumber=(name:string)=>Number((name.match(/\d+/)||[])[0]||0)
 const standardsForRange=(range:string,standards:Standard[])=>{
  if(range==='KG - UKG')return standards.filter(s=>/kg|lkg|ukg|kindergarten/i.test(s.name))
  const [min,max]=range.split('-').map(v=>Number(v.trim()))
