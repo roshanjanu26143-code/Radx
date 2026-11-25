@@ -198,7 +198,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
   setSaving(false)
   if(error||!runId){notify('Could not save generated timetable: '+(error?.message||'No run ID returned'));return}
   notify('AI timetable saved atomically as a draft. Manual timetable entries were preserved.')
-  setResult(null);await load()
+  setResult(null);await load();setTab('matrix')
  }
  const publish=async(runId:string)=>{const {error}=await supabase.rpc('publish_school_timetable_run',{p_school_id:schoolId,p_run_id:runId});if(error){notify('Timetable could not be published: '+error.message);return}notify('Timetable published. Exact quotas validated and all generated periods locked.');await load()}
  const markAbsent=async(e:FormEvent)=>{e.preventDefault();if(!absenceTeacher)return;const {error}=await supabase.from('school_timetable_teacher_absences').insert({school_id:schoolId,teacher_person_id:absenceTeacher,absence_date:date,reason:absenceReason||null});if(error){notify('Could not mark teacher absent: '+error.message);return}notify('Teacher absence recorded for '+date+'.');setAbsenceReason('');await loadProxy()}
