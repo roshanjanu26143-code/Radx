@@ -19,9 +19,13 @@ export default function ParentNotifications() {
   const [message,setMessage] = useState('')
   const [error,setError] = useState('')
   const [inbox,setInbox] = useState<any[]>([])
+  const [vapidPublicKey,setVapidPublicKey] = useState('')
 
   const requestCode = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError(''); setMessage('')
+    const {data:keyData,error:keyError} = await supabase.functions.invoke('parent-push-registration',{body:{action:'get_vapid'}})
+    if(keyError || keyData?.error){setBusy(false);setError(keyData?.error || keyError?.message || 'Could not prepare parent notifications.');return}
+    setVapidPublicKey(keyData.public_key || '')
     const {data,error:invokeError} = await supabase.functions.invoke('parent-push-registration',{body:{action:'request_otp',school_id:schoolId,phone}})
     setBusy(false)
     if(invokeError || data?.error){setError(data?.error || invokeError?.message || 'Could not send verification code.');return}
@@ -30,7 +34,7 @@ export default function ParentNotifications() {
   const verify = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError(''); setMessage('')
     try {
-      const publicKey = (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY as string | undefined
+      const publicKey = vapidPublicKey
       let subscription: PushSubscription | null = null
       if(publicKey && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
         const permission = await Notification.requestPermission()
