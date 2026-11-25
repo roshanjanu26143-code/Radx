@@ -78,6 +78,8 @@ export default function SeatAllotment({schoolId,academicYear,notify}:{schoolId:s
    const minutes=(value:string)=>{const [h,m]=value.slice(0,5).split(':').map(Number);return h*60+m}
    const overlaps=(aStart:string,aEnd:string,bStart:string,bEnd:string)=>minutes(aStart)<minutes(bEnd)&&minutes(aEnd)>minutes(bStart)
    for(const session of sessions){
+    const classSlots=new Set<string>()
+    for(const exam of session.exams){const key=exam.standard_name+'|'+exam.section_name;if(classSlots.has(key))throw new Error(exam.standard_name+' · '+exam.section_name+' has more than one subject exam in the same time slot. Correct the exam schedule before seat allotment.');classSlots.add(key)}
     const cohortMap=new Map<string,Person[]>()
     for(const exam of session.exams){
      const cohort=students.filter(s=>s.details?.joining_standard===exam.standard_name&&(s.details?.section||'')===exam.section_name)
