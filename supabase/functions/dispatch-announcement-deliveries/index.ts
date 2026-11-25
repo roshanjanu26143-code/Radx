@@ -36,9 +36,10 @@ Deno.serve(async (req: Request) => {
   const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
   const smsFrom = Deno.env.get("TWILIO_SMS_FROM");
   const whatsappFrom = Deno.env.get("TWILIO_WHATSAPP_FROM");
-  const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
-  const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
-  const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:admin@radx.school";
+  const { data: vapidKeys } = await db.from("school_push_vapid_keys").select("public_key,private_key").eq("key_id","radx-global").maybeSingle();
+  const vapidPublic = vapidKeys?.public_key;
+  const vapidPrivate = vapidKeys?.private_key;
+  const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:notifications@radx-os.vercel.app";
   const pushReady = !!(vapidPublic && vapidPrivate);
   if (pushReady) webpush.setVapidDetails(vapidSubject, vapidPublic!, vapidPrivate!);
 
