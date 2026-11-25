@@ -106,7 +106,7 @@ export default function AnnouncementManagement({ schoolId, standards, notify }: 
 
   return <div className="announcement-workspace">
     <div className="announcement-overview">
-      <div className="announcement-intro"><span className="section-eyebrow">SCHOOL COMMUNICATION</span><h2>Announcements & Circulars</h2><p>Prepare parent messages, publish official circulars and schedule school updates.</p></div>
+      <div className="announcement-intro"><span className="section-eyebrow">SCHOOL COMMUNICATION</span><h2>Announcements & Circulars</h2><p>Prepare parent messages, publish official circulars and schedule school updates.</p><a className="announcement-parent-setup-link" href="/parent-notifications" target="_blank" rel="noreferrer">Open parent notification setup ↗</a></div>
       <div className="announcement-stats"><div><MessageCircle size={17}/><b>{items.length}</b><span>Total</span></div><div><CheckCircle2 size={17}/><b>{publishedCount}</b><span>Published</span></div><div><CalendarClock size={17}/><b>{scheduledCount}</b><span>Scheduled</span></div></div>
     </div>
 
