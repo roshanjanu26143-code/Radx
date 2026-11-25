@@ -97,7 +97,7 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages,t
  const [dashboardView,setDashboardView]=useState(()=>readNavigationFromUrl().view),[mobileOpen,setMobileOpen]=useState(false)
  const { notify: showToast } = useAppToast()
  const [pendingRoleRemoval,setPendingRoleRemoval]=useState<RoleUserRow|null>(null)
- const [standards,setStandards]=useState<StandardRow[]>(Array.from({length:12},(_,i)=>({name:'Standard '+(i+1),sections:[]})))
+ const [standards,setStandards]=useState<StandardRow[]>([{name:'LKG',sections:[]},{name:'UKG',sections:[]},...Array.from({length:12},(_,i)=>({name:'Standard '+(i+1),sections:[]}))])
  const [selectedStandard,setSelectedStandard]=useState('Standard 1'),[newSection,setNewSection]=useState('')
  const [newGroup,setNewGroup]=useState(''),[studentStandardSelection,setStudentStandardSelection]=useState(''),[studentGroupSelection,setStudentGroupSelection]=useState('')
  const [routes,setRoutes]=useState<RouteRow[]>([]),[routeName,setRouteName]=useState(''),[routeStart,setRouteStart]=useState(''),[routeEnd,setRouteEnd]=useState(''),[routeStops,setRouteStops]=useState('')
@@ -131,7 +131,7 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages,t
    setPeopleRecords((peopleResult.data||[]).map(row=>({id:row.person_id,type:row.record_type,name:row.full_name,details:(row.details||{}) as Record<string,string>})))
    if(workspaceResult.data){
     const saved=workspaceResult.data
-    if(Array.isArray(saved.standards)&&saved.standards.length)setStandards(saved.standards as StandardRow[])
+    if(Array.isArray(saved.standards)&&saved.standards.length){const savedStandards=saved.standards as StandardRow[];const early=[{name:'LKG',sections:[]},{name:'UKG',sections:[]}].filter(row=>!savedStandards.some(item=>item.name===row.name));setStandards([...early,...savedStandards])}
     if(Array.isArray(saved.routes))setRoutes(saved.routes as RouteRow[])
     if(Array.isArray(saved.buses))setBuses(saved.buses as {number:string;driver:string;cleaner:string;route:string}[])
     if(saved.people_id_settings&&typeof saved.people_id_settings==='object')setPeopleIdSettings(current=>({...current,...saved.people_id_settings}));if(saved.session_settings&&typeof saved.session_settings==='object'){if(typeof saved.session_settings.adminAutoLogout==='string')setAdminAutoLogout(saved.session_settings.adminAutoLogout);if(typeof saved.session_settings.roleAutoLogout==='string')setRoleAutoLogout(saved.session_settings.roleAutoLogout);if(typeof saved.session_settings.adminKeepSignedIn==='boolean')setAdminKeepSignedIn(saved.session_settings.adminKeepSignedIn)}
@@ -221,7 +221,7 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages,t
       return type==='Student'&&studentManualAdmission?current:{...current,[counter]:(current[counter] as number)+1}
     })
     setManualAdmissionNumber('')
-    form.reset()
+    form.reset();if(type==='Student'){setStudentStandardSelection('');setStudentGroupSelection('')}
     notify(type+' saved to the school database. ID: '+generated)
   }catch(error){
     if(uploadedDocuments.length)await supabase.storage.from('school-person-documents').remove(uploadedDocuments.map(item=>item.path))
