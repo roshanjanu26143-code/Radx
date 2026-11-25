@@ -38,6 +38,18 @@ create table if not exists public.school_exam_plan_allocations (
   created_at timestamptz not null default now(),
   check (end_time > start_time)
 );
+create table if not exists public.school_exam_resource_blocks (
+  id uuid primary key default gen_random_uuid(),
+  school_id text not null,
+  resource_type text not null check (resource_type in ('room','teacher')),
+  resource_id text not null,
+  blocked_date date not null,
+  start_time time not null,
+  end_time time not null,
+  reason text,
+  created_at timestamptz not null default now(),
+  check (end_time > start_time)
+);
 create index if not exists school_exam_rooms_school_active_idx on public.school_exam_rooms(school_id,is_active);
 create index if not exists school_exam_plan_runs_school_year_idx on public.school_exam_plan_runs(school_id,academic_year,exam_name,created_at desc);
 create index if not exists school_exam_plan_allocations_run_idx on public.school_exam_plan_allocations(school_id,plan_run_id);
@@ -45,12 +57,15 @@ create index if not exists school_exam_plan_allocations_slot_idx on public.schoo
 create index if not exists school_exam_plan_allocations_exam_idx on public.school_exam_plan_allocations(exam_schedule_id);
 create index if not exists school_exam_plan_allocations_run_fk_idx on public.school_exam_plan_allocations(plan_run_id);
 create index if not exists school_exam_plan_allocations_room_idx on public.school_exam_plan_allocations(room_id);
+create index if not exists school_exam_resource_blocks_lookup_idx on public.school_exam_resource_blocks(school_id,resource_type,resource_id,blocked_date);
 alter table public.school_exam_rooms enable row level security;
 alter table public.school_exam_plan_runs enable row level security;
 alter table public.school_exam_plan_allocations enable row level security;
+alter table public.school_exam_resource_blocks enable row level security;
 grant select,insert,update,delete on public.school_exam_rooms to authenticated;
 grant select,insert,update,delete on public.school_exam_plan_runs to authenticated;
 grant select,insert,update,delete on public.school_exam_plan_allocations to authenticated;
+grant select,insert,delete on public.school_exam_resource_blocks to authenticated;
 
 drop policy if exists "Exam managers manage exam rooms" on public.school_exam_rooms;
 drop policy if exists "Exam managers read exam rooms" on public.school_exam_rooms;
@@ -103,6 +118,16 @@ using (private.can_manage_exam_schedule(school_exam_plan_allocations.school_id) 
   where r.id=school_exam_plan_allocations.plan_run_id
     and r.school_id=school_exam_plan_allocations.school_id and r.status='draft'
 ));
+
+drop policy if exists "Exam managers read resource blocks" on public.school_exam_resource_blocks;
+drop policy if exists "Exam managers insert resource blocks" on public.school_exam_resource_blocks;
+drop policy if exists "Exam managers delete resource blocks" on public.school_exam_resource_blocks;
+create policy "Exam managers read resource blocks" on public.school_exam_resource_blocks for select to authenticated
+using (private.can_manage_exam_schedule(school_exam_resource_blocks.school_id));
+create policy "Exam managers insert resource blocks" on public.school_exam_resource_blocks for insert to authenticated
+with check (private.can_manage_exam_schedule(school_exam_resource_blocks.school_id));
+create policy "Exam managers delete resource blocks" on public.school_exam_resource_blocks for delete to authenticated
+using (private.can_manage_exam_schedule(school_exam_resource_blocks.school_id));
 
 create or replace function public.save_school_ai_exam_plan(
   p_school_id text,p_academic_year text,p_exam_name text,p_allocations jsonb,p_score jsonb default '{}'::jsonb
@@ -204,6 +229,15 @@ begin
           and p.details->>'joining_standard'=e.standard_name and coalesce(p.details->>'section','')=e.section_name
       )
   ) then raise exception 'Room capacity is insufficient for at least one class and section.'; end if;
+
+  if exists (
+    select 1 from public.school_exam_plan_allocations a
+    join public.school_exam_resource_blocks b on b.school_id=a.school_id and b.blocked_date=a.exam_date
+      and a.start_time<b.end_time and a.end_time>b.start_time
+      and ((b.resource_type='room' and b.resource_id=a.room_id::text)
+        or (b.resource_type='teacher' and b.resource_id=a.invigilator_person_id))
+    where a.plan_run_id=v_run_id
+  ) then raise exception 'A room or invigilator is unavailable during the proposed exam slot.'; end if;
 
   if exists (
     select 1 from public.school_exam_plan_allocations a
