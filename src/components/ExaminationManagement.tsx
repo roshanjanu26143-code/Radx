@@ -33,7 +33,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  const [uploadStandard,setUploadStandard]=useState('')
  const [uploadSection,setUploadSection]=useState('')
  const [marksFile,setMarksFile]=useState<File|null>(null)
- const canEnterMarks=userRole==='Admin'||allowedPages.includes('Marks Entry')
+ const canEnterMarks=userRole==='Admin'||allowedPages.includes('Marks Entry')||allowedPages.includes('Performance')
  const canManageSchedules=userRole==='Admin'||(userRole!=='Teacher'&&allowedPages.includes('Exam Schedules'))
 
  const load=async()=>{
