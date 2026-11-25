@@ -92,7 +92,7 @@ export default function TransportManagement({ schoolId, peopleRecords, page, not
 
   const deleteRoute = async (route: RouteRow) => {
     if (buses.some(bus => bus.route_id === route.id)) { notify('Move or remove buses assigned to this route before deleting it.'); return }
-    if (allotments.some(row => row.route_id === route.id && row.status === 'active')) { notify('Move or pause active student allotments before deleting this route.'); return }
+    if (allotments.some(row => row.route_id === route.id)) { notify('Reassign or remove student allotments before deleting this route.'); return }
     const { error } = await supabase.from('school_transport_routes').delete().eq('school_id', schoolId).eq('id', route.id)
     if (error) notify(error.message); else { notify('Route deleted.'); await load() }
   }
