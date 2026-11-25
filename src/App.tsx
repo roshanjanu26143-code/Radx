@@ -161,8 +161,72 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages,t
  },[activeParent,activeChild,dashboardView])
 
  const nextPersonId=(type:'Student'|'Teacher'|'Staff'|'Driver & Cleaner')=>{const key=type==='Student'?'student':type==='Teacher'?'teacher':type==='Staff'?'staff':'driver';const prefix=peopleIdSettings[(key+'Prefix') as keyof PeopleIdSettings] as string;const seq=peopleIdSettings[(key+'Next') as keyof PeopleIdSettings] as number;return prefix+'-'+String(seq).padStart(5,'0')}
- const addPerson=async(event:FormEvent<HTMLFormElement>,type:'Student'|'Teacher'|'Staff'|'Driver & Cleaner')=>{event.preventDefault();const form=event.currentTarget;if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}const formData=new FormData(form);const documentFiles=formData.getAll('documents').filter((item):item is File=>item instanceof File&&item.size>0);formData.delete('documents');const data=Object.fromEntries(formData.entries()) as Record<string,string>;const name=(data.name||'').trim();if(!name){notify('Enter the name to continue.');return}if(type==='Student'&&!data.mother_phone?.trim()&&!data.father_phone?.trim()&&!data.guardian_phone?.trim()){notify('Enter a mobile number for the mother, father or guardian.');return}if(type==='Student'&&data.guardian_name?.trim()&&!data.guardian_relationship?.trim()){notify('Enter the guardian relationship.');return}if(type==='Student'&&data.primary_contact==='Father'&&!data.father_phone?.trim()||type==='Student'&&data.primary_contact==='Mother'&&!data.mother_phone?.trim()||type==='Student'&&data.primary_contact==='Guardian'&&!data.guardian_phone?.trim()){notify('Enter the mobile number for the selected primary contact.');return}const generated=type==='Student'&&studentManualAdmission?manualAdmissionNumber.trim():nextPersonId(type);if(!generated){notify('Enter the manual admission number.');return}if(peopleRecords.some(person=>person.id.toLowerCase()===generated.toLowerCase())){notify('This ID / admission number already exists.');return}const details={...data};const attendancePassword=type==='Teacher'?String(details.attendance_password||''):'';delete details.attendance_password;if(type==='Teacher'&&attendancePassword.length<8){notify('Set a teacher attendance password with at least 8 characters.');return}for(const [key,value] of Object.entries(details)){if(key==='phone'||key.endsWith('_phone')){const digits=value.replace(/\D/g,'');if(value.trim()&&!/^[6-9]\d{9}$/.test(digits)){notify('Enter a valid 10-digit Indian mobile number.');return}details[key]=value.trim()?'+91'+digits:''}}if(type==='Student')details.academic_year=academicYear;if(type==='Teacher')details.joining_year=String(new Date().getFullYear());if(type==='Student'){details.section='';details.primary_contact=details.primary_contact|| (details.father_phone?'Father':details.mother_phone?'Mother':'Guardian')}try{const uploadedDocuments:{name:string;path:string;mime_type:string;size:number}[]=[];try{for(const file of (type==='Student'?documentFiles:[])){const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=schoolId+'/'+generated+'/'+crypto.randomUUID()+'-'+safeName;const {error:uploadError}=await supabase.storage.from('school-person-documents').upload(path,file,{contentType:file.type,upsert:false});if(uploadError)throw new Error('Document upload failed: '+uploadError.message);uploadedDocuments.push({name:file.name,path,mime_type:file.type,size:file.size})}if(uploadedDocuments.length)details.document_files=JSON.stringify(uploadedDocuments);const {data:saved,error}=await supabase.from('school_people').insert({school_id:schoolId,person_id:generated,record_type:type,full_name:name,details}).select('person_id,record_type,full_name,details').single();if(error)throw errorif(!saved)throw new Error('The saved person record was not returned.');if(type==='Teacher'){const {data:credential,error:credentialError}=await supabase.functions.invoke('qr-attendance',{body:{action:'set_password',school_id:schoolId,teacher_person_id:generated,password:attendancePassword}});if(credentialError||!credential?.success){await supabase.from('school_people').delete().eq('school_id',schoolId).eq('person_id',generated);throw new Error(credential?.error||credentialError?.message||'Teacher attendance password could not be saved.')}}setPeopleRecords(items=>[{id:saved.person_id,type:saved.record_type,name:saved.full_name,details:(saved.details||{}) as Record<string,string>},...items]);setPeopleIdSettings(current=>{const key=type==='Student'?'student':type==='Teacher'?'teacher':type==='Staff'?'staff':'driver';const counter=(key+'Next') as keyof PeopleIdSettings;return type==='Student'&&studentManualAdmission?current:{...current,[counter]:(current[counter] as number)+1}});setManualAdmissionNumber('');form.reset();notify(type+' saved to the school database. ID: '+generated)}catch(error){if(uploadedDocuments.length)await supabase.storage.from('school-person-documents').remove(uploadedDocuments.map(item=>item.path));const message=error instanceof Error?error.message:'Could not save this record.';notify(message.includes('duplicate key')?'This ID / admission number already exists in the school database.':message)}};
- const notify=(message:string)=>showToast(message,/could not|failed|error|invalid|not saved|cannot/i.test(message)?'danger':'success')
+ const addPerson=async(event:FormEvent<HTMLFormElement>,type:'Student'|'Teacher'|'Staff'|'Driver & Cleaner')=>{
+  event.preventDefault()
+  const form=event.currentTarget
+  if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}
+  const formData=new FormData(form)
+  const documentFiles=formData.getAll('documents').filter((item):item is File=>item instanceof File&&item.size>0)
+  formData.delete('documents')
+  const data=Object.fromEntries(formData.entries()) as Record<string,string>
+  const name=(data.name||'').trim()
+  if(!name){notify('Enter the name to continue.');return}
+  if(type==='Student'&&!data.mother_phone?.trim()&&!data.father_phone?.trim()&&!data.guardian_phone?.trim()){notify('Enter a mobile number for the mother, father or guardian.');return}
+  if(type==='Student'&&data.guardian_name?.trim()&&!data.guardian_relationship?.trim()){notify('Enter the guardian relationship.');return}
+  if((type==='Student'&&data.primary_contact==='Father'&&!data.father_phone?.trim())||(type==='Student'&&data.primary_contact==='Mother'&&!data.mother_phone?.trim())||(type==='Student'&&data.primary_contact==='Guardian'&&!data.guardian_phone?.trim())){notify('Enter the mobile number for the selected primary contact.');return}
+  const generated=type==='Student'&&studentManualAdmission?manualAdmissionNumber.trim():nextPersonId(type)
+  if(!generated){notify('Enter the manual admission number.');return}
+  if(peopleRecords.some(person=>person.id.toLowerCase()===generated.toLowerCase())){notify('This ID / admission number already exists.');return}
+  const details={...data}
+  const attendancePassword=type==='Teacher'?String(details.attendance_password||''):''
+  delete details.attendance_password
+  if(type==='Teacher'&&attendancePassword.length<8){notify('Set a teacher attendance password with at least 8 characters.');return}
+  for(const [key,value] of Object.entries(details)){
+    if(key==='phone'||key.endsWith('_phone')){
+      const digits=value.replace(/\\D/g,'')
+      if(value.trim()&&!/^[6-9]\\d{9}$/.test(digits)){notify('Enter a valid 10-digit Indian mobile number.');return}
+      details[key]=value.trim()?'+91'+digits:''
+    }
+  }
+  if(type==='Student')details.academic_year=academicYear
+  if(type==='Teacher')details.joining_year=String(new Date().getFullYear())
+  if(type==='Student'){details.section='';details.primary_contact=details.primary_contact||(details.father_phone?'Father':details.mother_phone?'Mother':'Guardian')}
+  const uploadedDocuments:{name:string;path:string;mime_type:string;size:number}[]=[]
+  try{
+    for(const file of (type==='Student'?documentFiles:[])){
+      const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_')
+      const path=schoolId+'/'+generated+'/'+crypto.randomUUID()+'-'+safeName
+      const {error:uploadError}=await supabase.storage.from('school-person-documents').upload(path,file,{contentType:file.type,upsert:false})
+      if(uploadError)throw new Error('Document upload failed: '+uploadError.message)
+      uploadedDocuments.push({name:file.name,path,mime_type:file.type,size:file.size})
+    }
+    if(uploadedDocuments.length)details.document_files=JSON.stringify(uploadedDocuments)
+    const {data:saved,error}=await supabase.from('school_people').insert({school_id:schoolId,person_id:generated,record_type:type,full_name:name,details}).select('person_id,record_type,full_name,details').single()
+    if(error)throw error
+    if(!saved)throw new Error('The saved person record was not returned.')
+    if(type==='Teacher'){
+      const {data:credential,error:credentialError}=await supabase.functions.invoke('qr-attendance',{body:{action:'set_password',school_id:schoolId,teacher_person_id:generated,password:attendancePassword}})
+      if(credentialError||!credential?.success){
+        await supabase.from('school_people').delete().eq('school_id',schoolId).eq('person_id',generated)
+        throw new Error(credential?.error||credentialError?.message||'Teacher attendance password could not be saved.')
+      }
+    }
+    setPeopleRecords(items=>[{id:saved.person_id,type:saved.record_type,name:saved.full_name,details:(saved.details||{}) as Record<string,string>},...items])
+    setPeopleIdSettings(current=>{
+      const key=type==='Student'?'student':type==='Teacher'?'teacher':type==='Staff'?'staff':'driver'
+      const counter=(key+'Next') as keyof PeopleIdSettings
+      return type==='Student'&&studentManualAdmission?current:{...current,[counter]:(current[counter] as number)+1}
+    })
+    setManualAdmissionNumber('')
+    form.reset()
+    notify(type+' saved to the school database. ID: '+generated)
+  }catch(error){
+    if(uploadedDocuments.length)await supabase.storage.from('school-person-documents').remove(uploadedDocuments.map(item=>item.path))
+    const message=error instanceof Error?error.message:'Could not save this record.'
+    notify(message.includes('duplicate key')?'This ID / admission number already exists in the school database.':message)
+  }
+}
+const notify=(message:string)=>showToast(message,/could not|failed|error|invalid|not saved|cannot/i.test(message)?'danger':'success')
  const visibleNavigation=userRole==='Admin'?schoolNavigation:schoolNavigation.map(group=>({...group,children:group.children.filter(child=>allowedPages.includes(child))})).filter(group=>group.children.length>0)
  const currentParent=visibleNavigation.find(item=>item.label===activeParent)||visibleNavigation[0]||schoolNavigation[0]
  useEffect(()=>{if(userRole!=='Admin'&&!visibleNavigation.some(group=>group.label===activeParent&&group.children.includes(activeChild))){const first=visibleNavigation[0];if(first)navigateTo(first.label,first.children[0])}},[userRole,allowedPages.join('|'),activeParent,activeChild])
