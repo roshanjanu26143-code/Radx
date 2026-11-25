@@ -13,7 +13,7 @@ const allowedRoles = new Set([
 ]);
 const allowedPages = new Set([
   "Dashboard", "Create Student", "Create Teacher", "Create Staff",
-  "Create Driver & Cleaner", "Standard", "Attendance", "Subjects", "Timetable",
+  "Create Driver & Cleaner", "Standard", "Teacher Allotment", "Seat Allotment", "Attendance", "Subjects", "Timetable",
   "Exam Schedules", "Marks Entry", "Student Results", "Performance", "Attendance Reports",
   "Live tracking", "Routes", "Students", "Buses", "Teachers", "Staff", "Driver & Cleaner",
   "Parent Book", "Announcements", "Finance", "Fees", "Fees Structure", "Pending Fees",
