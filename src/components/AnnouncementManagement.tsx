@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
-import { CalendarClock, CheckCircle2, ChevronDown, Clock3, FileText, Megaphone, MessageCircle, Send, X } from 'lucide-react'
-import './AnnouncementManagement.css'
+import { CalendarClock, CheckCircle2, FileText, Megaphone, MessageCircle, Send, X } from 'lucide-react'
+import './AnnouncementManagement.css'\nimport TimeRangePicker from './TimeRangePicker'
 
 type Standard = { name: string; sections: string[] }
 type Announcement = {
@@ -11,28 +11,6 @@ type Announcement = {
   created_at: string; published_at: string | null
 }
 type Props = { schoolId: string; standards: Standard[]; notify: (message: string) => void }
-
-function TimeRangePicker({ start, end, onSave }: { start: string; end: string; onSave: (start: string, end: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const [draftStart, setDraftStart] = useState(start)
-  const [draftEnd, setDraftEnd] = useState(end)
-  useEffect(() => { setDraftStart(start); setDraftEnd(end) }, [start, end])
-  return <div className="announcement-time-picker">
-    <button type="button" className="announcement-time-trigger" aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <Clock3 size={16}/><span>{start} – {end}</span><ChevronDown size={15}/>
-    </button>
-    {open && <div className="announcement-time-popover">
-      <div className="announcement-time-fields">
-        <label>Start time<input type="time" min="00:00" max="23:59" value={draftStart} onChange={event => setDraftStart(event.target.value)} required/></label>
-        <label>End time<input type="time" min="00:00" max="23:59" value={draftEnd} onChange={event => setDraftEnd(event.target.value)} required/></label>
-      </div>
-      <div className="announcement-time-actions">
-        <button type="button" className="announcement-text-button" onClick={() => setOpen(false)}>Cancel</button>
-        <button type="button" className="announcement-save-time" onClick={() => { onSave(draftStart, draftEnd); setOpen(false) }}>Save time</button>
-      </div>
-    </div>}
-  </div>
-}
 
 export default function AnnouncementManagement({ schoolId, standards, notify }: Props) {
   const [items, setItems] = useState<Announcement[]>([])
