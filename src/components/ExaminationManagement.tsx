@@ -182,7 +182,6 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
     grouped.set(examRow.id,[])
    }
    const seen=new Set<string>()
-   const importedTotals=new Map<string,{obtained:number;maximum:number;failed:boolean}>()
    for(let rowIndex=headerIndex+1;rowIndex<csvRows.length;rowIndex++){
     const row=csvRows[rowIndex],admission=row[0]?.trim()
     if(!admission)continue
@@ -191,7 +190,6 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
     if((row[studentIndex]||'').trim().toLowerCase()!==student.full_name.trim().toLowerCase())throw new Error('Student name does not match admission number '+admission+'. Do not edit the student identity columns.')
     if(seen.has(student.person_id))throw new Error('Duplicate student row: '+admission+'. Each student must appear once.')
     seen.add(student.person_id)
-    let obtained=0,maximum=0,failed=false
     for(const examRow of uploadSchedules){
      const cols=subjectColumns.get(examRow.id)!,raw=row[cols.marks]?.trim()
      if(!raw)continue
@@ -201,16 +199,11 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
      const enteredGrade=row[cols.grade]?.trim().toUpperCase()
      if(enteredGrade&&enteredGrade!==(passed?'P':'F'))throw new Error('Grade mismatch for '+student.full_name+' · '+examRow.subject_name+'. Marks above 40% = P; 40% or below = F.')
      grouped.get(examRow.id)!.push({student_person_id:student.person_id,marks_obtained:value,remarks:passed?'P':'F'})
-     obtained+=value;maximum+=cols.max;if(!passed)failed=true
     }
-    importedTotals.set(student.person_id,{obtained,maximum,failed})
    }
    let total=0
    for(const [examId,entries] of grouped){if(!entries.length)continue;const {error}=await supabase.rpc('save_school_exam_marks',{p_school_id:schoolId,p_exam_schedule_id:examId,p_marks:entries});if(error)throw error;total+=entries.length}
    if(!total)throw new Error('No subject marks were filled in the CSV file.')
-   const ranked=[...importedTotals.entries()].filter(([,v])=>v.maximum>0).sort((a,b)=>b[1].obtained-a[1].obtained)
-   const rankByStudent=new Map<string,number>();let previous:number|null=null,rank=0
-   ranked.forEach(([id,v],index)=>{if(previous===null||v.obtained!==previous)rank=index+1;rankByStudent.set(id,rank);previous=v.obtained})
    setMarksFile(null)
    notify(total+' subject marks synced to student records. Grades: >40% P, 40% or below F. Class totals and ranks are calculated from the uploaded subject marks.')
    await load()
