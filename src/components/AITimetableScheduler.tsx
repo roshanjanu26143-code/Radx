@@ -77,7 +77,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
    supabase.from('school_teacher_workload_limits').select('teacher_person_id,max_daily_periods,max_weekly_periods').eq('school_id',schoolId),
    supabase.from('school_timetable_fixed_blocks').select('id,standard_name,section_name,day_of_week,period_number,block_type,label,teacher_person_id,room_id').eq('school_id',schoolId).eq('academic_year',academicYear),
    supabase.from('school_academic_timetable').select('id,standard_name,section_name,day_of_week,period_number,start_time,end_time,subject_id,teacher_person_id,room_id,room_type,room_label,is_locked,source,generated_run_id,is_double_period,double_group_id').eq('school_id',schoolId).eq('academic_year',academicYear),
-   supabase.from('school_people').select('person_id,details').eq('school_id',schoolId).eq('record_type','Student'),
+   supabase.rpc('get_school_section_strengths',{p_school_id:schoolId}),
   ])
   const failed=results.find(r=>r.error)
   if(failed?.error){setError(failed.error.message);setLoading(false);return}
@@ -86,7 +86,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
   setRequirements((q.data||[]) as Requirement[]);setAssignments((a.data||[]) as Assignment[])
   setWorkloads((w.data||[]) as Workload[]);setFixedBlocks((b.data||[]) as FixedBlock[]);setTimetable((t.data||[]) as TimetableRow[])
   const counts:Record<string,number>={}
-  ;(students.data||[]).forEach((student:any)=>{const standard=student.details?.joining_standard;const section=student.details?.section;if(standard&&section){const key=standard+'|'+section;counts[key]=(counts[key]||0)+1}})
+  ;(students.data||[]).forEach((student:any)=>{const standard=student.standard_name;const section=student.section_name;if(standard&&section){const key=standard+'|'+section;counts[key]=Number(student.student_count)||0}})
   setStudentCounts(counts)
   if(!(p.data||[]).length&&canManage){
    const payload=defaultPeriods.map(([number,label,start,end,isBreak])=>({school_id:schoolId,academic_year:academicYear,period_number:Number(number),period_label:label,start_time:start,end_time:end,is_break:isBreak,is_active:true}))
