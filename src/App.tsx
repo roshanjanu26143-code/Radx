@@ -275,7 +275,7 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
     }
   }
   const updates:{id:string;details:Record<string,string>}[]=[]
-  for(const [cohortSection,cohort] of cohorts){
+  for(const [,cohort] of cohorts){
     const ordered=[...cohort].sort((a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base',numeric:true})||a.id.localeCompare(b.id))
     ordered.forEach((record,index)=>{
       const details={...record.details}
