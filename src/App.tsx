@@ -285,11 +285,11 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
     })
   }
   if(!section){
-    const details={...person.details,section}
+    const details:Record<string,string>={...person.details,section}
     delete details.roll_number
     updates.push({id,details})
   }else if(!updates.some(item=>item.id===id)){
-    const details={...person.details,section}
+    const details:Record<string,string>={...person.details,section}
     if(rollPrefix)details.roll_number=rollPrefix+'01'
     updates.push({id,details})
   }
