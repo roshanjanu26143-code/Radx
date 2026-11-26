@@ -818,3 +818,42 @@ button:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:3px s
 .seat-allotment .ex-table th,.teacher-allotment .ex-table th{background:var(--surface);color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em}
 .seat-allotment .ex-table td small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
 @media(max-width:700px){.subject-standard-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Marks entry template — guided bulk import */
+.marks-template-panel{border:1px solid #d8e4f3;background:linear-gradient(180deg,#fff 0%,#f9fbff 100%);border-radius:16px;padding:22px;margin:18px 0;box-shadow:0 8px 24px rgba(20,43,77,.045)}
+.marks-template-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px}
+.marks-template-heading h3{display:flex;align-items:center;gap:9px;margin:5px 0 7px;color:#142b4d;font-size:19px}
+.marks-template-heading p{max-width:680px;margin:0;line-height:1.55}
+.marks-template-tag{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #cfe2d7;border-radius:999px;background:#f0faf4;color:#24734a;font-size:12px;font-weight:700;white-space:nowrap}
+.marks-template-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.marks-template-step{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border:1px solid #e0e8f2;border-radius:12px;background:#fff}
+.marks-template-step>span{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border-radius:50%;background:#eaf2ff;color:#2563eb;font-weight:800;font-size:13px}
+.marks-template-step b,.marks-template-step small{display:block}
+.marks-template-step b{color:#1e2f49;font-size:13px}
+.marks-template-step small{margin-top:2px;color:#71829a;font-size:11px}
+.marks-template-step.active{border-color:#b8cff7;background:#f6f9ff}
+.marks-template-selectors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.marks-template-selectors label{display:flex;flex-direction:column;gap:7px;min-width:0}
+.marks-template-selectors label>span{font-size:12px;font-weight:700;color:#415674}
+.marks-template-selectors select{width:100%;min-height:42px;border:1px solid #d4dfed;border-radius:9px;padding:0 11px;background:#fff;color:#1e2f49}
+.marks-template-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
+.marks-template-summary>div{padding:12px 14px;border:1px solid #e1e9f3;border-radius:10px;background:#fff}
+.marks-template-summary small,.marks-template-summary b{display:block}
+.marks-template-summary small{color:#71829a;font-size:11px;margin-bottom:5px}
+.marks-template-summary b{color:#142b4d;font-size:17px}
+.marks-template-subjects{padding:12px 14px;margin-bottom:15px;border:1px solid #e1e9f3;border-radius:10px;background:#fff}
+.marks-template-subjects>b{display:block;margin-bottom:9px;color:#415674;font-size:12px}
+.marks-template-subjects>div{display:flex;flex-wrap:wrap;gap:7px}
+.marks-template-subjects span{padding:6px 9px;border-radius:7px;background:#eef4ff;color:#244a83;font-size:12px;font-weight:650}
+.marks-template-subjects span small{color:#71829a;font-weight:500}
+.marks-template-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:16px 0}
+.marks-template-actions .ex-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px}
+.marks-template-file{position:relative;display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:40px;padding:0 13px;border:1px dashed #9fb4d0;border-radius:9px;background:#fff;color:#29486e;font-size:12px;font-weight:650;cursor:pointer}
+.marks-template-file span{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.marks-template-file input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.marks-template-guidance{padding:13px 15px;border:1px solid #dce7f5;border-radius:11px;background:#f5f8fd;color:#40536e}
+.marks-template-guidance>b{display:flex;align-items:center;gap:7px;color:#234b83;font-size:12px}
+.marks-template-guidance ul{margin:8px 0 0;padding-left:20px;display:grid;gap:5px;font-size:12px;line-height:1.5}
+.marks-template-warning{margin-top:12px;padding:11px 13px;border:1px solid #f1d6a4;border-radius:9px;background:#fff9ed;color:#855b17;font-size:12px}
+@media(max-width:760px){.marks-template-panel{padding:15px}.marks-template-heading{display:block}.marks-template-tag{margin-top:12px}.marks-template-steps{grid-template-columns:1fr}.marks-template-selectors{grid-template-columns:1fr}.marks-template-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.marks-template-actions{align-items:stretch;flex-direction:column}.marks-template-actions>*{width:100%}.marks-template-file{justify-content:center}}
