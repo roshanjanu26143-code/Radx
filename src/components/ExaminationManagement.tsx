@@ -153,8 +153,8 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
     return [student.person_id,student.details.roll_number||'',student.full_name,...subjectCells,'',maxTotal,'','']
    })
   ]
-  const csv=rows.map(row=>row.map(csvCell).join(',')).join('\\r\\n')
-  const url=URL.createObjectURL(new Blob(['\\uFEFF',csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a')
+  const csv=rows.map(row=>row.map(csvCell).join(',')).join('\r\n')
+  const url=URL.createObjectURL(new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a')
   a.href=url;a.download='marks-template-'+uploadExamName.replace(/\\W+/g,'-')+'-'+uploadStandard.replace(/\\W+/g,'-')+'-'+uploadSection+'.csv';a.click();URL.revokeObjectURL(url)
  }
  const uploadMarksFile=async()=>{
@@ -173,7 +173,9 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    const headerIndex=csvRows.findIndex(row=>row.some(cell=>cell.trim().toLowerCase()==='admission number')&&row.some(cell=>cell.trim().toLowerCase()==='student name'))
    if(headerIndex<0)throw new Error('Required template columns are missing. Download a fresh template.')
    const header=csvRows[headerIndex].map(value=>value.trim().toLowerCase())
-   const admissionIndex=header.indexOf('admission number')\n   const rollIndex=header.indexOf('roll number')\n   const studentIndex=header.indexOf('student name')\n   if(admissionIndex<0||rollIndex<0||studentIndex<0)throw new Error('The template must include Admission Number, Roll Number and Student Name columns.')
+   const admissionIndex=header.indexOf('admission number')
+   const rollIndex=header.indexOf('roll number')
+   const studentIndex=header.indexOf('student name')\n   if(admissionIndex<0||rollIndex<0||studentIndex<0)throw new Error('The template must include Admission Number, Roll Number and Student Name columns.')
    const grouped=new Map<string,{student_person_id:string;marks_obtained:number;remarks:string|null}[]>()
    const subjectColumns=new Map<string,{marks:number;grade:number;max:number}>()
    for(const examRow of uploadSchedules){
@@ -189,7 +191,9 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
     if(!admission)continue
     const student=uploadClassStudents.find(s=>s.person_id.toLowerCase()===admission.toLowerCase())
     if(!student)throw new Error('Admission number '+admission+' is not part of '+uploadStandard+' · '+uploadSection+'.')
-    if((row[studentIndex]||'').trim().toLowerCase()!==student.full_name.trim().toLowerCase())throw new Error('Student name does not match admission number '+admission+'. Do not edit the student identity columns.')\n    const expectedRoll=String(student.details.roll_number||'').trim(),enteredRoll=String(row[rollIndex]||'').trim()\n    if(expectedRoll&&enteredRoll!==expectedRoll)throw new Error('Roll number mismatch for '+student.full_name+'. Expected '+expectedRoll+'. Do not edit the student identity columns.')
+    if((row[studentIndex]||'').trim().toLowerCase()!==student.full_name.trim().toLowerCase())throw new Error('Student name does not match admission number '+admission+'. Do not edit the student identity columns.')
+    const expectedRoll=String(student.details.roll_number||'').trim(),enteredRoll=String(row[rollIndex]||'').trim()
+    if(expectedRoll&&enteredRoll!==expectedRoll)throw new Error('Roll number mismatch for '+student.full_name+'. Expected '+expectedRoll+'. Do not edit the student identity columns.')
     if(seen.has(student.person_id))throw new Error('Duplicate student row: '+admission+'. Each student must appear once.')
     seen.add(student.person_id)
     for(const examRow of uploadSchedules){
