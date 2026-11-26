@@ -255,7 +255,51 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
  const selectParent=(item:NavItem)=>navigateTo(item.label,item.children[0])
  const selectChild=(item:NavItem,child:string)=>navigateTo(item.label,child)
  useEffect(()=>{const handleTransportNavigate=(event:Event)=>{const page=(event as CustomEvent<string>).detail;if(['Live tracking','Routes','Students','Buses'].includes(page))navigateTo('Transport',page)};window.addEventListener('radx-transport-navigate',handleTransportNavigate);return()=>window.removeEventListener('radx-transport-navigate',handleTransportNavigate)},[])
- const assignStudentSection=async(id:string,section:string)=>{if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}const person=peopleRecords.find(item=>item.id===id);if(!person)return;const details={...person.details,section};const {error}=await supabase.from('school_people').update({details,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('person_id',id);if(error){notify('Section assignment could not be saved: '+error.message);return}setPeopleRecords(items=>items.map(item=>item.id===id?{...item,details}:item));notify('Section assignment saved.')}
+ const assignStudentSection=async(id:string,section:string)=>{
+  if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}
+  const person=peopleRecords.find(item=>item.id===id)
+  if(!person)return
+  const standard=person.details.joining_standard||''
+  const year=person.details.academic_year||academicYear
+  const standardNumber=standard.match(/\d+/)?.[0]
+  const yearPrefix=String(year).match(/\d{4}/)?.[0]?.slice(-2)||String(new Date().getFullYear()).slice(-2)
+  const rollPrefix=standardNumber?yearPrefix+String(Number(standardNumber)).padStart(2,'0'):''
+  const nextRecords=peopleRecords.map(item=>item.id===id?{...item,details:{...item.details,section}}:item)
+  const oldSection=person.details.section||''
+  const cohorts=new Map<string,PeopleRecord[]>()
+  for(const record of nextRecords){
+    if(record.type!=='Student'||record.details.joining_standard!==standard||(record.details.academic_year||academicYear)!==year)continue
+    const recordSection=record.details.section||''
+    if(recordSection&&(recordSection===section||recordSection===oldSection)){
+      cohorts.set(recordSection,[...(cohorts.get(recordSection)||[]),record])
+    }
+  }
+  const updates:{id:string;details:Record<string,string>}[]=[]
+  for(const [cohortSection,cohort] of cohorts){
+    const ordered=[...cohort].sort((a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base',numeric:true})||a.id.localeCompare(b.id))
+    ordered.forEach((record,index)=>{
+      const details={...record.details}
+      if(rollPrefix)details.roll_number=rollPrefix+String(index+1).padStart(2,'0')
+      else delete details.roll_number
+      updates.push({id:record.id,details})
+    })
+  }
+  if(!section){
+    const details={...person.details,section}
+    delete details.roll_number
+    updates.push({id,details})
+  }else if(!updates.some(item=>item.id===id)){
+    const details={...person.details,section}
+    if(rollPrefix)details.roll_number=rollPrefix+'01'
+    updates.push({id,details})
+  }
+  for(const update of updates){
+    const {error}=await supabase.from('school_people').update({details:update.details,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('person_id',update.id)
+    if(error){notify('Section / roll number update stopped at '+update.id+': '+error.message+' Please retry the section assignment.');return}
+  }
+  setPeopleRecords(items=>items.map(item=>{const saved=updates.find(update=>update.id===item.id);return saved?{...item,details:saved.details}:item}))
+  notify(rollPrefix&&section?'Section assigned. Roll numbers regenerated in A–Z order.':'Section assignment saved.')
+}
  const addSection=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}const clean=newSection.trim().toUpperCase();if(!clean)return;const row=standards.find(item=>item.name===selectedStandard);if(row?.sections.includes(clean)){notify('This section already exists.');return}if((row?.sections.length||0)>=10){notify('A standard can have a maximum of 10 sections.');return}setStandards(items=>items.map(item=>item.name===selectedStandard?{...item,sections:[...item.sections,clean]}:item));setNewSection('');notify('Section '+clean+' added.')}
  const addAcademicGroup=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();const clean=newGroup.trim();if(!clean)return;if((standards.find(item=>item.name==='Standard 11')?.groups||[]).some(group=>group.toLowerCase()===clean.toLowerCase())){notify('This academic group already exists.');return}setStandards(items=>items.map(item=>item.name==='Standard 11'||item.name==='Standard 12'?{...item,groups:[...(standards.find(row=>row.name==='Standard 11')?.groups||[]),clean]}:item));setNewGroup('');notify(clean+' group added for Standards 11 and 12.')}
  const addRoute=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}setRoutes(items=>[...items,{name:routeName.trim(),start:routeStart.trim(),stops:routeStops.split(',').map(x=>x.trim()).filter(Boolean),end:routeEnd.trim()}]);setRouteName('');setRouteStart('');setRouteEnd('');setRouteStops('');notify('Route created.')}
@@ -1005,7 +1049,7 @@ function StandardStudentAllocation({standard,standards,records,onAssign}:{standa
  const students=records.filter(record=>record.type==='Student'&&record.details.joining_standard===standard)
  const sections=standards.find(row=>row.name===standard)?.sections||[]
  return <div className="standard-student-allocation"><div className="allocation-heading"><div><b>{standard} students</b><span>Students are added to this standard during admission. Management assigns sections later.</span></div><span className="count-pill">{students.length} students</span></div>
- {students.length?students.map(student=><div className="allocation-student-row" key={student.id}><div className="people-record-avatar">{student.name.slice(0,1).toUpperCase()}</div><div className="people-record-main"><b>{student.name}</b><span>{student.id}</span></div><select aria-label={'Assign section for '+student.name} value={student.details.section||''} onChange={event=>onAssign(student.id,event.target.value)}><option value="">Unassigned</option>{sections.map(section=><option key={section} value={section}>{section}</option>)}</select></div>):<div className="empty-table">No students admitted to {standard} yet.</div>}</div>
+ {students.length?students.map(student=><div className="allocation-student-row" key={student.id}><div className="people-record-avatar">{student.name.slice(0,1).toUpperCase()}</div><div className="people-record-main"><b>{student.name}</b><span>{student.id}</span><small>Roll no: {student.details.roll_number||'Pending section allotment'}</small></div><select aria-label={'Assign section for '+student.name} value={student.details.section||''} onChange={event=>onAssign(student.id,event.target.value)}><option value="">Unassigned</option>{sections.map(section=><option key={section} value={section}>{section}</option>)}</select></div>):<div className="empty-table">No students admitted to {standard} yet.</div>}</div>
 }
 
 type ParentFamily={key:string;father_name:string;father_phone:string;mother_name:string;mother_phone:string;guardian_name:string;guardian_phone:string;guardian_relationship:string;primary_contact:string;address:string;children:PeopleRecord[]}
