@@ -175,7 +175,8 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    const header=csvRows[headerIndex].map(value=>value.trim().toLowerCase())
    const admissionIndex=header.indexOf('admission number')
    const rollIndex=header.indexOf('roll number')
-   const studentIndex=header.indexOf('student name')\n   if(admissionIndex<0||rollIndex<0||studentIndex<0)throw new Error('The template must include Admission Number, Roll Number and Student Name columns.')
+   const studentIndex=header.indexOf('student name')
+   if(admissionIndex<0||rollIndex<0||studentIndex<0)throw new Error('The template must include Admission Number, Roll Number and Student Name columns.')
    const grouped=new Map<string,{student_person_id:string;marks_obtained:number;remarks:string|null}[]>()
    const subjectColumns=new Map<string,{marks:number;grade:number;max:number}>()
    for(const examRow of uploadSchedules){
