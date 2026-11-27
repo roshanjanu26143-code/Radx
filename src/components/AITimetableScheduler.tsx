@@ -3,11 +3,11 @@ import { ArrowLeft, CalendarDays, Check, Clock3, Cpu, Plus, RefreshCw, Save, Shi
 import { supabase } from '../lib/supabase'
 import TimeRangePicker from './TimeRangePicker'
 
-type Standard={name:string;sections:string[]}
+type Standard={name:string;sections:string[];groups?:string[];groupSections?:Record<string,string[]>}
 type Teacher={id:string;name:string}
 type Period={id:string;period_number:number;period_label:string;start_time:string;end_time:string;is_break:boolean;is_active:boolean}
 type Room={id:string;room_code:string;room_name:string;room_type:string;capacity:number;is_active:boolean}
-type Subject={id:string;standard_name:string;subject_name:string;subject_type:string}
+type Subject={id:string;standard_name:string;subject_name:string;subject_type:string;group_name:string}
 type Requirement={id:string;standard_name:string;section_name:string;subject_id:string;weekly_periods:number;double_periods:number;room_type:string;cognitive_load:string;combined_group_key:string|null}
 type Assignment={teacher_person_id:string;standard_name:string;section_name:string;subject_name:string|null;is_active:boolean}
 type Workload={teacher_person_id:string;max_daily_periods:number;max_weekly_periods:number}
@@ -49,6 +49,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
  const [tab,setTab]=useState<'setup'|'generate'|'matrix'|'proxy'>('setup')
  const [selectedStandard,setSelectedStandard]=useState(standards[0]?.name||'')
  const [selectedSection,setSelectedSection]=useState(standards[0]?.sections[0]||'')
+ const [selectedGroup,setSelectedGroup]=useState('')
  const [periodForm,setPeriodForm]=useState({period_number:'10',period_label:'Period 9',start_time:'15:45',end_time:'16:30',is_break:false})
  const [roomForm,setRoomForm]=useState({room_code:'',room_name:'',room_type:'classroom',capacity:'40'})
  const [fixedForm,setFixedForm]=useState({standard_name:'',section_name:'',day_of_week:'1',period_number:'1',block_type:'assembly',label:'Morning Assembly',teacher_person_id:'',room_id:''})
@@ -64,16 +65,19 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
  const [proxyCandidates,setProxyCandidates]=useState<Record<string,Teacher[]>>({})
  const [proxyChoice,setProxyChoice]=useState<Record<string,string>>({})
  const [proxyReason,setProxyReason]=useState('')
- const sections=useMemo(()=>standards.find(s=>s.name===selectedStandard)?.sections||[],[standards,selectedStandard])
+ const selectedStandardRow=standards.find(s=>s.name===selectedStandard)
+ const isHigher=selectedStandard==='Standard 11'||selectedStandard==='Standard 12'
+ const selectedGroups=isHigher?(selectedStandardRow?.groups||[]):[]
+ const sections=useMemo(()=>isHigher?(selectedStandardRow?.groupSections?.[selectedGroup]||[]):(selectedStandardRow?.sections||[]),[selectedStandardRow,isHigher,selectedGroup])
  const activePeriods=useMemo(()=>periods.filter(p=>p.is_active).sort((a,b)=>a.period_number-b.period_number),[periods])
- const activeSubjects=useMemo(()=>subjects.filter(s=>s.standard_name===selectedStandard),[subjects,selectedStandard])
+ const activeSubjects=useMemo(()=>subjects.filter(s=>s.standard_name===selectedStandard&&(!s.group_name||s.group_name===selectedGroup)),[subjects,selectedStandard,selectedGroup])
  const requirementsForSection=useMemo(()=>requirements.filter(r=>r.standard_name===selectedStandard&&r.section_name===selectedSection),[requirements,selectedStandard,selectedSection])
  const load=useCallback(async()=>{
   setLoading(true);setError('')
   const results=await Promise.all([
    supabase.from('school_timetable_periods').select('id,period_number,period_label,start_time,end_time,is_break,is_active').eq('school_id',schoolId).eq('academic_year',academicYear).order('period_number'),
    supabase.from('school_timetable_rooms').select('id,room_code,room_name,room_type,capacity,is_active').eq('school_id',schoolId).order('room_name'),
-   supabase.from('school_academic_subjects').select('id,standard_name,subject_name,subject_type').eq('school_id',schoolId).eq('academic_year',academicYear).eq('is_active',true).order('standard_name').order('subject_name'),
+   supabase.from('school_academic_subjects').select('id,standard_name,subject_name,subject_type,group_name').eq('school_id',schoolId).eq('academic_year',academicYear).eq('is_active',true).order('standard_name').order('subject_name'),
    supabase.from('school_subject_period_requirements').select('id,standard_name,section_name,subject_id,weekly_periods,double_periods,room_type,cognitive_load,combined_group_key').eq('school_id',schoolId).eq('academic_year',academicYear).eq('is_active',true),
    supabase.from('school_teacher_class_assignments').select('teacher_person_id,standard_name,section_name,subject_name,is_active').eq('school_id',schoolId).eq('is_active',true),
    supabase.from('school_teacher_workload_limits').select('teacher_person_id,max_daily_periods,max_weekly_periods').eq('school_id',schoolId),
@@ -98,6 +102,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
   setLoading(false)
  },[schoolId,academicYear,canManage])
  useEffect(()=>{void load()},[load])
+ useEffect(()=>{if(isHigher&&!selectedGroups.includes(selectedGroup))setSelectedGroup(selectedGroups[0]||'');if(!isHigher&&selectedGroup)setSelectedGroup('')},[selectedStandard,selectedGroups.join('|')])
  useEffect(()=>{if(!sections.includes(selectedSection))setSelectedSection(sections[0]||'')},[sections,selectedSection])
  const savePeriod=async(e:FormEvent)=>{e.preventDefault();if(periodForm.end_time<=periodForm.start_time){notify('Period end time must be after start time.');return}if(activePeriods.some(p=>p.period_number!==Number(periodForm.period_number)&&periodForm.start_time<p.end_time.slice(0,5)&&periodForm.end_time>p.start_time.slice(0,5))){notify('Time-grid periods cannot overlap.');return}const payload={school_id:schoolId,academic_year:academicYear,period_number:Number(periodForm.period_number),period_label:periodForm.period_label.trim(),start_time:periodForm.start_time,end_time:periodForm.end_time,is_break:periodForm.is_break};const {error}=await supabase.from('school_timetable_periods').upsert(payload,{onConflict:'school_id,academic_year,period_number'});if(error){notify('Could not save period: '+error.message);return}notify('Time-grid period saved.');await load()}
  const saveRoom=async(e:FormEvent)=>{e.preventDefault();const {error}=await supabase.from('school_timetable_rooms').insert({school_id:schoolId,...roomForm,capacity:Number(roomForm.capacity)});if(error){notify('Could not save room: '+error.message);return}setRoomForm({room_code:'',room_name:'',room_type:'classroom',capacity:'40'});notify('Room added.');await load()}
@@ -228,7 +233,7 @@ export default function AITimetableScheduler({schoolId,academicYear,standards,te
    <article className="ai-weekly-card"><h3><ShieldCheck size={17}/> Rooms & labs</h3><p>Room type and capacity are hard constraints during timetable generation.</p><div className="ai-weekly-list">{rooms.map(r=><div key={r.id}><span>{r.room_name} <small>({r.room_code})</small></span><b>{roomLabel(r.room_type)} · {r.capacity} seats</b><em>{r.is_active?'Active':'Inactive'}</em><button className="ai-inline-action" onClick={()=>void toggleRoom(r)}>{r.is_active?'Deactivate':'Activate'}</button></div>)}</div>
     {canManage&&<form onSubmit={saveRoom} className="ai-weekly-form"><label>Room code<input value={roomForm.room_code} onChange={e=>setRoomForm(v=>({...v,room_code:e.target.value.toUpperCase()}))} required/></label><label>Room name<input value={roomForm.room_name} onChange={e=>setRoomForm(v=>({...v,room_name:e.target.value}))} required/></label><label>Room type<select value={roomForm.room_type} onChange={e=>setRoomForm(v=>({...v,room_type:e.target.value}))}>{ROOM_TYPES.map(x=><option key={x} value={x}>{roomLabel(x)}</option>)}</select></label><label>Capacity<input type="number" min="1" value={roomForm.capacity} onChange={e=>setRoomForm(v=>({...v,capacity:e.target.value}))}/></label><button className="primary-action"><Plus size={14}/> Add room</button></form>}
    </article>
-   <article className="ai-weekly-card ai-weekly-wide"><h3><CalendarDays size={17}/> Subject period quotas</h3><p>Set the exact weekly periods for each section. A double session consumes two adjacent periods.</p><div className="ai-weekly-filters"><label>Standard<select value={selectedStandard} onChange={e=>setSelectedStandard(e.target.value)}>{standards.map(s=><option key={s.name}>{s.name}</option>)}</select></label><label>Section<select value={selectedSection} onChange={e=>setSelectedSection(e.target.value)}>{sections.map(s=><option key={s}>{s}</option>)}</select></label></div>
+   <article className="ai-weekly-card ai-weekly-wide"><h3><CalendarDays size={17}/> Subject period quotas</h3><p>Set the exact weekly periods for each section. A double session consumes two adjacent periods.</p><div className="ai-weekly-filters"><label>Standard<select value={selectedStandard} onChange={e=>{setSelectedStandard(e.target.value);setSelectedSection("");setSelectedGroup("")}}>{standards.map(s=><option key={s.name}>{s.name}</option>)}</select></label>{isHigher&&<label>Academic group<select value={selectedGroup} onChange={e=>{setSelectedGroup(e.target.value);setSelectedSection("")}}>{selectedGroups.map(group=><option key={group}>{group}</option>)}</select></label>}<label>Section<select value={selectedSection} onChange={e=>setSelectedSection(e.target.value)}>{sections.map(s=><option key={s}>{s}</option>)}</select></label></div>
     <div className="ai-weekly-quotas">{activeSubjects.map(subject=>{const req=requirementsForSection.find(r=>r.subject_id===subject.id);return <QuotaRow key={subject.id} subject={subject} requirement={req} onSave={form=>void saveRequirement(subject,form)}/>})}{!activeSubjects.length&&<p className="ai-weekly-empty">Add subjects under Academic → Subjects first.</p>}</div>
    </article>
    <article className="ai-weekly-card"><h3><Users size={17}/> Teacher workload limits</h3><p>Qualified teachers are read from Standard → Teacher class allotment.</p>{teachers.map(t=>{const limit=workloads.find(w=>w.teacher_person_id===t.id);return <WorkloadRow key={t.id} teacher={t} initialDaily={limit?.max_daily_periods||6} initialWeekly={limit?.max_weekly_periods||30} onSave={(d,w)=>void saveWorkload(t,d,w)}/>})}</article>
