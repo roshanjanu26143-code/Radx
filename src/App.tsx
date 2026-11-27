@@ -294,7 +294,7 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
     })
   }
   if(!section){
-    const details={...person.details,section:''}
+    const details:Record<string,string>={...person.details,section:''}
     delete details.roll_number
     delete details.academic_group
     updates.set(id,details)
