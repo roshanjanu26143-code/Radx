@@ -266,41 +266,45 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
   const standardNumber=standard.match(/\d+/)?.[0]
   const yearPrefix=String(year).match(/\d{4}/)?.[0]?.slice(-2)||String(new Date().getFullYear()).slice(-2)
   const rollPrefix=standardNumber?yearPrefix+String(Number(standardNumber)).padStart(2,'0'):''
-  const nextRecords=peopleRecords.map(item=>item.id===id?{...item,details:{...item.details,section,...(academicGroup?{academic_group:academicGroup}:{})}}:item)
   const oldSection=person.details.section||''
-  const cohorts=new Map<string,PeopleRecord[]>()
+  const nextRecords=peopleRecords.map(item=>{
+    if(item.id!==id)return item
+    const details={...item.details,section}
+    if(academicGroup)details.academic_group=academicGroup
+    else if(!section)delete details.academic_group
+    return {...item,details}
+  })
+  const affectedSections=new Set([oldSection,section].filter(Boolean))
+  const updates=new Map<string,Record<string,string>>()
   for(const record of nextRecords){
     if(record.type!=='Student'||record.details.joining_standard!==standard||(record.details.academic_year||academicYear)!==year)continue
     const recordSection=record.details.section||''
-    if(recordSection&&(recordSection===section||recordSection===oldSection)){
-      cohorts.set(recordSection,[...(cohorts.get(recordSection)||[]),record])
-    }
+    if(!affectedSections.has(recordSection))continue
+    const details={...record.details}
+    updates.set(record.id,details)
   }
-  const updates:{id:string;details:Record<string,string>}[]=[]
-  for(const [,cohort] of cohorts){
-    const ordered=[...cohort].sort((a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base',numeric:true})||a.id.localeCompare(b.id))
-    ordered.forEach((record,index)=>{
-      const details={...record.details}
+  for(const affectedSection of affectedSections){
+    const cohort=nextRecords.filter(record=>record.type==='Student'&&record.details.joining_standard===standard&&(record.details.academic_year||academicYear)===year&&record.details.section===affectedSection)
+      .sort((a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base',numeric:true})||a.id.localeCompare(b.id))
+    cohort.forEach((record,index)=>{
+      const details={...(updates.get(record.id)||record.details)}
       if(rollPrefix)details.roll_number=rollPrefix+String(index+1).padStart(2,'0')
       else delete details.roll_number
-      updates.push({id:record.id,details})
+      updates.set(record.id,details)
     })
   }
   if(!section){
-    const details:Record<string,string>={...person.details,section}
+    const details={...person.details,section:''}
     delete details.roll_number
-    updates.push({id,details})
-  }else if(!updates.some(item=>item.id===id)){
-    const details:Record<string,string>={...person.details,section}
-    if(rollPrefix)details.roll_number=rollPrefix+'01'
-    updates.push({id,details})
+    delete details.academic_group
+    updates.set(id,details)
   }
-  for(const update of updates){
-    const {error}=await supabase.from('school_people').update({details:update.details,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('person_id',update.id)
-    if(error){throw new Error('Section / roll number update stopped at '+update.id+': '+error.message+' Please retry the section assignment.')}
+  for(const [personId,details] of updates){
+    const {error}=await supabase.from('school_people').update({details,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('person_id',personId)
+    if(error)throw new Error('Section / roll number update stopped at '+personId+': '+error.message+' Please retry the section assignment.')
   }
-  setPeopleRecords(items=>items.map(item=>{const saved=updates.find(update=>update.id===item.id);return saved?{...item,details:saved.details}:item}))
-  notify(rollPrefix&&section?'Section assigned. Roll numbers regenerated in A–Z order.':'Section assignment saved.')
+  setPeopleRecords(items=>items.map(item=>{const details=updates.get(item.id);return details?{...item,details}:item}))
+  notify(rollPrefix&&section?'Section and group saved. Roll numbers regenerated in A–Z order.':'Section assignment saved.')
 }
  const addSection=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}const row=standards.find(item=>item.name===selectedStandard);if(!row)return;const isHigher=selectedStandard==='Standard 11'||selectedStandard==='Standard 12';if(isHigher){const group=sectionGroupSelection;if(!group){notify('Select an academic group first.');return}const suffix=newGroupSection.trim().toUpperCase().replace(/\s+/g,'-');if(!suffix)return;const clean=suffix.startsWith(group.toUpperCase()+'-')?suffix:group.toUpperCase()+'-'+suffix;const existing=row.groupSections?.[group]||[];if(existing.includes(clean)){notify('This section already exists in '+group+'.');return}if(existing.length>=10){notify('A group can have a maximum of 10 sections.');return}setStandards(items=>items.map(item=>item.name===selectedStandard?{...item,groupSections:{...(item.groupSections||{}),[group]:[...(item.groupSections?.[group]||[]),clean]},sections:Array.from(new Set([...Object.values({...item.groupSections,[group]:[...(item.groupSections?.[group]||[]),clean]}).flat()]))}:item));setNewGroupSection('');notify(clean+' added under '+group+'.');return}const clean=newSection.trim().toUpperCase();if(!clean)return;if(row.sections.includes(clean)){notify('This section already exists.');return}if(row.sections.length>=10){notify('A standard can have a maximum of 10 sections.');return}setStandards(items=>items.map(item=>item.name===selectedStandard?{...item,sections:[...item.sections,clean]}:item));setNewSection('');notify('Section '+clean+' added.')}
  const addAcademicGroup=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();const clean=newGroup.trim().toUpperCase();if(!clean)return;if((standards.find(item=>item.name==='Standard 11')?.groups||[]).some(group=>group.toLowerCase()===clean.toLowerCase())){notify('This academic group already exists.');return}setStandards(items=>items.map(item=>item.name==='Standard 11'||item.name==='Standard 12'?{...item,groups:[...(item.groups||[]),clean],groupSections:{...(item.groupSections||{}),[clean]:item.groupSections?.[clean]||[]},sections:Array.from(new Set(Object.values({...item.groupSections,[clean]:item.groupSections?.[clean]||[]}).flat()))}:item));setSectionGroupSelection(clean);setNewGroup('');notify(clean+' group added for Standards 11 and 12. Create its sections separately in each standard.')}
