@@ -256,7 +256,7 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
  const selectParent=(item:NavItem)=>navigateTo(item.label,item.children[0])
  const selectChild=(item:NavItem,child:string)=>navigateTo(item.label,child)
  useEffect(()=>{const handleTransportNavigate=(event:Event)=>{const page=(event as CustomEvent<string>).detail;if(['Live tracking','Routes','Students','Buses'].includes(page))navigateTo('Transport',page)};window.addEventListener('radx-transport-navigate',handleTransportNavigate);return()=>window.removeEventListener('radx-transport-navigate',handleTransportNavigate)},[])
- const assignStudentSection=async(id:string,section:string)=>{
+ const assignStudentSection=async(id:string,section:string,academicGroup?:string)=>{
   if(!workspaceLoaded){notify('School data is still loading. Please wait and retry.');return}
   const person=peopleRecords.find(item=>item.id===id)
   if(!person)return
@@ -265,7 +265,7 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
   const standardNumber=standard.match(/\d+/)?.[0]
   const yearPrefix=String(year).match(/\d{4}/)?.[0]?.slice(-2)||String(new Date().getFullYear()).slice(-2)
   const rollPrefix=standardNumber?yearPrefix+String(Number(standardNumber)).padStart(2,'0'):''
-  const nextRecords=peopleRecords.map(item=>item.id===id?{...item,details:{...item.details,section}}:item)
+  const nextRecords=peopleRecords.map(item=>item.id===id?{...item,details:{...item.details,section,...(academicGroup?{academic_group:academicGroup}:{})}}:item)
   const oldSection=person.details.section||''
   const cohorts=new Map<string,PeopleRecord[]>()
   for(const record of nextRecords){
@@ -296,7 +296,7 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
   }
   for(const update of updates){
     const {error}=await supabase.from('school_people').update({details:update.details,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('person_id',update.id)
-    if(error){notify('Section / roll number update stopped at '+update.id+': '+error.message+' Please retry the section assignment.');return}
+    if(error){throw new Error('Section / roll number update stopped at '+update.id+': '+error.message+' Please retry the section assignment.')}
   }
   setPeopleRecords(items=>items.map(item=>{const saved=updates.find(update=>update.id===item.id);return saved?{...item,details:saved.details}:item}))
   notify(rollPrefix&&section?'Section assigned. Roll numbers regenerated in A–Z order.':'Section assignment saved.')
