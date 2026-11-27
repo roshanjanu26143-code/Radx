@@ -35,7 +35,7 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
  const [message,setMessage]=useState('')
  const [capacityDraft,setCapacityDraft]=useState('')
  const standardRow=standards.find(s=>s.name===standard)
- const groups=standard==='Standard 11'||standard==='Standard 12'?(standardRow?.groups||standards.find(s=>s.name==='Standard 11')?.groups||[]):[]
+ const groups=standard==='Standard 11'||standard==='Standard 12'?(standardRow?.groups?.length?standardRow.groups:standards.find(s=>s.name==='Standard 11')?.groups||[]):[]
  const sections=groups.length?(standardRow?.groupSections?.[selectedGroup]||[]):(standardRow?.sections||[])
  const students=useMemo(()=>records.filter(p=>p.type==='Student'&&p.details.joining_standard===standard),[records,standard])
  const pool=useMemo(()=>students.filter(p=>!groups.length||p.details.academic_group===selectedGroup||!p.details.academic_group),[students,selectedGroup,groups.join('|')])
