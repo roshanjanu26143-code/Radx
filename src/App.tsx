@@ -80,6 +80,7 @@ const schoolNavigation: NavItem[] = [
  {label:'Connectors',icon:Activity,children:['WhatsApp','SMS','OpenCV','GPS - Bus']},
  {label:'Settings',icon:Settings,children:['Common Settings','Notifications','QR Attendance Passwords','Role Users','Audit Log']},
 ]
+const DEFAULT_HIGHER_SECONDARY_GROUPS=['BIO-MAT','COMPUTER SCIENCE','COMMERCE','PURE SCIENCE','BUSINESS MATHS']
 type StandardRow={name:string;sections:string[];groups?:string[];groupSections?:Record<string,string[]>;sectionRooms?:Record<string,string>}
 type RouteRow={name:string;start:string;stops:string[];end:string}
 type RoleUserRow={id:string;role:string;email:string;pages:string[];status:string;personId:string|null}
@@ -100,7 +101,7 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages,t
  const [dashboardView,setDashboardView]=useState(()=>readNavigationFromUrl().view),[mobileOpen,setMobileOpen]=useState(false)
  const { notify: showToast } = useAppToast()
  const [pendingRoleRemoval,setPendingRoleRemoval]=useState<RoleUserRow|null>(null)
- const [standards,setStandards]=useState<StandardRow[]>([{name:'LKG',sections:[]},{name:'UKG',sections:[]},...Array.from({length:12},(_,i)=>({name:'Standard '+(i+1),sections:[]}))])
+ const [standards,setStandards]=useState<StandardRow[]>([{name:'LKG',sections:[]},{name:'UKG',sections:[]},...Array.from({length:12},(_,i)=>{const higher=i===10||i===11;return {name:'Standard '+(i+1),sections:[],...(higher?{groups:[...DEFAULT_HIGHER_SECONDARY_GROUPS],groupSections:Object.fromEntries(DEFAULT_HIGHER_SECONDARY_GROUPS.map(group=>[group,[]]))}:{})}})])
  const [selectedStandard,setSelectedStandard]=useState('Standard 1'),[newSection,setNewSection]=useState('')
  const [newGroup,setNewGroup]=useState(''),[newGroupSection,setNewGroupSection]=useState(''),[sectionGroupSelection,setSectionGroupSelection]=useState(''),[studentStandardSelection,setStudentStandardSelection]=useState(''),[studentGroupSelection,setStudentGroupSelection]=useState('')
  const [routes,setRoutes]=useState<RouteRow[]>([]),[routeName,setRouteName]=useState(''),[routeStart,setRouteStart]=useState(''),[routeEnd,setRouteEnd]=useState(''),[routeStops,setRouteStops]=useState('')
@@ -136,7 +137,7 @@ export function Dashboard({onSignOut,schoolName,schoolId,userRole,allowedPages,t
    setPeopleRecords((peopleResult.data||[]).map(row=>({id:row.person_id,type:row.record_type,name:row.full_name,details:(row.details||{}) as Record<string,string>})))
    if(workspaceResult.data){
     const saved=workspaceResult.data
-    if(Array.isArray(saved.standards)&&saved.standards.length){const savedStandards=(saved.standards as StandardRow[]).map(row=>({...row,sections:row.groups?.length?Array.from(new Set(Object.values(row.groupSections||{}).flat())):(row.sections||[])}));const early=[{name:'LKG',sections:[]},{name:'UKG',sections:[]}].filter(row=>!savedStandards.some(item=>item.name===row.name));setStandards([...early,...savedStandards])}
+    if(Array.isArray(saved.standards)&&saved.standards.length){const savedStandards=(saved.standards as StandardRow[]).map(row=>{const higher=row.name==='Standard 11'||row.name==='Standard 12';const groups=higher&&!(row.groups||[]).length?[...DEFAULT_HIGHER_SECONDARY_GROUPS]:(row.groups||[]);const groupSections=higher?Object.fromEntries(groups.map(group=>[group,row.groupSections?.[group]||[]])):row.groupSections||{};return {...row,...(higher?{groups,groupSections}:{}),sections:higher?Array.from(new Set(Object.values(groupSections).flat())):(row.sections||[])}});const early=[{name:'LKG',sections:[]},{name:'UKG',sections:[]}].filter(row=>!savedStandards.some(item=>item.name===row.name));setStandards([...early,...savedStandards])}
     if(Array.isArray(saved.routes))setRoutes(saved.routes as RouteRow[])
     if(Array.isArray(saved.buses))setBuses(saved.buses as {number:string;driver:string;cleaner:string;route:string}[])
     if(saved.people_id_settings&&typeof saved.people_id_settings==='object')setPeopleIdSettings(current=>({...current,...saved.people_id_settings}));if(saved.session_settings&&typeof saved.session_settings==='object'){if(typeof saved.session_settings.adminAutoLogout==='string')setAdminAutoLogout(saved.session_settings.adminAutoLogout);if(typeof saved.session_settings.roleAutoLogout==='string')setRoleAutoLogout(saved.session_settings.roleAutoLogout);if(typeof saved.session_settings.adminKeepSignedIn==='boolean')setAdminKeepSignedIn(saved.session_settings.adminKeepSignedIn)}
