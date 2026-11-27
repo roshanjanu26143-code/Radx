@@ -15,7 +15,7 @@ const eligible=(range:string,standard:string)=>{
  const n=numberOf(standard)
  return n>=min&&n<=max
 }
-export default function StandardStudentAllocation({schoolId,standard,standards,records,onAssign,onSectionRoomChange}:{schoolId:string;standard:string;standards:Standard[];records:Person[];onAssign:(id:string,section:string)=>Promise<void>;onSectionRoomChange:(section:string,roomId:string)=>void}){
+export default function StandardStudentAllocation({schoolId,standard,standards,records,onAssign,onSectionRoomChange}:{schoolId:string;standard:string;standards:Standard[];records:Person[];onAssign:(id:string,section:string,group?:string)=>Promise<void>;onSectionRoomChange:(section:string,roomId:string)=>void}){
  const [rooms,setRooms]=useState<Room[]>([])
  const [teachers,setTeachers]=useState<Teacher[]>([])
  const [assignments,setAssignments]=useState<TeacherAssignment[]>([])
@@ -30,21 +30,24 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
  const [loading,setLoading]=useState(true)
  const [saving,setSaving]=useState(false)
  const [message,setMessage]=useState('')
+ const [capacityDraft,setCapacityDraft]=useState('')
  const standardRow=standards.find(s=>s.name===standard)
  const sections=standardRow?.sections||[]
  const groups=standard==='Standard 11'||standard==='Standard 12'?(standards.find(s=>s.name==='Standard 11')?.groups||[]):[]
  const students=useMemo(()=>records.filter(p=>p.type==='Student'&&p.details.joining_standard===standard),[records,standard])
- const pool=useMemo(()=>students.filter(p=>!selectedGroup||p.details.academic_group===selectedGroup),[students,selectedGroup])
- const sectionStudents=students.filter(p=>p.details.section===selectedSection&&(!selectedGroup||p.details.academic_group===selectedGroup))
+ const pool=useMemo(()=>students.filter(p=>!selectedGroup||p.details.academic_group===selectedGroup||!p.details.academic_group),[students,selectedGroup])
+ const sectionStudents=students.filter(p=>p.details.section===selectedSection)
  const room=rooms.find(r=>r.id===selectedRoom)
  const roomCapacity=room?.capacity||0
  const available=pool.filter(p=>!p.details.section||p.details.section===selectedSection)
- const filtered=available.filter(p=>genderMode==='boys'?p.details.gender==='Male':genderMode==='girls'?p.details.gender==='Female':true)
+ const genderMatches=(p:Person)=>genderMode==='boys'?p.details.gender==='Male':genderMode==='girls'?p.details.gender==='Female':true
+ const filtered=available.filter(genderMatches)
+ const visibleStudents=pool
  const selected=filtered.filter(p=>selectedIds.includes(p.id))
  const totalAfter=sectionStudents.length+selected.filter(p=>p.details.section!==selectedSection).length
  const activeTeachers=assignments.filter(a=>a.is_active&&a.standard_name===standard&&a.section_name===selectedSection)
  useEffect(()=>{setSelectedSection(sections[0]||'');setSelectedIds([])},[standard,sections.join('|')])
- useEffect(()=>{setSelectedRoom(standardRow?.sectionRooms?.[selectedSection]||'');setSelectedIds([])},[selectedSection,standardRow?.sectionRooms])
+ useEffect(()=>{setSelectedRoom(standardRow?.sectionRooms?.[selectedSection]||'');setCapacityDraft('');setSelectedIds([])},[selectedSection,standardRow?.sectionRooms])
  useEffect(()=>{
   let live=true
   const load=async()=>{
@@ -83,8 +86,10 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
   if(totalAfter>roomCapacity){setMessage('Capacity exceeded. Increase the classroom capacity or create another section and assign another room.');return}
   if(!selected.length){setMessage('Select at least one student.');return}
   setSaving(true);setMessage('')
-  for(const p of selected){await onAssign(p.id,selectedSection)}
-  setSaving(false);setSelectedIds([]);setMessage(selected.length+' student(s) allotted to '+standard+' · '+selectedSection+'.')
+  try{for(const p of selected){await onAssign(p.id,selectedSection,selectedGroup||undefined)}
+   setSelectedIds([]);setMessage(selected.length+' student(s) allotted to '+standard+' · '+(selectedGroup?selectedGroup+' · ':'')+selectedSection+'.')
+  }catch(error){setMessage(error instanceof Error?error.message:'Student allotment failed. Please retry.')}
+  finally{setSaving(false)}
  }
  const saveTeachers=async()=>{
   if(!selectedSection||!teacherIds.length){setMessage('Choose a section and at least one eligible teacher.');return}
@@ -112,14 +117,15 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
   </div>
   {room&&<div className="settings-info-grid"><div><span>Classroom capacity</span><b>{room.capacity}</b></div><div><span>Already in this section</span><b>{sectionStudents.length}</b></div><div><span>Selected now</span><b>{selected.length}</b></div><div><span>Remaining seats</span><b>{Math.max(0,roomCapacity-sectionStudents.length)}</b></div></div>}
   {room&&totalAfter>roomCapacity&&<div className="status-warning"><AlertTriangle size={15}/> Capacity exceeded. Add another section or increase the room capacity.</div>}
-  <div className="allocation-heading"><div><b>Students of {standard}{selectedGroup?' · '+selectedGroup:''}</b><span>Only students not already assigned elsewhere are available. Existing section students are shown separately.</span></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button type="button" className="secondary-action" onClick={autoSelect} disabled={!room||!filtered.length}>Auto select</button><button type="button" className="secondary-action" onClick={()=>setSelectedIds(filtered.map(p=>p.id))}>Select all</button></div></div>
-  {loading?<div className="empty-table">Loading rooms and teacher assignments…</div>:filtered.length?filtered.map(p=><label key={p.id} className="allocation-student-row" style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={()=>toggleStudent(p.id)}/><div className="people-record-avatar">{p.name.slice(0,1).toUpperCase()}</div><div className="people-record-main"><b>{p.name}</b><span>{p.id} · {p.details.gender||'Gender not set'}{p.details.academic_group?' · '+p.details.academic_group:''}</span><small>{p.details.roll_number?'Roll no: '+p.details.roll_number:'Not allotted'} · Current: {p.details.section||'Unassigned'}</small></div></label>):<div className="empty-table">No unassigned students match this standard, group and gender filter.</div>}
+  <div className="allocation-heading"><div><b>All students of {standard}{selectedGroup?' · '+selectedGroup:''}</b><span>Students in other sections remain visible but cannot be selected here. Students without a group can be assigned to the selected group when allotted.</span></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button type="button" className="secondary-action" onClick={autoSelect} disabled={!room||!filtered.length}>Auto select</button><button type="button" className="secondary-action" onClick={()=>setSelectedIds(filtered.map(p=>p.id))}>Select all</button></div></div>
+  {loading?<div className="empty-table">Loading rooms and teacher assignments…</div>:visibleStudents.length?visibleStudents.map(p=>{const assignedElsewhere=!!p.details.section&&p.details.section!==selectedSection;const selectable=!assignedElsewhere&&genderMatches(p);return <label key={p.id} className="allocation-student-row" style={{display:'flex',alignItems:'center',gap:10,cursor:selectable?'pointer':'not-allowed',opacity:selectable?1:.65}}><input type="checkbox" checked={selectedIds.includes(p.id)} disabled={!selectable} onChange={()=>toggleStudent(p.id)}/><div className="people-record-avatar">{p.name.slice(0,1).toUpperCase()}</div><div className="people-record-main"><b>{p.name}</b><span>{p.id} · {p.details.gender||'Gender not set'} · {p.details.academic_group||'Group not set'}</span><small>{p.details.roll_number?'Roll no: '+p.details.roll_number:'Roll number pending'} · {assignedElsewhere?'Already assigned: '+p.details.section:p.details.section?'Current section: '+p.details.section:'Unassigned'}</small></div></label>}):<div className="empty-table">No students are registered in this standard yet.</div>}
   <button className="primary-action" type="button" onClick={()=>void saveStudents()} disabled={saving||!selected.length}>{saving?'Saving student allotment…':'Allot selected students'}</button>
   <div className="allocation-heading"><div><b>Teacher assignment · {selectedSection||'Select section'}</b><span>Teachers outside their teaching range are excluded.</span></div><span className="count-pill">{activeTeachers.length} assigned</span></div>
   <div className="people-form-grid"><label>Subject<select value={teacherSubject} onChange={e=>setTeacherSubject(e.target.value)}><option value="">Class teacher / General</option>{subjects.map(s=><option key={s}>{s}</option>)}</select></label><label>Eligible teachers<select multiple value={teacherIds} onChange={e=>setTeacherIds(Array.from(e.target.selectedOptions).map(o=>o.value))} style={{minHeight:92}}>{teachers.filter(t=>eligible(t.range,standard)).map(t=><option key={t.id} value={t.id}>{t.name} · {t.id}</option>)}</select><small>Use Ctrl (Windows) or Command (Mac) to select multiple teachers.</small></label></div>
   <button type="button" className="primary-action" onClick={()=>void saveTeachers()} disabled={saving||!teacherIds.length}>{saving?'Saving teacher assignment…':'Assign selected teachers'}</button>
   {activeTeachers.map(row=><div className="allocation-student-row" key={row.id}><UserCheck size={17}/><div className="people-record-main"><b>{teachers.find(t=>t.id===row.teacher_person_id)?.name||row.teacher_person_id}</b><span>{row.subject_name||'Class teacher'}</span></div><button type="button" className="secondary-action" onClick={()=>void removeTeacher(row)}>Remove</button></div>)}
   {sectionStudents.length>0&&<div><b>Already allotted students ({sectionStudents.length})</b>{sectionStudents.map(p=><div className="allocation-student-row" key={p.id}><div className="people-record-avatar">{p.name.slice(0,1).toUpperCase()}</div><div className="people-record-main"><b>{p.name}</b><span>{p.details.roll_number||'Roll number pending'} · {p.details.gender||'Gender not set'}</span></div></div>)}</div>}
+  {room&&<div className="allocation-capacity-editor"><label>Update physical classroom capacity<input type="number" min={Math.max(1,sectionStudents.length)} value={capacityDraft} onChange={e=>setCapacityDraft(e.target.value)} placeholder={'Current capacity: '+room.capacity}/></label><button type="button" className="secondary-action" disabled={saving||!capacityDraft||Number(capacityDraft)<sectionStudents.length||Number(capacityDraft)===room.capacity} onClick={()=>void (async()=>{const next=Number(capacityDraft);if(!Number.isInteger(next)||next<sectionStudents.length){setMessage('Capacity must be a whole number and cannot be lower than the students already in this section.');return}if(!window.confirm('Confirm classroom capacity change to '+next+' seats? Please ensure the room physically supports this capacity.'))return;setSaving(true);const {error}=await supabase.from('school_timetable_rooms').update({capacity:next,updated_at:new Date().toISOString()}).eq('school_id',schoolId).eq('id',room.id);setSaving(false);if(error){setMessage('Capacity update failed: '+error.message);return}setRooms(items=>items.map(item=>item.id===room.id?{...item,capacity:next}:item));setCapacityDraft('');setMessage('Classroom capacity updated to '+next+'.')})()}>Save capacity</button><small>Only increase this value after confirming the room's safe physical seating capacity.</small></div>}
   {!rooms.length&&!loading&&<div className="status-warning"><DoorOpen size={15}/> No active classrooms configured. Add rooms and capacities in Academic → Timetable before student allotment.</div>}
  </div>
 }
