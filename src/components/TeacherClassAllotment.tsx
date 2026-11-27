@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 type Teacher={id:string;name:string;range?:string}
 type Standard={name:string;sections:string[];groups?:string[];groupSections?:Record<string,string[]>}
 type Assignment={id:string;teacher_person_id:string;standard_name:string;section_name:string;subject_name:string|null;is_active:boolean}
-type SubjectOption={standard_name:string;subject_name:string;is_active:boolean}
+type SubjectOption={standard_name:string;subject_name:string;group_name:string;is_active:boolean}
 const standardNumber=(name:string)=>Number((name.match(/\d+/)||[])[0]||0)
 const standardsForRange=(range:string,standards:Standard[])=>{
  if(!range)return standards
@@ -35,7 +35,7 @@ export default function TeacherClassAllotment({schoolId,teachers,standards}:{sch
   setLoading(true);setError('')
   const [assignmentResult,subjectResult]=await Promise.all([
    supabase.from('school_teacher_class_assignments').select('id,teacher_person_id,standard_name,section_name,subject_name,is_active').eq('school_id',schoolId).order('created_at',{ascending:false}),
-   supabase.from('school_academic_subjects').select('standard_name,subject_name,is_active').eq('school_id',schoolId).eq('is_active',true).order('subject_name')
+   supabase.from('school_academic_subjects').select('standard_name,subject_name,group_name,is_active').eq('school_id',schoolId).eq('is_active',true).order('subject_name')
   ])
   if(assignmentResult.error||subjectResult.error)setError(assignmentResult.error?.message||subjectResult.error?.message||'Could not load assignments.')
   else{setRows((assignmentResult.data||[]) as Assignment[]);setSubjects((subjectResult.data||[]) as SubjectOption[])}
@@ -79,7 +79,7 @@ export default function TeacherClassAllotment({schoolId,teachers,standards}:{sch
     <label>Standard<select value={standardName} onChange={e=>setStandardName(e.target.value)} required disabled={!eligibleStandards.length}><option value="">Select eligible standard</option>{eligibleStandards.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}</select></label>
     {isHigher&&<label>Academic group<select value={groupName} onChange={e=>{setGroupName(e.target.value);setSectionName('')}} required><option value=''>Select group</option>{groups.map(g=><option key={g}>{g}</option>)}</select></label>}
     <label>Section<select value={sectionName} onChange={e=>setSectionName(e.target.value)} required disabled={!sections.length}><option value="">Select section</option>{sections.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
-    <label>Subject (optional)<select value={subjectName} onChange={e=>setSubjectName(e.target.value)}><option value="">All subjects / Class teacher</option>{subjects.filter(s=>s.standard_name===standardName).map(s=><option key={s.standard_name+':'+s.subject_name} value={s.subject_name}>{s.subject_name}</option>)}</select></label>
+    <label>Subject (optional)<select value={subjectName} onChange={e=>setSubjectName(e.target.value)}><option value="">All subjects / Class teacher</option>{subjects.filter(s=>s.standard_name===standardName&&(!s.group_name||s.group_name===groupName)).map(s=><option key={s.standard_name+':'+s.subject_name} value={s.subject_name}>{s.subject_name}</option>)}</select></label>
    </div>
    {!eligibleStandards.length&&selectedTeacher&&<p className="field-hint">No standards match this teacher range yet. Add LKG / UKG standards for KG teachers, or check the selected range.</p>}
    <button className="primary-action" type="submit" disabled={saving||!teachers.length||!eligibleStandards.length}>{saving?'Saving allotment…':'+ Assign teacher'}</button>
