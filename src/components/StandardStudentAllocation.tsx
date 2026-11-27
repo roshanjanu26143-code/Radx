@@ -64,19 +64,19 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
     supabase.from('school_timetable_rooms').select('id,room_code,room_name,capacity,is_active').eq('school_id',schoolId).eq('is_active',true).order('room_name'),
     supabase.from('school_people').select('person_id,full_name,details').eq('school_id',schoolId).eq('record_type','Teacher'),
     supabase.from('school_teacher_class_assignments').select('id,teacher_person_id,standard_name,section_name,subject_name,is_active').eq('school_id',schoolId),
-    supabase.from('school_academic_subjects').select('subject_name').eq('school_id',schoolId).eq('standard_name',standard).eq('is_active',true).order('subject_name')
+    supabase.from('school_academic_subjects').select('subject_name,group_name').eq('school_id',schoolId).eq('standard_name',standard).eq('is_active',true).order('subject_name')
    ])
    if(!live)return
    if(roomResult.error||teacherResult.error||assignmentResult.error||subjectResult.error){setMessage(roomResult.error?.message||teacherResult.error?.message||assignmentResult.error?.message||subjectResult.error?.message||'Could not load allotment data.')}
    setRooms((roomResult.data||[]) as Room[])
    setTeachers((teacherResult.data||[]).map((p:any)=>({id:p.person_id,name:p.full_name,range:String(p.details?.teaching_range||'')})))
    setAssignments((assignmentResult.data||[]) as TeacherAssignment[])
-   setSubjects([...new Set((subjectResult.data||[]).map((s:any)=>s.subject_name as string))])
+   setSubjects([...new Set((subjectResult.data||[]).filter((s:any)=>!s.group_name||s.group_name===selectedGroup).map((s:any)=>s.subject_name as string))])
    setLoading(false)
   }
   void load()
   return()=>{live=false}
- },[schoolId,standard])
+ },[schoolId,standard,selectedGroup])
  const toggleStudent=(id:string)=>setSelectedIds(items=>items.includes(id)?items.filter(x=>x!==id):[...items,id])
  const autoSelect=()=>{
   const male=filtered.filter(p=>p.details.gender==='Male'),female=filtered.filter(p=>p.details.gender==='Female'),other=filtered.filter(p=>!['Male','Female'].includes(p.details.gender||''))
