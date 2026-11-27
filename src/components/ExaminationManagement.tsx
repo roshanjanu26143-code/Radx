@@ -19,7 +19,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
  const [exams,setExams]=useState<Exam[]>([])
  const [students,setStudents]=useState<Student[]>([])
  const [marks,setMarks]=useState<Mark[]>([])
- const [subjectCatalog,setSubjectCatalog]=useState<{id:string;academic_year:string;standard_name:string;subject_name:string;is_active:boolean}[]>([])
+ const [subjectCatalog,setSubjectCatalog]=useState<{id:string;academic_year:string;standard_name:string;subject_name:string;group_name:string;is_active:boolean}[]>([])
  const [loading,setLoading]=useState(true)
  const [saving,setSaving]=useState(false)
  const [error,setError]=useState('')
@@ -55,12 +55,12 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    supabase.from('school_exam_schedules').select('id,academic_year,exam_name,standard_name,section_name,subject_name,exam_date,start_time,end_time,duration_minutes,max_marks,pass_marks,instructions,is_published,is_ai_locked').eq('school_id',schoolId).order('exam_date',{ascending:false}),
    supabase.from('school_people').select('person_id,full_name,details').eq('school_id',schoolId).eq('record_type','Student').order('full_name'),
    supabase.from('school_exam_marks').select('id,exam_schedule_id,student_person_id,marks_obtained,remarks').eq('school_id',schoolId),
-   supabase.from('school_academic_subjects').select('id,academic_year,standard_name,subject_name,is_active').eq('school_id',schoolId).eq('is_active',true).order('subject_name'),
+   supabase.from('school_academic_subjects').select('id,academic_year,standard_name,subject_name,group_name,is_active').eq('school_id',schoolId).eq('is_active',true).order('subject_name'),
    supabase.from('school_academic_submissions').select('id,academic_year,exam_name,standard_name,section_name,status,submitted_at,record_count,file_name,review_note').eq('school_id',schoolId).eq('submission_type','student_performance').order('submitted_at',{ascending:false})
   ])
   if(examResult.error||studentResult.error||markResult.error||subjectResult.error||submissionResult.error){setError(examResult.error?.message||studentResult.error?.message||markResult.error?.message||subjectResult.error?.message||submissionResult.error?.message||'Could not load examination records.');setLoading(false);return}
   const e=(examResult.data||[]) as Exam[],m=(markResult.data||[]) as Mark[]
-  setExams(e);setStudents((studentResult.data||[]) as Student[]);setMarks(m);setSubjectCatalog((subjectResult.data||[]) as {id:string;academic_year:string;standard_name:string;subject_name:string;is_active:boolean}[]);setPerformanceSubmissions((submissionResult.data||[]) as AcademicSubmission[])
+  setExams(e);setStudents((studentResult.data||[]) as Student[]);setMarks(m);setSubjectCatalog((subjectResult.data||[]) as {id:string;academic_year:string;standard_name:string;subject_name:string;group_name:string;is_active:boolean}[]);setPerformanceSubmissions((submissionResult.data||[]) as AcademicSubmission[])
   if(!selectedExam&&e.length)setSelectedExam(e[0].id)
   if(!resultExam&&e.length)setResultExam(e[0].id)
   setLoading(false)
@@ -94,7 +94,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
   if(!form.standard_name||(formIsHigher&&!form.group_name)||!selectedSections.length||!form.subject_name.trim()){notify('Choose a standard, at least one section, and a subject.');return}
   const max=Number(form.max_marks),pass=Number(form.pass_marks)
   if(max<=0||pass<0||pass>max){notify('Check maximum and passing marks.');return}
-  const matchingSubject=subjectCatalog.some(s=>s.academic_year===form.academic_year&&s.standard_name===form.standard_name&&s.subject_name===form.subject_name&&s.is_active)
+  const matchingSubject=subjectCatalog.some(s=>s.academic_year===form.academic_year&&s.standard_name===form.standard_name&&s.subject_name===form.subject_name&&s.is_active&&(!s.group_name||s.group_name===form.group_name))
   if(!matchingSubject){notify('This subject is not assigned to the selected standard for this academic year.');return}
   setSaving(true)
   const user=await supabase.auth.getUser()
@@ -264,7 +264,7 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
    <label>Exam date<input type="date" value={form.exam_date} onChange={e=>setForm({...form,exam_date:e.target.value})} required/></label>
    <label>Standard<select value={form.standard_name} onChange={e=>{setForm({...form,standard_name:e.target.value,group_name:'',section_name:'',subject_name:''});setSelectedSections([])}} required><option value="">Select standard</option>{standards.map(s=><option key={s.name}>{s.name}</option>)}</select></label>
    {formIsHigher&&<label>Academic group<select value={form.group_name} onChange={e=>{setForm({...form,group_name:e.target.value,section_name:''});setSelectedSections([])}} required><option value="">Select group</option>{formGroups.map(group=><option key={group}>{group}</option>)}</select></label>}<div className="ex-section-picker"><div className="ex-section-picker-head"><b>Sections / groups</b><div className="ex-actions"><button type="button" className="ex-btn secondary" disabled={!formSectionOptions.length} onClick={()=>setSelectedSections([...formSectionOptions])}>Select all</button><button type="button" className="ex-btn secondary" disabled={!selectedSections.length} onClick={()=>setSelectedSections([])}>Clear</button></div></div><div className="ex-section-options">{formSectionOptions.map(section=><label key={section} className="ex-section-option"><input type="checkbox" checked={selectedSections.includes(section)} onChange={e=>setSelectedSections(current=>e.target.checked?[...current,section]:current.filter(x=>x!==section))}/>{section}</label>)}</div><small className="muted">{selectedSections.length} of {formSectionOptions.length} sections selected. One save creates the same subject schedule for every selected section.</small></div>
-   <label>Subject<select value={form.subject_name} onChange={e=>setForm({...form,subject_name:e.target.value})} required disabled={!form.standard_name}><option value="">Choose subject</option>{subjectCatalog.filter(s=>s.academic_year===form.academic_year&&s.standard_name===form.standard_name).map(s=><option key={s.id} value={s.subject_name}>{s.subject_name}</option>)}</select></label>
+   <label>Subject<select value={form.subject_name} onChange={e=>setForm({...form,subject_name:e.target.value})} required disabled={!form.standard_name}><option value="">Choose subject</option>{subjectCatalog.filter(s=>s.academic_year===form.academic_year&&s.standard_name===form.standard_name&&(!s.group_name||s.group_name===form.group_name)).map(s=><option key={s.id} value={s.subject_name}>{s.subject_name}</option>)}</select></label>
    <label>Duration (minutes)<input type="number" min="15" max="600" step="15" value={form.duration_minutes} onChange={e=>setForm({...form,duration_minutes:e.target.value})} required/></label>
    <label>Maximum marks<input type="number" min="1" step="0.5" value={form.max_marks} onChange={e=>setForm({...form,max_marks:e.target.value})} required/></label>
    <label>Passing marks<input type="number" min="0" step="0.5" value={form.pass_marks} onChange={e=>setForm({...form,pass_marks:e.target.value})} required/></label>
@@ -282,8 +282,8 @@ export default function ExaminationManagement({schoolId,schoolName,academicYear,
     <div className="marks-template-step"><span>3</span><div><b>Upload & submit</b><small>Review validation</small></div></div>
    </div>
    <div className="marks-template-selectors">
-    <label><span>Examination</span><select value={uploadExamName} onChange={e=>{setUploadExamName(e.target.value);setUploadStandard('');setUploadGroup('');setUploadGroup('');setUploadSection('');setMarksFile(null)}}><option value="">Select examination</option>{[...new Set(exams.filter(e=>e.academic_year===academicYear).map(e=>e.exam_name))].map(name=><option key={name}>{name}</option>)}</select></label>
-    <label><span>Standard</span><select value={uploadStandard} onChange={e=>{setUploadStandard(e.target.value);setUploadSection('');setMarksFile(null)}} disabled={!uploadExamName}><option value="">Select standard</option>{[...new Set(exams.filter(e=>e.academic_year===academicYear&&e.exam_name===uploadExamName).map(e=>e.standard_name))].map(name=><option key={name}>{name}</option>)}</select></label>
+    <label><span>Examination</span><select value={uploadExamName} onChange={e=>{setUploadExamName(e.target.value);setUploadStandard('');setUploadGroup('');setUploadSection('');setMarksFile(null)}}><option value="">Select examination</option>{[...new Set(exams.filter(e=>e.academic_year===academicYear).map(e=>e.exam_name))].map(name=><option key={name}>{name}</option>)}</select></label>
+    <label><span>Standard</span><select value={uploadStandard} onChange={e=>{setUploadStandard(e.target.value);setUploadGroup('');setUploadSection('');setMarksFile(null)}} disabled={!uploadExamName}><option value="">Select standard</option>{[...new Set(exams.filter(e=>e.academic_year===academicYear&&e.exam_name===uploadExamName).map(e=>e.standard_name))].map(name=><option key={name}>{name}</option>)}</select></label>
     {uploadIsHigher&&<label><span>Academic group</span><select value={uploadGroup} onChange={e=>{setUploadGroup(e.target.value);setUploadSection("");setMarksFile(null)}} disabled={!uploadStandard}><option value="">Select group</option>{uploadGroups.filter(group=>exams.some(e=>e.academic_year===academicYear&&e.exam_name===uploadExamName&&e.standard_name===uploadStandard&&e.section_name.startsWith(group+"-"))).map(group=><option key={group}>{group}</option>)}</select></label>}<label><span>Section</span><select value={uploadSection} onChange={e=>{setUploadSection(e.target.value);setMarksFile(null)}} disabled={!uploadStandard||(uploadIsHigher&&!uploadGroup)}><option value="">Select section</option>{uploadSectionsForGroup.filter(section=>!uploadIsHigher||section.startsWith(uploadGroup+"-")).filter(section=>exams.some(e=>e.academic_year===academicYear&&e.exam_name===uploadExamName&&e.standard_name===uploadStandard&&e.section_name===section)).map(section=><option key={section}>{section}</option>)}</select></label>
    </div>
    <div className="marks-template-summary">
