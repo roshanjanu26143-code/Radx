@@ -126,7 +126,7 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
   if(error){notify(error.code==='23505'?'That period is already occupied for this class and section.':'Could not save timetable: '+error.message);return}
   setEditingSlotId('');notify(editingSlotId?'Timetable period updated.':'Timetable period saved.');await load()
  }
- const editSlot=(row:TimetableRow)=>{setEditingSlotId(row.id);setSlot({standard_name:row.standard_name,section_name:row.section_name,day_of_week:String(row.day_of_week),period_number:String(row.period_number),start_time:row.start_time.slice(0,5),end_time:row.end_time.slice(0,5),subject_id:row.subject_id,teacher_person_id:row.teacher_person_id||'',room_label:row.room_label||'',room_id:row.room_id||'',room_type:row.room_type||'classroom'})}
+ const editSlot=(row:TimetableRow)=>{const rowStandard=standards.find(s=>s.name===row.standard_name);const groupName=(rowStandard?.groups||[]).find(group=>row.section_name.startsWith(group+'-'))||'';setEditingSlotId(row.id);setSlot({standard_name:row.standard_name,section_name:row.section_name,group_name:groupName,day_of_week:String(row.day_of_week),period_number:String(row.period_number),start_time:row.start_time.slice(0,5),end_time:row.end_time.slice(0,5),subject_id:row.subject_id,teacher_person_id:row.teacher_person_id||'',room_label:row.room_label||'',room_id:row.room_id||'',room_type:row.room_type||'classroom'})}
  const removeSlot=async(row:TimetableRow)=>{
   if(!window.confirm('Remove this timetable period?'))return
   const {error}=await supabase.from('school_academic_timetable').delete().eq('school_id',schoolId).eq('id',row.id)
