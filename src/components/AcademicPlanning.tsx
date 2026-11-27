@@ -75,7 +75,7 @@ export default function AcademicPlanning({schoolId,academicYear,standards,teache
   setLoading(false)
  }
  useEffect(()=>{void load()},[schoolId,academicYear,page])
- useEffect(()=>{if(selectedIsHigher&&!selectedGroups.includes(selectedGroup))setSelectedGroup(selectedGroups[0]||'');if(!selectedIsHigher&&selectedGroup)setSelectedGroup('')},[standardName,selectedGroups.join('|')])
+ useEffect(()=>{if(selectedIsHigher&&!selectedGroups.includes(selectedGroup))setSelectedGroup('');if(!selectedIsHigher&&selectedGroup)setSelectedGroup('')},[standardName,selectedGroups.join('|')])
  useEffect(()=>{if(!sections.includes(sectionName))setSectionName(sections[0]||'')},[sections,sectionName])
  useEffect(()=>{const nextGroups=slotIsHigher?slotGroups:[];const group=slotIsHigher?(nextGroups.includes(slot.group_name)?slot.group_name:nextGroups[0]||''):'';const list=slotIsHigher?(slotStandard?.groupSections?.[group]||[]):(slotStandard?.sections||[]);const next=list.includes(slot.section_name)?slot.section_name:list[0]||'';if(group!==slot.group_name||next!==slot.section_name)setSlot(current=>({...current,group_name:group,section_name:next}))},[slot.standard_name,slot.group_name,slot.section_name,standards])
  useEffect(()=>{const next=timetableSubjects[0]?.id||'';if(!timetableSubjects.some(s=>s.id===slot.subject_id)&&slot.subject_id!==next)setSlot(current=>({...current,subject_id:next}))},[timetableSubjects,slot.subject_id])
