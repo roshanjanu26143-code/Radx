@@ -267,9 +267,9 @@ const notify=(message:string)=>showToast(message,/could not|failed|error|invalid
   const yearPrefix=String(year).match(/\d{4}/)?.[0]?.slice(-2)||String(new Date().getFullYear()).slice(-2)
   const rollPrefix=standardNumber?yearPrefix+String(Number(standardNumber)).padStart(2,'0'):''
   const oldSection=person.details.section||''
-  const nextRecords=peopleRecords.map(item=>{
+  const nextRecords:PeopleRecord[]=peopleRecords.map(item=>{
     if(item.id!==id)return item
-    const details={...item.details,section}
+    const details:Record<string,string>={...item.details,section}
     if(academicGroup)details.academic_group=academicGroup
     else if(!section)delete details.academic_group
     return {...item,details}
