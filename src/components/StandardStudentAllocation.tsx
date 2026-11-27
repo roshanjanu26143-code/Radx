@@ -9,11 +9,14 @@ type TeacherAssignment={id:string;teacher_person_id:string;standard_name:string;
 type Teacher={id:string;name:string;range:string}
 const numberOf=(s:string)=>Number((s.match(/\d+/)||[])[0]||0)
 const eligible=(range:string,standard:string)=>{
- if(!range)return true
- if(range==='KG - UKG')return /kg|lkg|ukg/i.test(standard)
- const [min,max]=range.split('-').map(v=>Number(v.trim()))
+ const normalized=range.trim().toUpperCase().replace(/[–—]/g,'-').replace(/\s+/g,' ')
+ if(!normalized)return true
+ if(/^(KG|LKG)\s*-\s*UKG$/.test(normalized)||/^KG\s+TO\s+UKG$/.test(normalized))return /kg|lkg|ukg/i.test(standard)
+ const bounds=normalized.match(/(\d+)\s*-\s*(\d+)/)
  const n=numberOf(standard)
- return n>=min&&n<=max
+ if(bounds)return n>=Number(bounds[1])&&n<=Number(bounds[2])
+ const single=normalized.match(/^\d+$/)
+ return single? n===Number(single[0]):false
 }
 export default function StandardStudentAllocation({schoolId,standard,standards,records,onAssign,onSectionRoomChange}:{schoolId:string;standard:string;standards:Standard[];records:Person[];onAssign:(id:string,section:string,group?:string)=>Promise<void>;onSectionRoomChange:(section:string,roomId:string)=>void}){
  const [rooms,setRooms]=useState<Room[]>([])
