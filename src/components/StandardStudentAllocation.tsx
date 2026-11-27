@@ -46,7 +46,7 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
  if(room&&selectedSection&&!mappedRoomSections.some(x=>x.standardName===standard&&x.sectionName===selectedSection))mappedRoomSections.push({standardName:standard,sectionName:selectedSection})
  const roomStudentIds=new Set(records.filter(p=>p.type==='Student'&&mappedRoomSections.some(x=>p.details.joining_standard===x.standardName&&p.details.section===x.sectionName)).map(p=>p.id))
  const roomOccupancy=roomStudentIds.size
- const available=pool.filter(p=>!p.details.section||p.details.section===selectedSection)
+ const available=pool.filter(p=>!p.details.section||p.details.section===selectedSection||!!groups.length&&!p.details.academic_group)
  const genderMatches=(p:Person)=>genderMode==='boys'?p.details.gender==='Male':genderMode==='girls'?p.details.gender==='Female':true
  const filtered=available.filter(genderMatches)
  const visibleStudents=students
