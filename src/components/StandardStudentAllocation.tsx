@@ -3,7 +3,7 @@ import { Users, UserCheck, DoorOpen, AlertTriangle, CheckCircle2 } from 'lucide-
 import { supabase } from '../lib/supabase'
 
 type Person={id:string;type:string;name:string;details:Record<string,string>}
-type Standard={name:string;sections:string[];groups?:string[];sectionRooms?:Record<string,string>}
+type Standard={name:string;sections:string[];groups?:string[];groupSections?:Record<string,string[]>;sectionRooms?:Record<string,string>}
 type Room={id:string;room_code:string;room_name:string;capacity:number;is_active:boolean}
 type TeacherAssignment={id:string;teacher_person_id:string;standard_name:string;section_name:string;subject_name:string|null;is_active:boolean}
 type Teacher={id:string;name:string;range:string}
@@ -35,11 +35,11 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
  const [message,setMessage]=useState('')
  const [capacityDraft,setCapacityDraft]=useState('')
  const standardRow=standards.find(s=>s.name===standard)
- const sections=standardRow?.sections||[]
- const groups=standard==='Standard 11'||standard==='Standard 12'?(standards.find(s=>s.name==='Standard 11')?.groups||[]):[]
+ const groups=standard==='Standard 11'||standard==='Standard 12'?(standardRow?.groups||standards.find(s=>s.name==='Standard 11')?.groups||[]):[]
+ const sections=groups.length?(standardRow?.groupSections?.[selectedGroup]||[]):(standardRow?.sections||[])
  const students=useMemo(()=>records.filter(p=>p.type==='Student'&&p.details.joining_standard===standard),[records,standard])
- const pool=useMemo(()=>students.filter(p=>!selectedGroup||p.details.academic_group===selectedGroup||!p.details.academic_group),[students,selectedGroup])
- const sectionStudents=students.filter(p=>p.details.section===selectedSection)
+ const pool=useMemo(()=>students.filter(p=>!groups.length||p.details.academic_group===selectedGroup||!p.details.academic_group),[students,selectedGroup,groups.join('|')])
+ const sectionStudents=students.filter(p=>p.details.section===selectedSection&&(!groups.length||p.details.academic_group===selectedGroup))
  const room=rooms.find(r=>r.id===selectedRoom)
  const roomCapacity=room?.capacity||0
  const mappedRoomSections=room?standards.flatMap(row=>Object.entries(row.sectionRooms||{}).filter(([,roomId])=>roomId===room.id).map(([sectionName])=>({standardName:row.name,sectionName}))):[]
@@ -49,11 +49,12 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
  const available=pool.filter(p=>!p.details.section||p.details.section===selectedSection)
  const genderMatches=(p:Person)=>genderMode==='boys'?p.details.gender==='Male':genderMode==='girls'?p.details.gender==='Female':true
  const filtered=available.filter(genderMatches)
- const visibleStudents=pool
+ const visibleStudents=students
  const selected=filtered.filter(p=>selectedIds.includes(p.id))
- const totalAfter=roomOccupancy+selected.filter(p=>p.details.section!==selectedSection).length
+ const totalAfter=roomOccupancy+selected.filter(p=>p.details.section!==selectedSection||p.details.academic_group!==selectedGroup).length
  const activeTeachers=assignments.filter(a=>a.is_active&&a.standard_name===standard&&a.section_name===selectedSection)
- useEffect(()=>{setSelectedSection(sections[0]||'');setSelectedIds([])},[standard,sections.join('|')])
+ useEffect(()=>{const firstGroup=groups[0]||'';setSelectedGroup(firstGroup);setSelectedSection('');setSelectedIds([])},[standard,groups.join('|')])
+ useEffect(()=>{setSelectedSection(sections[0]||'');setSelectedIds([])},[selectedGroup,sections.join('|')])
  useEffect(()=>{setSelectedRoom(standardRow?.sectionRooms?.[selectedSection]||'');setCapacityDraft('');setSelectedIds([])},[selectedSection,standardRow?.sectionRooms])
  useEffect(()=>{
   let live=true
@@ -88,7 +89,8 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
   setSelectedIds(ordered.slice(0,remaining))
  }
  const saveStudents=async()=>{
-  if(!selectedSection){setMessage('Create or select a section first.');return}
+  if(groups.length&&!selectedGroup){setMessage('Select an academic group first.');return}
+  if(!selectedSection){setMessage('Create or select a section in the selected group first.');return}
   if(!selectedRoom||!room){setMessage('Select a classroom with a configured capacity before allotting students.');return}
   if(totalAfter>roomCapacity){setMessage('Classroom capacity exceeded across all sections using this room. Increase its verified physical capacity or assign another room.');return}
   if(!selected.length){setMessage('Select at least one student.');return}
@@ -114,9 +116,9 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
   if(error)setMessage(error.message);else setAssignments(items=>items.map(a=>a.id===row.id?{...a,is_active:false}:a))
  }
  return <div className="standard-student-allocation" style={{marginTop:18,display:'grid',gap:16}}>
-  <div className="allocation-heading"><div><b>{standard} · Student & Teacher Allotment</b><span>Choose the group and section, assign eligible teachers, then allot students within classroom capacity.</span></div><span className="count-pill">{students.length} students</span></div>
+  <div className="allocation-heading"><div><b>{standard} · Student & Teacher Allotment</b><span>{groups.length?'Choose an academic group, then its section.':'Choose a section.'} Assign eligible teachers and allot students within classroom capacity.</span></div><span className="count-pill">{students.length} students</span></div>
   {message&&<div className="qr-error" role="status">{message}</div>}
-  {groups.length>0&&<label>Academic group<select value={selectedGroup} onChange={e=>{setSelectedGroup(e.target.value);setSelectedIds([])}}><option value="">All groups</option>{groups.map(g=><option key={g}>{g}</option>)}</select></label>}
+  {groups.length>0&&<label>Academic group<select value={selectedGroup} onChange={e=>{setSelectedGroup(e.target.value);setSelectedIds([])}} required><option value="">Select group</option>{groups.map(g=><option key={g}>{g}</option>)}</select></label>}
   <div className="people-form-grid">
    <label>Section<select value={selectedSection} onChange={e=>setSelectedSection(e.target.value)}><option value="">Select section</option>{sections.map(s=><option key={s}>{s}</option>)}</select></label>
    <label>Classroom<select value={selectedRoom} onChange={e=>{setSelectedRoom(e.target.value);if(selectedSection)onSectionRoomChange(selectedSection,e.target.value)}}><option value="">Select classroom</option>{rooms.map(r=><option key={r.id} value={r.id}>{r.room_code} · {r.room_name} · Capacity {r.capacity}</option>)}</select></label>
@@ -124,8 +126,8 @@ export default function StandardStudentAllocation({schoolId,standard,standards,r
   </div>
   {room&&<div className="settings-info-grid"><div><span>Classroom capacity</span><b>{room.capacity}</b></div><div><span>Already in this section</span><b>{sectionStudents.length}</b></div><div><span>Room occupancy (all mapped sections)</span><b>{roomOccupancy}</b></div><div><span>Selected now</span><b>{selected.length}</b></div><div><span>Remaining room seats</span><b>{Math.max(0,roomCapacity-roomOccupancy)}</b></div></div>}
   {room&&totalAfter>roomCapacity&&<div className="status-warning"><AlertTriangle size={15}/> Capacity exceeded across sections using this classroom. Assign another room or increase its verified physical capacity.</div>}
-  <div className="allocation-heading"><div><b>All students of {standard}{selectedGroup?' · '+selectedGroup:''}</b><span>Students in other sections remain visible but cannot be selected here. Students without a group can be assigned to the selected group when allotted.</span></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button type="button" className="secondary-action" onClick={autoSelect} disabled={!room||!filtered.length}>Auto select</button><button type="button" className="secondary-action" onClick={()=>setSelectedIds(filtered.map(p=>p.id))}>Select all</button></div></div>
-  {loading?<div className="empty-table">Loading rooms and teacher assignments…</div>:visibleStudents.length?visibleStudents.map(p=>{const assignedElsewhere=!!p.details.section&&p.details.section!==selectedSection;const selectable=!assignedElsewhere&&genderMatches(p);return <label key={p.id} className="allocation-student-row" style={{display:'flex',alignItems:'center',gap:10,cursor:selectable?'pointer':'not-allowed',opacity:selectable?1:.65}}><input type="checkbox" checked={selectedIds.includes(p.id)} disabled={!selectable} onChange={()=>toggleStudent(p.id)}/><div className="people-record-avatar">{p.name.slice(0,1).toUpperCase()}</div><div className="people-record-main"><b>{p.name}</b><span>{p.id} · {p.details.gender||'Gender not set'} · {p.details.academic_group||'Group not set'}</span><small>{p.details.roll_number?'Roll no: '+p.details.roll_number:'Roll number pending'} · {assignedElsewhere?'Already assigned: '+p.details.section:p.details.section?'Current section: '+p.details.section:'Unassigned'}</small></div></label>}):<div className="empty-table">No students are registered in this standard yet.</div>}
+  <div className="allocation-heading"><div><b>All students of {standard}{selectedGroup?' · '+selectedGroup:''}</b><span>Students in other groups or sections remain visible but cannot be selected here. Only students in the selected group, plus unassigned legacy students, are eligible for this section.</span></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button type="button" className="secondary-action" onClick={autoSelect} disabled={!room||!filtered.length}>Auto select</button><button type="button" className="secondary-action" onClick={()=>setSelectedIds(filtered.map(p=>p.id))}>Select all</button></div></div>
+  {loading?<div className="empty-table">Loading rooms and teacher assignments…</div>:visibleStudents.length?visibleStudents.map(p=>{const wrongGroup=!!groups.length&&!!p.details.academic_group&&p.details.academic_group!==selectedGroup;const assignedElsewhere=!!p.details.section&&p.details.section!==selectedSection;const selectable=!wrongGroup&&!assignedElsewhere&&genderMatches(p);return <label key={p.id} className="allocation-student-row" style={{display:'flex',alignItems:'center',gap:10,cursor:selectable?'pointer':'not-allowed',opacity:selectable?1:.65}}><input type="checkbox" checked={selectedIds.includes(p.id)} disabled={!selectable} onChange={()=>toggleStudent(p.id)}/><div className="people-record-avatar">{p.name.slice(0,1).toUpperCase()}</div><div className="people-record-main"><b>{p.name}</b><span>{p.id} · {p.details.gender||'Gender not set'} · {p.details.academic_group||'Group not set'}</span><small>{p.details.roll_number?'Roll no: '+p.details.roll_number:'Roll number pending'} · {assignedElsewhere?'Already assigned: '+p.details.section:p.details.section?'Current section: '+p.details.section:'Unassigned'}</small></div></label>}):<div className="empty-table">No students are registered in this standard yet.</div>}
   <button className="primary-action" type="button" onClick={()=>void saveStudents()} disabled={saving||!selected.length}>{saving?'Saving student allotment…':'Allot selected students'}</button>
   <div className="allocation-heading"><div><b>Teacher assignment · {selectedSection||'Select section'}</b><span>Teachers outside their teaching range are excluded.</span></div><span className="count-pill">{activeTeachers.length} assigned</span></div>
   <div className="people-form-grid"><label>Subject<select value={teacherSubject} onChange={e=>setTeacherSubject(e.target.value)}><option value="">Class teacher / General</option>{subjects.map(s=><option key={s}>{s}</option>)}</select></label><label>Eligible teachers<select multiple value={teacherIds} onChange={e=>setTeacherIds(Array.from(e.target.selectedOptions).map(o=>o.value))} style={{minHeight:92}}>{teachers.filter(t=>eligible(t.range,standard)).map(t=><option key={t.id} value={t.id}>{t.name} · {t.id}</option>)}</select><small>Use Ctrl (Windows) or Command (Mac) to select multiple teachers.</small></label></div>
