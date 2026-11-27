@@ -3,7 +3,7 @@ import { Users, UserCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 type Teacher={id:string;name:string;range?:string}
-type Standard={name:string;sections:string[]}
+type Standard={name:string;sections:string[];groups?:string[];groupSections?:Record<string,string[]>}
 type Assignment={id:string;teacher_person_id:string;standard_name:string;section_name:string;subject_name:string|null;is_active:boolean}
 type SubjectOption={standard_name:string;subject_name:string;is_active:boolean}
 const standardNumber=(name:string)=>Number((name.match(/\d+/)||[])[0]||0)
@@ -20,13 +20,17 @@ export default function TeacherClassAllotment({schoolId,teachers,standards}:{sch
  const [teacherId,setTeacherId]=useState('')
  const [standardName,setStandardName]=useState('')
  const [sectionName,setSectionName]=useState('')
+ const [groupName,setGroupName]=useState('')
  const [subjectName,setSubjectName]=useState('')
  const [loading,setLoading]=useState(true)
  const [saving,setSaving]=useState(false)
  const [error,setError]=useState('')
  const selectedTeacher=teachers.find(t=>t.id===teacherId)
  const eligibleStandards=useMemo(()=>standardsForRange(selectedTeacher?.range||'',standards),[selectedTeacher,standards])
- const sections=useMemo(()=>standards.find(s=>s.name===standardName)?.sections||[],[standards,standardName])
+ const selectedStandard=standards.find(s=>s.name===standardName)
+ const isHigher=standardName==='Standard 11'||standardName==='Standard 12'
+ const groups=isHigher?(selectedStandard?.groups?.length?selectedStandard.groups:standards.find(s=>s.name==='Standard 11')?.groups||[]):[]
+ const sections=useMemo(()=>isHigher?(selectedStandard?.groupSections?.[groupName]||[]):(selectedStandard?.sections||[]),[selectedStandard,isHigher,groupName])
  const load=async()=>{
   setLoading(true);setError('')
   const [assignmentResult,subjectResult]=await Promise.all([
@@ -39,10 +43,11 @@ export default function TeacherClassAllotment({schoolId,teachers,standards}:{sch
  }
  useEffect(()=>{void load()},[schoolId])
  useEffect(()=>{if(!eligibleStandards.some(s=>s.name===standardName))setStandardName(eligibleStandards[0]?.name||'')},[eligibleStandards,standardName])
+ useEffect(()=>{if(isHigher&&!groups.includes(groupName))setGroupName(groups[0]||'');if(!isHigher&&groupName)setGroupName('')},[standardName,groups.join('|')])
  useEffect(()=>{if(!sections.includes(sectionName))setSectionName(sections[0]||'')},[sections,sectionName])
  const save=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault()
-  if(!teacherId||!standardName||!sectionName){setError('Choose a teacher, eligible standard and section.');return}
+  if(!teacherId||!standardName||!sectionName||(isHigher&&!groupName)){setError('Choose a teacher, eligible standard, group and section.');return}
   if(!eligibleStandards.some(s=>s.name===standardName)){setError('This standard is outside the teacher’s assigned teaching range.');return}
   setSaving(true);setError('')
   const existing=rows.find(r=>r.teacher_person_id===teacherId&&r.standard_name===standardName&&r.section_name===sectionName&&(r.subject_name||'')===subjectName.trim())
@@ -67,11 +72,12 @@ export default function TeacherClassAllotment({schoolId,teachers,standards}:{sch
    {!teachers.length&&<tr><td colSpan={5} className="empty">Create teacher profiles first. Set the teaching range in Admission → Create Teacher.</td></tr>}
   </tbody></table></div>
   <form className="people-form" onSubmit={save}>
-   <div className="workspace-heading"><div><span className="section-eyebrow">NEW ALLOTMENT</span><h3>Assign teacher to standard</h3><p>Only standards inside the teacher’s range are available.</p></div></div>
+   <div className="workspace-heading"><div><span className="section-eyebrow">NEW ALLOTMENT</span><h3>Assign teacher to standard</h3><p>For Standards 11–12, select an academic group and its section before assigning teachers.</p></div></div>
    <div className="people-form-grid">
     <label>Teacher<select value={teacherId} onChange={e=>{setTeacherId(e.target.value);setStandardName('');setSectionName('')}} required><option value="">Select teacher</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.name} · {t.id}</option>)}</select></label>
     <label>Teaching range<input value={selectedTeacher?.range||'Not set — legacy teacher (all standards available)'} readOnly/></label>
     <label>Standard<select value={standardName} onChange={e=>setStandardName(e.target.value)} required disabled={!eligibleStandards.length}><option value="">Select eligible standard</option>{eligibleStandards.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}</select></label>
+    {isHigher&&<label>Academic group<select value={groupName} onChange={e=>{setGroupName(e.target.value);setSectionName('')}} required><option value=''>Select group</option>{groups.map(g=><option key={g}>{g}</option>)}</select></label>}
     <label>Section<select value={sectionName} onChange={e=>setSectionName(e.target.value)} required disabled={!sections.length}><option value="">Select section</option>{sections.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
     <label>Subject (optional)<select value={subjectName} onChange={e=>setSubjectName(e.target.value)}><option value="">All subjects / Class teacher</option>{subjects.filter(s=>s.standard_name===standardName).map(s=><option key={s.standard_name+':'+s.subject_name} value={s.subject_name}>{s.subject_name}</option>)}</select></label>
    </div>
